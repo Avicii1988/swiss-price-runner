@@ -1,0 +1,68 @@
+import type { LangCode } from "@/components/language-switcher";
+
+const translations: Record<LangCode, Record<string, string>> = {
+  de: {
+    heroTitle: "Der echte Preisvergleich für die Schweiz",
+    heroSubtitle: "Inkl. Zoll, MwSt. & Lieferkosten — so siehst du den wahren Preis.",
+    searchPlaceholder: "Produkt, GTIN oder URL suchen...",
+    searchButton: "Suchen",
+    trendingTitle: "Beliebte Produkte",
+    trendingSubtitle: "Tagesaktuelle Preise von Amazon.de, Galaxus & Zalando",
+    filterAll: "Alle",
+    footerTagline: "Made with precision in Switzerland.",
+    footerDisclaimer: "Preise inkl. geschätzter Zollgebühren und Schweizer MwSt. Alle Angaben ohne Gewähr.",
+    poweredBy: "Quellen",
+    stats: "Produkte",
+    statsTracked: "Preise geprüft",
+    statsSaved: "Ø Ersparnis",
+  },
+  fr: {
+    heroTitle: "Le vrai comparateur de prix pour la Suisse",
+    heroSubtitle: "Douane, TVA & livraison inclus — découvrez le vrai prix.",
+    searchPlaceholder: "Rechercher un produit, GTIN ou URL...",
+    searchButton: "Rechercher",
+    trendingTitle: "Produits populaires",
+    trendingSubtitle: "Prix actualisés d'Amazon.de, Galaxus & Zalando",
+    filterAll: "Tous",
+    footerTagline: "Fabriqué avec précision en Suisse.",
+    footerDisclaimer: "Prix incluant les frais de douane et TVA suisse estimés. Sans garantie.",
+    poweredBy: "Sources",
+    stats: "Produits",
+    statsTracked: "Prix vérifiés",
+    statsSaved: "Économie moy.",
+  },
+  it: {
+    heroTitle: "Il vero confronto prezzi per la Svizzera",
+    heroSubtitle: "Dogana, IVA & consegna inclusi — scopri il prezzo reale.",
+    searchPlaceholder: "Cerca prodotto, GTIN o URL...",
+    searchButton: "Cerca",
+    trendingTitle: "Prodotti popolari",
+    trendingSubtitle: "Prezzi aggiornati da Amazon.de, Galaxus e Zalando",
+    filterAll: "Tutti",
+    footerTagline: "Fatto con precisione in Svizzera.",
+    footerDisclaimer: "Prezzi comprensivi di dazi doganali e IVA svizzera stimati. Senza garanzia.",
+    poweredBy: "Fonti",
+    stats: "Prodotti",
+    statsTracked: "Prezzi verificati",
+    statsSaved: "Risparmio medio",
+  },
+  en: {
+    heroTitle: "The real price comparison for Switzerland",
+    heroSubtitle: "Incl. customs, VAT & shipping — see the true landed cost.",
+    searchPlaceholder: "Search product, GTIN or URL...",
+    searchButton: "Search",
+    trendingTitle: "Trending Products",
+    trendingSubtitle: "Live prices from Amazon.de, Galaxus & Zalando",
+    filterAll: "All",
+    footerTagline: "Made with precision in Switzerland.",
+    footerDisclaimer: "Prices include estimated customs duties and Swiss VAT. No guarantee.",
+    poweredBy: "Sources",
+    stats: "Products",
+    statsTracked: "Prices checked",
+    statsSaved: "Avg. savings",
+  },
+};
+
+export function t(lang: LangCode, key: string): string {
+  return translations[lang]?.[key] ?? translations.de[key] ?? key;
+}
