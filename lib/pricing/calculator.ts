@@ -32,7 +32,7 @@ const DUTY_FREE_THRESHOLD_CHF = 65;
 export const PriceInputSchema = z.object({
   amountEur: z.number().positive(),
   exchangeRate: z.number().positive(),
-  weightKg: z.number().nonneg().optional().default(0),
+  weightKg: z.number().nonnegative().optional().default(0),
   category: z.enum(["standard", "reduced"]).optional().default("standard"),
   clearanceType: z
     .enum(["vollverzollung", "vereinfacht"])
@@ -40,7 +40,7 @@ export const PriceInputSchema = z.object({
     .default("vereinfacht"),
 });
 
-export type PriceInput = z.infer<typeof PriceInputSchema>;
+export type PriceInput = z.input<typeof PriceInputSchema>;
 
 export interface PriceBreakdown {
   originalEur: number;
