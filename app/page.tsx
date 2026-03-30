@@ -253,28 +253,13 @@ export default function HomePage() {
       </section>
 
       {/* ----------------------------------------------------------------- */}
-      {/* Footer */}
+      {/* Page-level sources bar (global footer is in layout.tsx) */}
       {/* ----------------------------------------------------------------- */}
-      <footer className="border-t border-gray-100 bg-white py-8">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold tracking-tight text-gray-900">
-                Swiss<span className="text-red-600">Price</span>Runner
-              </span>
-              <span className="text-xs text-gray-400">
-                &copy; {new Date().getFullYear()}
-              </span>
-            </div>
-            <div className="flex items-center gap-4 text-[11px] text-gray-400">
-              <span>{t(lang, "poweredBy")}: Amazon.de, Galaxus, Zalando</span>
-            </div>
-          </div>
-          <p className="mt-4 text-center text-[10px] text-gray-300">
-            {t(lang, "footerDisclaimer")}
-          </p>
-        </div>
-      </footer>
+      <div className="border-t border-gray-100 bg-white py-4">
+        <p className="text-center text-[11px] text-gray-400">
+          {t(lang, "poweredBy")}: Amazon.de &middot; Galaxus &middot; Zalando
+        </p>
+      </div>
     </div>
   );
 }
