@@ -31,20 +31,20 @@ export function Sparkline({
     return { x, y };
   });
 
-  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
-  const fillPath = `${linePath} L${points[points.length - 1].x},${height} L${points[0].x},${height} Z`;
+  const linePath = points
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+    .join(" ");
+  const fillPath = `${linePath} L${points[points.length - 1].x.toFixed(1)},${height} L${points[0].x.toFixed(1)},${height} Z`;
 
-  // Current vs. 30d-ago comparison
   const trending = data[data.length - 1] < data[0] ? "down" : "up";
   const strokeColor = trending === "down" ? "#16a34a" : color;
   const bgColor = trending === "down" ? "#16a34a15" : fillColor;
 
   return (
     <svg
-      width={width}
-      height={height}
       viewBox={`0 0 ${width} ${height}`}
-      className="overflow-visible"
+      className="w-full h-auto overflow-visible"
+      preserveAspectRatio="xMidYMid meet"
     >
       <path d={fillPath} fill={bgColor} />
       <path
@@ -55,7 +55,6 @@ export function Sparkline({
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Current price dot */}
       <circle
         cx={points[points.length - 1].x}
         cy={points[points.length - 1].y}

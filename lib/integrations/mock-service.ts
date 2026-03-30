@@ -10,6 +10,7 @@ export interface MockProduct {
   brand: string;
   category: string;
   imageUrl: string;
+  featured: boolean;
   sources: MockSource[];
 }
 
@@ -25,6 +26,7 @@ export interface MockPricePoint {
   amountEur: number;
   amountChf: number;
   sourceId: string;
+  sourceName: string;
 }
 
 export interface MockProductWithHistory {
@@ -36,10 +38,16 @@ export interface MockProductWithHistory {
 }
 
 // ---------------------------------------------------------------------------
-// Seed data – 10 popular products in Switzerland
+// Seed data – 10 popular Swiss-market products
 // ---------------------------------------------------------------------------
 
 const EXCHANGE_RATE = 0.94;
+
+const SOURCE_NAMES: Record<string, string> = {
+  amazon_de: "Amazon.de",
+  galaxus_ch: "Galaxus",
+  zalando_de: "Zalando",
+};
 
 const MOCK_PRODUCTS: MockProduct[] = [
   {
@@ -47,7 +55,8 @@ const MOCK_PRODUCTS: MockProduct[] = [
     title: "iPhone 15 Pro 256GB Titan Natur",
     brand: "Apple",
     category: "Smartphones",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=iPhone+15+Pro",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=iPhone+15+Pro",
+    featured: true,
     sources: [
       { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 1179.0 },
       { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 1249.0 },
@@ -55,14 +64,40 @@ const MOCK_PRODUCTS: MockProduct[] = [
     ],
   },
   {
+    gtin: "00764011644505",
+    title: "On Cloud 5 Laufschuhe – All Black",
+    brand: "On Running",
+    category: "Schuhe",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=On+Cloud+5",
+    featured: true,
+    sources: [
+      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 149.95 },
+      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 169.9 },
+      { sourceId: "zalando_de", sourceName: "Zalando", url: "#", currentPriceEur: 149.95 },
+    ],
+  },
+  {
     gtin: "00027242923379",
     title: "Sony WH-1000XM5 Noise Cancelling",
     brand: "Sony",
     category: "Kopfhörer",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=Sony+XM5",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=Sony+XM5",
+    featured: true,
     sources: [
       { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 279.0 },
       { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 299.0 },
+    ],
+  },
+  {
+    gtin: "00050946000282",
+    title: "Nespresso Vertuo Next Kapselmaschine",
+    brand: "Nespresso",
+    category: "Haushalt",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=Nespresso+Vertuo",
+    featured: true,
+    sources: [
+      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 129.0 },
+      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 149.0 },
     ],
   },
   {
@@ -70,7 +105,8 @@ const MOCK_PRODUCTS: MockProduct[] = [
     title: "Samsung Galaxy S24 Ultra 256GB",
     brand: "Samsung",
     category: "Smartphones",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=Galaxy+S24",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=Galaxy+S24+Ultra",
+    featured: false,
     sources: [
       { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 1199.0 },
       { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 1279.0 },
@@ -78,22 +114,12 @@ const MOCK_PRODUCTS: MockProduct[] = [
     ],
   },
   {
-    gtin: "00045496883386",
-    title: "Nintendo Switch OLED Weiss",
-    brand: "Nintendo",
-    category: "Gaming",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=Switch+OLED",
-    sources: [
-      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 299.0 },
-      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 319.0 },
-    ],
-  },
-  {
     gtin: "00885909961009",
     title: "Apple AirPods Pro 2. Generation USB-C",
     brand: "Apple",
     category: "Kopfhörer",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=AirPods+Pro",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=AirPods+Pro+2",
+    featured: true,
     sources: [
       { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 229.0 },
       { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 245.0 },
@@ -101,60 +127,52 @@ const MOCK_PRODUCTS: MockProduct[] = [
     ],
   },
   {
-    gtin: "00196337069534",
-    title: "Dyson V15 Detect Absolute",
-    brand: "Dyson",
-    category: "Haushalt",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=Dyson+V15",
-    sources: [
-      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 599.0 },
-      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 649.0 },
-    ],
-  },
-  {
     gtin: "00194253392828",
-    title: "MacBook Air M3 13\" 256GB",
+    title: 'MacBook Air M3 13" 256GB Midnight',
     brand: "Apple",
     category: "Laptops",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=MacBook+Air",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=MacBook+Air+M3",
+    featured: true,
     sources: [
       { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 1099.0 },
       { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 1149.0 },
     ],
   },
   {
-    gtin: "00810028588103",
-    title: "Bose QuietComfort Ultra Earbuds",
-    brand: "Bose",
-    category: "Kopfhörer",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=Bose+QC+Ultra",
+    gtin: "00764011644260",
+    title: "On Cloudmonster 2 – Undyed/Frost",
+    brand: "On Running",
+    category: "Schuhe",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=On+Cloudmonster",
+    featured: false,
     sources: [
-      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 249.0 },
-      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 269.0 },
-      { sourceId: "zalando_de", sourceName: "Zalando", url: "#", currentPriceEur: 259.0 },
+      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 169.95 },
+      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 179.9 },
+      { sourceId: "zalando_de", sourceName: "Zalando", url: "#", currentPriceEur: 169.95 },
     ],
   },
   {
-    gtin: "00887276735399",
-    title: 'Samsung OLED 4K Smart TV 55" S95D',
-    brand: "Samsung",
-    category: "TV & Audio",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=Samsung+OLED",
+    gtin: "00196337069534",
+    title: "Dyson V15 Detect Absolute",
+    brand: "Dyson",
+    category: "Haushalt",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=Dyson+V15",
+    featured: true,
     sources: [
-      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 1399.0 },
-      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 1499.0 },
+      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 599.0 },
+      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 649.0 },
     ],
   },
   {
-    gtin: "00889842861037",
-    title: "Samsung Galaxy Watch 6 Classic 47mm",
-    brand: "Samsung",
-    category: "Wearables",
-    imageUrl: "https://placehold.co/400x400/f8f8f8/333?text=Galaxy+Watch",
+    gtin: "00045496883386",
+    title: "Nintendo Switch OLED Weiss",
+    brand: "Nintendo",
+    category: "Gaming",
+    imageUrl: "https://placehold.co/400x400/f8f8f8/111?text=Switch+OLED",
+    featured: false,
     sources: [
-      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 319.0 },
-      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 349.0 },
-      { sourceId: "zalando_de", sourceName: "Zalando", url: "#", currentPriceEur: 329.0 },
+      { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: 299.0 },
+      { sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: 319.0 },
     ],
   },
 ];
@@ -175,9 +193,7 @@ function seededRandom(seed: number): () => number {
 // Generate 30-day price history
 // ---------------------------------------------------------------------------
 
-function generatePriceHistory(
-  product: MockProduct,
-): MockPricePoint[] {
+function generatePriceHistory(product: MockProduct): MockPricePoint[] {
   const history: MockPricePoint[] = [];
   const now = new Date();
   const seed = product.gtin.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -189,7 +205,6 @@ function generatePriceHistory(
     const dateStr = date.toISOString().slice(0, 10);
 
     for (const source of product.sources) {
-      // Simulate realistic price fluctuation: ±8% over 30 days
       const drift = 1 + (rand() - 0.5) * 0.16;
       const amountEur = Math.round(source.currentPriceEur * drift * 100) / 100;
 
@@ -205,6 +220,7 @@ function generatePriceHistory(
         amountEur,
         amountChf: breakdown.totalChf,
         sourceId: source.sourceId,
+        sourceName: SOURCE_NAMES[source.sourceId] ?? source.sourceId,
       });
     }
   }
@@ -220,7 +236,6 @@ export function getMockProducts(): MockProductWithHistory[] {
   return MOCK_PRODUCTS.map((product) => {
     const priceHistory = generatePriceHistory(product);
 
-    // Best current price across all sources
     const latestPrices = product.sources.map((s) => {
       const breakdown = calculateSwissPrice({
         amountEur: s.currentPriceEur,
@@ -235,10 +250,7 @@ export function getMockProducts(): MockProductWithHistory[] {
       cur.breakdown.totalChf < min.breakdown.totalChf ? cur : min,
     );
 
-    // 30-day price drop: compare oldest best CHF to current best CHF
-    const oldestDay = priceHistory.filter(
-      (p) => p.date === priceHistory[0].date,
-    );
+    const oldestDay = priceHistory.filter((p) => p.date === priceHistory[0].date);
     const oldestBestChf = Math.min(...oldestDay.map((p) => p.amountChf));
     const priceDrop30d = oldestBestChf - best.breakdown.totalChf;
 
@@ -252,9 +264,11 @@ export function getMockProducts(): MockProductWithHistory[] {
   });
 }
 
-export function getMockProductByGtin(
-  gtin: string,
-): MockProductWithHistory | undefined {
+export function getFeaturedProducts(): MockProductWithHistory[] {
+  return getMockProducts().filter((p) => p.product.featured);
+}
+
+export function getMockProductByGtin(gtin: string): MockProductWithHistory | undefined {
   return getMockProducts().find((p) => p.product.gtin === gtin);
 }
 
