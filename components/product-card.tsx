@@ -1,7 +1,8 @@
 "use client";
 
-import { TrendingDown, TrendingUp, ExternalLink, Bell } from "lucide-react";
+import { TrendingDown, TrendingUp, ExternalLink, Heart } from "lucide-react";
 import { Sparkline } from "./sparkline";
+import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface ProductCardProps {
@@ -24,6 +25,8 @@ const SOURCE_LABELS: Record<string, string> = {
 export function ProductCard({ item, onSelect }: ProductCardProps) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d } = item;
   const isDropping = priceDrop30d > 0;
+  const { isLoggedIn, isFavorite, toggleFavorite, setShowAuthModal } = useAuth();
+  const faved = isFavorite(product.gtin);
 
   const bestSourceId = product.sources.find(
     (s) => s.sourceName === bestSource,
@@ -152,10 +155,16 @@ export function ProductCard({ item, onSelect }: ProductCardProps) {
             Zum Shop
           </button>
           <button
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center justify-center rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-500 transition hover:border-red-300 hover:text-red-600 sm:px-3 sm:py-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isLoggedIn) { setShowAuthModal(true); return; }
+              toggleFavorite(product.gtin);
+            }}
+            className={`flex items-center justify-center rounded-lg border px-2.5 py-1.5 transition sm:px-3 sm:py-2 ${
+              faved ? "border-red-300 bg-red-50 text-red-500" : "border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-600"
+            }`}
           >
-            <Bell className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <Heart className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${faved ? "fill-current" : ""}`} />
           </button>
         </div>
       </div>
