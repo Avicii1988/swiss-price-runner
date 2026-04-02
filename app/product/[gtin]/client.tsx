@@ -10,6 +10,7 @@ import {
   Bell,
   ShieldCheck,
   Truck,
+  Plane,
   TrendingDown,
   TrendingUp,
   Share2,
@@ -18,6 +19,7 @@ import { PriceHistoryChart } from "@/components/price-history-chart";
 import { PriceDropBadge } from "@/components/price-drop-badge";
 import { ShippingTooltip } from "@/components/shipping-tooltip";
 import { PriceAlertModal } from "@/components/price-alert-modal";
+import { HowWeCalculateButton } from "@/components/how-we-calculate";
 import { useAuth } from "@/lib/auth/auth-context";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
@@ -119,6 +121,34 @@ export function ProductDetailClient({ item }: Props) {
                 {product.title}
               </h1>
               <p className="mt-1 text-xs text-gray-400">GTIN: {product.gtin}</p>
+
+              {/* Import Winner / Swiss Warranty badges */}
+              {(() => {
+                const bestSid = sourceBreakdowns.reduce((a, b) => a.breakdown.totalChf < b.breakdown.totalChf ? a : b);
+                const worstSid = sourceBreakdowns.reduce((a, b) => a.breakdown.totalChf > b.breakdown.totalChf ? a : b);
+                const savPct = Math.round(((worstSid.breakdown.totalChf - bestSid.breakdown.totalChf) / worstSid.breakdown.totalChf) * 100);
+                const isImport = bestSid.sourceId === "amazon_de" || bestSid.sourceId === "zalando_de";
+                const isSwiss = bestSid.sourceId === "galaxus_ch";
+                return (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {isImport && savPct >= 3 && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase text-white">
+                        <Plane className="h-3 w-3" /> Import spart {savPct}%
+                      </span>
+                    )}
+                    {isSwiss && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase text-white">
+                        <ShieldCheck className="h-3 w-3" /> CH Garantie &amp; Service
+                      </span>
+                    )}
+                    {sourceBreakdowns.some((s) => s.sourceId === "galaxus_ch" && !s.isBest) && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-medium text-gray-600">
+                        <ShieldCheck className="h-3 w-3" /> Schweizer Garantie via Galaxus
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Price hero + badges */}
@@ -237,6 +267,9 @@ export function ProductDetailClient({ item }: Props) {
               <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-medium text-gray-600">
                 Kurs: {EXCHANGE_RATE} CHF/EUR
               </span>
+            </div>
+            <div className="mt-3">
+              <HowWeCalculateButton />
             </div>
           </div>
         </div>

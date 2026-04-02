@@ -21,6 +21,7 @@ import { ProductCard } from "@/components/product-card";
 import { FeaturedDeal } from "@/components/featured-deal";
 import { ProductDetailModal } from "@/components/product-detail-modal";
 import { PriceAlertModal } from "@/components/price-alert-modal";
+import { HowWeCalculateButton } from "@/components/how-we-calculate";
 import { CategoryNav } from "@/components/category-nav";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { t } from "@/lib/i18n";
@@ -344,6 +345,9 @@ export default function HomePage() {
                 <p className="mt-1 text-xs leading-relaxed text-gray-500">{desc}</p>
               </div>
             ))}
+          </div>
+          <div className="mt-8 text-center">
+            <HowWeCalculateButton />
           </div>
         </div>
       </section>
