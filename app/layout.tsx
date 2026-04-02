@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { AuthModal } from "@/components/auth-modal";
+import { BackToTop } from "@/components/back-to-top";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -31,10 +32,12 @@ export default function RootLayout({
         <AuthProvider>
           <AuthModal />
           {children}
+          <BackToTop />
 
-          {/* ---- Global footer with affiliate disclaimer & legal links ---- */}
+          {/* ── Global Footer ── */}
           <footer className="border-t border-gray-100 bg-gray-50">
-            <div className="bg-amber-50 border-b border-amber-100">
+            {/* Affiliate disclaimer */}
+            <div className="border-b border-amber-100 bg-amber-50">
               <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
                 <p className="text-center text-[11px] leading-relaxed text-amber-800">
                   <span className="font-semibold">Affiliate-Hinweis:</span>{" "}
@@ -45,6 +48,40 @@ export default function RootLayout({
               </div>
             </div>
 
+            {/* Partner-Netzwerk logos */}
+            <div className="border-b border-gray-100">
+              <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
+                <p className="text-center text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+                  Partner-Netzwerk
+                </p>
+                <div className="mt-3 flex items-center justify-center gap-8 sm:gap-12">
+                  {/* Amazon PartnerNet */}
+                  <div className="flex flex-col items-center gap-1 opacity-40 grayscale transition hover:opacity-70">
+                    <svg viewBox="0 0 120 36" className="h-5 w-auto sm:h-6" fill="currentColor" aria-label="Amazon">
+                      <text x="0" y="26" fontFamily="system-ui, sans-serif" fontSize="22" fontWeight="800" letterSpacing="-0.5">amazon</text>
+                      <path d="M47 30 C55 34, 70 36, 90 30" fill="none" stroke="#FF9900" strokeWidth="2.5" strokeLinecap="round" opacity="0.7" />
+                    </svg>
+                    <span className="text-[8px] text-gray-400">PartnerNet</span>
+                  </div>
+                  {/* Galaxus */}
+                  <div className="flex flex-col items-center gap-1 opacity-40 grayscale transition hover:opacity-70">
+                    <svg viewBox="0 0 100 36" className="h-5 w-auto sm:h-6" fill="currentColor" aria-label="Galaxus">
+                      <text x="0" y="26" fontFamily="system-ui, sans-serif" fontSize="22" fontWeight="800" letterSpacing="-0.5">Galaxus</text>
+                    </svg>
+                    <span className="text-[8px] text-gray-400">Affiliate</span>
+                  </div>
+                  {/* Zalando */}
+                  <div className="flex flex-col items-center gap-1 opacity-40 grayscale transition hover:opacity-70">
+                    <svg viewBox="0 0 100 36" className="h-5 w-auto sm:h-6" fill="currentColor" aria-label="Zalando">
+                      <text x="0" y="26" fontFamily="system-ui, sans-serif" fontSize="22" fontWeight="700" letterSpacing="1">ZALANDO</text>
+                    </svg>
+                    <span className="text-[8px] text-gray-400">Partner</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main footer content */}
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
                 <div className="flex items-center gap-2">
@@ -75,7 +112,10 @@ export default function RootLayout({
               <p className="mt-4 text-center text-[10px] leading-relaxed text-gray-400">
                 Preise inkl. geschätzter Zollgebühren und Schweizer MwSt. Alle
                 Angaben ohne Gewähr. SwissPriceRunner ist Teilnehmer des
-                Amazon-Partnerprogramms (Amazon PartnerNet).
+                Amazon-Partnerprogramms (Amazon PartnerNet), einem
+                Affiliate-Programm zur Bereitstellung eines Mediums für
+                Webseiten, mittels dessen durch die Platzierung von Werbung und
+                Links Werbekostenerstattung verdient werden kann.
               </p>
             </div>
           </footer>
