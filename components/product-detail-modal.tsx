@@ -118,7 +118,7 @@ export function ProductDetailModal({ item, onClose }: ProductDetailModalProps) {
           <h3 className="mb-3 text-sm font-bold text-gray-900">
             Preisverlauf – 30 Tage (CHF inkl. Zoll &amp; MwSt.)
           </h3>
-          <PriceHistoryChart history={priceHistory} />
+          <PriceHistoryChart product={product} history30d={priceHistory} />
         </div>
 
         {/* Source comparison table */}

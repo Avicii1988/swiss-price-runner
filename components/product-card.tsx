@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { TrendingDown, TrendingUp, ExternalLink, Heart } from "lucide-react";
 import { Sparkline } from "./sparkline";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -36,9 +37,9 @@ export function ProductCard({ item, onSelect }: ProductCardProps) {
     .map((p) => p.amountChf);
 
   return (
-    <div
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-lg hover:border-gray-200 cursor-pointer"
-      onClick={() => onSelect?.(item)}
+    <Link
+      href={`/product/${product.gtin}`}
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-lg hover:border-gray-200"
     >
       {/* Category badge */}
       <div className="absolute left-3 top-3 z-10">
@@ -148,7 +149,7 @@ export function ProductCard({ item, onSelect }: ProductCardProps) {
         {/* Actions */}
         <div className="mt-2 flex gap-2 sm:mt-3">
           <button
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => e.preventDefault()}
             className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-red-600 py-1.5 text-[10px] font-semibold text-white transition hover:bg-red-700 sm:gap-1.5 sm:py-2 sm:text-xs"
           >
             <ExternalLink className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -156,7 +157,7 @@ export function ProductCard({ item, onSelect }: ProductCardProps) {
           </button>
           <button
             onClick={(e) => {
-              e.stopPropagation();
+              e.preventDefault();
               if (!isLoggedIn) { setShowAuthModal(true); return; }
               toggleFavorite(product.gtin);
             }}
@@ -168,6 +169,6 @@ export function ProductCard({ item, onSelect }: ProductCardProps) {
           </button>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
