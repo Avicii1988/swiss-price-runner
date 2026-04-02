@@ -20,6 +20,7 @@ import { PriceDropBadge } from "@/components/price-drop-badge";
 import { ShippingTooltip } from "@/components/shipping-tooltip";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { HowWeCalculateButton } from "@/components/how-we-calculate";
+import { EmailAlertForm } from "@/components/email-alert-form";
 import { useAuth } from "@/lib/auth/auth-context";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
@@ -251,9 +252,18 @@ export function ProductDetailClient({ item }: Props) {
               </div>
             </div>
 
-            {/* ─── Price History Chart ─── */}
-            <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
-              <PriceHistoryChart product={product} history30d={priceHistory} />
+            {/* ─── Price History + Email Alert side by side ─── */}
+            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-5">
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 lg:col-span-3">
+                <PriceHistoryChart product={product} history30d={priceHistory} />
+              </div>
+              <div className="lg:col-span-2">
+                <EmailAlertForm
+                  productGtin={product.gtin}
+                  productTitle={product.title}
+                  currentPriceChf={bestPrice.totalChf}
+                />
+              </div>
             </div>
 
             {/* Tags */}

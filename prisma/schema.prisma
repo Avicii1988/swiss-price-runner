@@ -43,16 +43,18 @@ model Price {
 
 model UserAlert {
   id          String   @id @default(cuid())
-  userId      String
+  email       String
   productId   String
   targetPrice Decimal  @db.Decimal(10, 2)
+  isNotified  Boolean  @default(false)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([email])
   @@index([productId])
-  @@unique([userId, productId])
+  @@index([isActive, isNotified])
+  @@unique([email, productId])
 }
