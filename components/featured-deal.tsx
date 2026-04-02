@@ -1,15 +1,17 @@
 "use client";
 
-import { TrendingDown, TrendingUp, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { TrendingDown, TrendingUp, ArrowRight, Bell } from "lucide-react";
 import { Sparkline } from "./sparkline";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface FeaturedDealProps {
   item: MockProductWithHistory;
   onSelect?: (item: MockProductWithHistory) => void;
+  onAlert?: (item: MockProductWithHistory) => void;
 }
 
-export function FeaturedDeal({ item, onSelect }: FeaturedDealProps) {
+export function FeaturedDeal({ item, onSelect, onAlert }: FeaturedDealProps) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d } = item;
   const isDropping = priceDrop30d > 0;
 
@@ -21,9 +23,9 @@ export function FeaturedDeal({ item, onSelect }: FeaturedDealProps) {
     .map((p) => p.amountChf);
 
   return (
-    <div
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-lg hover:border-gray-200 sm:flex-row"
-      onClick={() => onSelect?.(item)}
+    <Link
+      href={`/product/${product.gtin}`}
+      className="group flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-lg hover:border-gray-200 sm:flex-row"
     >
       {/* Image */}
       <div className="flex shrink-0 items-center justify-center bg-gray-50 p-6 sm:w-48 sm:p-8">
@@ -81,12 +83,15 @@ export function FeaturedDeal({ item, onSelect }: FeaturedDealProps) {
                 +{Math.abs(priceDrop30d).toFixed(0)}
               </span>
             )}
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 transition group-hover:gap-2">
-              Details <ArrowRight className="h-3 w-3" />
-            </span>
+            <button
+              onClick={(e) => { e.preventDefault(); onAlert?.(item); }}
+              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-gray-600 transition hover:border-red-300 hover:text-red-600"
+            >
+              <Bell className="h-3 w-3" /> Alarm
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

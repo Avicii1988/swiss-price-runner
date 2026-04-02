@@ -14,6 +14,7 @@ import { CATEGORIES, getCategoryBySlug, type Category } from "@/lib/categories";
 import { getProductsByCategory, getMockProducts, type MockProductWithHistory } from "@/lib/integrations/mock-service";
 import { ProductCard } from "@/components/product-card";
 import { ProductDetailModal } from "@/components/product-detail-modal";
+import { PriceAlertModal } from "@/components/price-alert-modal";
 
 interface PageProps {
   params: { slug: string };
@@ -25,6 +26,7 @@ type ViewMode = "grid" | "list";
 export default function CategoryPage({ params }: PageProps) {
   const category = getCategoryBySlug(params.slug);
   const [selectedProduct, setSelectedProduct] = useState<MockProductWithHistory | null>(null);
+  const [alertProduct, setAlertProduct] = useState<MockProductWithHistory | null>(null);
   const [sort, setSort] = useState<SortOption>("popular");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [priceMin, setPriceMin] = useState("");
@@ -61,6 +63,11 @@ export default function CategoryPage({ params }: PageProps) {
 
   const handleSelect = useCallback((item: MockProductWithHistory) => {
     setSelectedProduct(item);
+  }, []);
+
+  const handleAlert = useCallback((item: MockProductWithHistory) => {
+    setSelectedProduct(null);
+    setAlertProduct(item);
   }, []);
 
   const toggleBrand = (brand: string) => {
@@ -159,6 +166,13 @@ export default function CategoryPage({ params }: PageProps) {
         <ProductDetailModal
           item={selectedProduct}
           onClose={() => setSelectedProduct(null)}
+          onOpenAlert={handleAlert}
+        />
+      )}
+      {alertProduct && (
+        <PriceAlertModal
+          item={alertProduct}
+          onClose={() => setAlertProduct(null)}
         />
       )}
 
@@ -292,6 +306,7 @@ export default function CategoryPage({ params }: PageProps) {
                   key={item.product.gtin}
                   item={item}
                   onSelect={handleSelect}
+                  onAlert={handleAlert}
                 />
               ))}
             </div>

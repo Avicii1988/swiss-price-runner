@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { X, Bell, Mail, Smartphone, SlidersHorizontal } from "lucide-react";
+import {
+  X, Bell, Mail, Smartphone, SlidersHorizontal,
+  TrendingDown, CheckCircle2, Zap, Clock, Target,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -19,15 +22,21 @@ const SOURCE_OPTIONS = [
 
 export function PriceAlertModal({ item, onClose }: PriceAlertModalProps) {
   const { isLoggedIn, setShowAuthModal, addAlert } = useAuth();
-  const { product, bestPrice } = item;
+  const { product, bestPrice, avgChf30d, priceDrop30d } = item;
+
+  // Smart defaults based on product data
+  const fivePercentBelow = Math.floor(bestPrice.totalChf * 0.95);
+  const tenPercentBelow = Math.floor(bestPrice.totalChf * 0.9);
+  const allTimeLowEstimate = Math.floor(bestPrice.totalChf * 0.85);
 
   const [condition, setCondition] = useState<"below" | "drops_by_percent" | "drops_by_amount">("below");
-  const [targetPrice, setTargetPrice] = useState(Math.floor(bestPrice.totalChf * 0.9));
+  const [targetPrice, setTargetPrice] = useState(tenPercentBelow);
   const [dropPercent, setDropPercent] = useState(10);
   const [dropAmount, setDropAmount] = useState(50);
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [notifyEmail, setNotifyEmail] = useState(true);
-  const [notifyPush, setNotifyPush] = useState(false);
+  const [notifyPush, setNotifyPush] = useState(true);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = () => {
     if (!isLoggedIn) {
@@ -50,12 +59,40 @@ export function PriceAlertModal({ item, onClose }: PriceAlertModalProps) {
       notifyPush,
       sourceFilter,
     });
-    onClose();
+
+    setSubmitted(true);
+    setTimeout(() => onClose(), 2000);
   };
+
+  // ── Success screen ──
+  if (submitted) {
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-2xl">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
+            <CheckCircle2 className="h-8 w-8 text-green-500" />
+          </div>
+          <h2 className="mt-4 text-lg font-bold text-gray-900">Alarm aktiviert!</h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Wir benachrichtigen dich bei{" "}
+            {condition === "below" && `unter CHF ${targetPrice}`}
+            {condition === "drops_by_percent" && `${dropPercent}% Preissenkung`}
+            {condition === "drops_by_amount" && `CHF ${dropAmount} Preissenkung`}
+            {" "}für:
+          </p>
+          <p className="mt-1 text-sm font-semibold text-gray-900">{product.title}</p>
+          <div className="mt-3 flex justify-center gap-2">
+            {notifyEmail && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-600">E-Mail</span>}
+            {notifyPush && <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[10px] font-semibold text-purple-600">Push</span>}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-black/50 backdrop-blur-sm p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl">
@@ -66,24 +103,66 @@ export function PriceAlertModal({ item, onClose }: PriceAlertModalProps) {
           <X className="h-4 w-4" />
         </button>
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="border-b border-gray-100 p-5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
               <Bell className="h-5 w-5 text-red-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-base font-bold text-gray-900">Preisalarm einrichten</h2>
-              <p className="text-xs text-gray-400 line-clamp-1">{product.title}</p>
+              <p className="truncate text-xs text-gray-400">{product.title}</p>
             </div>
           </div>
-          <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2">
-            <p className="text-[10px] text-gray-400">Aktueller Bestpreis</p>
-            <p className="text-lg font-bold text-gray-900">CHF {bestPrice.totalChf.toFixed(2)}</p>
+
+          {/* Price context bar */}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="rounded-lg bg-gray-50 px-2.5 py-2 text-center">
+              <p className="text-[9px] font-medium uppercase text-gray-400">Aktuell</p>
+              <p className="text-sm font-bold text-gray-900">CHF {bestPrice.totalChf.toFixed(0)}</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 px-2.5 py-2 text-center">
+              <p className="text-[9px] font-medium uppercase text-gray-400">Ø 30 Tage</p>
+              <p className="text-sm font-bold text-gray-500">CHF {avgChf30d.toFixed(0)}</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 px-2.5 py-2 text-center">
+              <p className="text-[9px] font-medium uppercase text-gray-400">30d Trend</p>
+              <p className={`text-sm font-bold ${priceDrop30d > 0 ? "text-green-600" : "text-red-500"}`}>
+                {priceDrop30d > 0 ? "−" : "+"}{Math.abs(priceDrop30d).toFixed(0)}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Condition */}
+        {/* ── Smart Quick Picks ── */}
+        <div className="border-b border-gray-100 px-5 py-3">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+            <Zap className="h-3 w-3" /> Schnellauswahl
+          </p>
+          <div className="mt-2 flex gap-2">
+            {[
+              { label: "−5%", price: fivePercentBelow, icon: Target },
+              { label: "−10%", price: tenPercentBelow, icon: TrendingDown },
+              { label: "Tiefstwert", price: allTimeLowEstimate, icon: Clock },
+            ].map(({ label, price, icon: Icon }) => (
+              <button
+                key={label}
+                onClick={() => { setCondition("below"); setTargetPrice(price); }}
+                className={`flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-2 text-center transition ${
+                  condition === "below" && targetPrice === price
+                    ? "border-red-300 bg-red-50"
+                    : "border-gray-100 bg-gray-50 hover:border-gray-200"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5 text-gray-500" />
+                <span className="text-[10px] font-semibold text-gray-700">{label}</span>
+                <span className="text-xs font-bold text-gray-900">CHF {price}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Condition ── */}
         <div className="space-y-4 p-5">
           <div>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
@@ -97,12 +176,7 @@ export function PriceAlertModal({ item, onClose }: PriceAlertModalProps) {
                 {condition === "below" && (
                   <div className="flex items-center gap-1">
                     <span className="text-gray-400">CHF</span>
-                    <input
-                      type="number"
-                      value={targetPrice}
-                      onChange={(e) => setTargetPrice(Number(e.target.value))}
-                      className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-right text-xs font-semibold outline-none focus:border-red-400"
-                    />
+                    <input type="number" value={targetPrice} onChange={(e) => setTargetPrice(Number(e.target.value))} className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-right text-xs font-semibold outline-none focus:border-red-400" />
                   </div>
                 )}
               </label>
@@ -112,14 +186,7 @@ export function PriceAlertModal({ item, onClose }: PriceAlertModalProps) {
                 <span className="flex-1">Preis sinkt um Prozent</span>
                 {condition === "drops_by_percent" && (
                   <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={dropPercent}
-                      onChange={(e) => setDropPercent(Number(e.target.value))}
-                      min={1}
-                      max={90}
-                      className="w-16 rounded-lg border border-gray-200 bg-white px-2 py-1 text-right text-xs font-semibold outline-none focus:border-red-400"
-                    />
+                    <input type="number" value={dropPercent} onChange={(e) => setDropPercent(Number(e.target.value))} min={1} max={90} className="w-16 rounded-lg border border-gray-200 bg-white px-2 py-1 text-right text-xs font-semibold outline-none focus:border-red-400" />
                     <span className="text-gray-400">%</span>
                   </div>
                 )}
@@ -131,13 +198,7 @@ export function PriceAlertModal({ item, onClose }: PriceAlertModalProps) {
                 {condition === "drops_by_amount" && (
                   <div className="flex items-center gap-1">
                     <span className="text-gray-400">CHF</span>
-                    <input
-                      type="number"
-                      value={dropAmount}
-                      onChange={(e) => setDropAmount(Number(e.target.value))}
-                      min={1}
-                      className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-right text-xs font-semibold outline-none focus:border-red-400"
-                    />
+                    <input type="number" value={dropAmount} onChange={(e) => setDropAmount(Number(e.target.value))} min={1} className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-right text-xs font-semibold outline-none focus:border-red-400" />
                   </div>
                 )}
               </label>
@@ -176,14 +237,18 @@ export function PriceAlertModal({ item, onClose }: PriceAlertModalProps) {
           </div>
         </div>
 
-        {/* Submit */}
+        {/* ── Submit ── */}
         <div className="border-t border-gray-100 p-5">
           <button
             onClick={handleSubmit}
-            className="w-full rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
           >
+            <Bell className="h-4 w-4" />
             {isLoggedIn ? "Alarm aktivieren" : "Anmelden & Alarm setzen"}
           </button>
+          <p className="mt-2 text-center text-[10px] text-gray-400">
+            Kostenlos · Jederzeit kündbar · Kein Spam
+          </p>
         </div>
       </div>
     </div>

@@ -144,6 +144,21 @@ export function ProductDetailClient({ item }: Props) {
               </div>
             </div>
 
+            {/* Desktop Alert + Shop buttons */}
+            <div className="mt-4 hidden gap-3 sm:flex">
+              <button
+                onClick={() => setShowAlert(true)}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+              >
+                <Bell className="h-4 w-4" />
+                Preisalarm setzen
+              </button>
+              <button className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-300">
+                <ExternalLink className="h-4 w-4" />
+                Zum besten Shop
+              </button>
+            </div>
+
             {/* Swiss Final Price Breakdown */}
             <div className="mt-5 rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
               <h2 className="flex items-center gap-2 text-sm font-bold text-gray-900">

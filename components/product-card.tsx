@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { TrendingDown, TrendingUp, ExternalLink, Heart } from "lucide-react";
+import { TrendingDown, TrendingUp, ExternalLink, Heart, Bell } from "lucide-react";
 import { Sparkline } from "./sparkline";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
@@ -9,6 +9,7 @@ import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 interface ProductCardProps {
   item: MockProductWithHistory;
   onSelect?: (item: MockProductWithHistory) => void;
+  onAlert?: (item: MockProductWithHistory) => void;
 }
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -23,7 +24,7 @@ const SOURCE_LABELS: Record<string, string> = {
   zalando_de: "Zalando",
 };
 
-export function ProductCard({ item, onSelect }: ProductCardProps) {
+export function ProductCard({ item, onSelect, onAlert }: ProductCardProps) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d } = item;
   const isDropping = priceDrop30d > 0;
   const { isLoggedIn, isFavorite, toggleFavorite, setShowAuthModal } = useAuth();
@@ -154,6 +155,15 @@ export function ProductCard({ item, onSelect }: ProductCardProps) {
           >
             <ExternalLink className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             Zum Shop
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onAlert?.(item);
+            }}
+            className="flex items-center justify-center rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-500 transition hover:border-amber-300 hover:text-amber-600 sm:px-3 sm:py-2"
+          >
+            <Bell className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </button>
           <button
             onClick={(e) => {

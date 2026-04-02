@@ -30,6 +30,11 @@ export interface MockProduct {
 
 type SeedProduct = MockProduct;
 
+// Deterministic seed from GTIN for unique picsum image per product
+function gtinToSeed(gtin: string): number {
+  return parseInt(gtin.slice(-4), 10) % 1000;
+}
+
 function p(
   gtin: string,
   title: string,
@@ -38,7 +43,8 @@ function p(
   featured: boolean,
   sources: [eur: number, eur?: number, eur?: number],
 ): SeedProduct {
-  const img = encodeURIComponent(title.replace(/[^a-zA-Z0-9 ]/g, "").slice(0, 24));
+  const seed = gtinToSeed(gtin);
+  const img = `https://picsum.photos/seed/${seed}/400/400`;
   const s: SeedProduct["sources"] = [
     { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: sources[0] },
   ];
@@ -50,7 +56,7 @@ function p(
   }
   return {
     gtin, title, brand, category, featured,
-    imageUrl: `https://placehold.co/400x400/f8f8f8/111?text=${img}`,
+    imageUrl: img,
     sources: s,
   };
 }

@@ -67,12 +67,18 @@ export default function HomePage() {
     setSelectedProduct(item);
   }, []);
 
+  const handleAlert = useCallback((item: MockProductWithHistory) => {
+    setSelectedProduct(null); // close detail modal if open
+    setAlertProduct(item);
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#fafafa]">
       {/* Modals */}
       {selectedProduct && (
         <ProductDetailModal
           item={selectedProduct}
+          onOpenAlert={handleAlert}
           onClose={() => setSelectedProduct(null)}
         />
       )}
@@ -260,7 +266,7 @@ export default function HomePage() {
           </p>
           <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 lg:grid-cols-3">
             {featured.map((item) => (
-              <FeaturedDeal key={item.product.gtin} item={item} onSelect={handleSelect} />
+              <FeaturedDeal key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />
             ))}
           </div>
         </section>
@@ -308,7 +314,7 @@ export default function HomePage() {
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((item) => (
-            <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} />
+            <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />
           ))}
         </div>
 
@@ -351,12 +357,14 @@ export default function HomePage() {
           </p>
           <button
             onClick={() => {
-              if (!isLoggedIn) setShowAuthModal(true);
+              if (!isLoggedIn) { setShowAuthModal(true); return; }
+              // Open alert for first featured product as demo
+              if (featured.length > 0) handleAlert(featured[0]);
             }}
             className="mt-5 inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-red-700 active:scale-95 sm:mt-6 sm:px-6 sm:py-3 sm:text-sm"
           >
-            Jetzt starten
-            <ArrowRight className="h-4 w-4" />
+            <Bell className="h-4 w-4" />
+            Jetzt Alarm einrichten
           </button>
         </div>
       </section>
