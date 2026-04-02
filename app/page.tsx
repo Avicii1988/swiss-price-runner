@@ -22,6 +22,7 @@ import { FeaturedDeal } from "@/components/featured-deal";
 import { ProductDetailModal } from "@/components/product-detail-modal";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { HowWeCalculateButton } from "@/components/how-we-calculate";
+import { SearchBar } from "@/components/search-bar";
 import { CategoryNav } from "@/components/category-nav";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { t } from "@/lib/i18n";
@@ -171,19 +172,13 @@ export default function HomePage() {
           </p>
 
           <div className="mx-auto mt-6 max-w-xl sm:mt-8">
-            <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2.5 shadow-md focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/10 sm:px-4 sm:py-3">
-              <Search className="h-4 w-4 shrink-0 text-gray-400 sm:h-5 sm:w-5" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t(lang, "searchPlaceholder")}
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 sm:text-base"
-              />
-              <button className="shrink-0 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700 active:scale-95 sm:px-5 sm:text-sm">
-                {t(lang, "searchButton")}
-              </button>
-            </div>
+            <SearchBar
+              query={query}
+              onChange={setQuery}
+              placeholder={t(lang, "searchPlaceholder")}
+              buttonLabel={t(lang, "searchButton")}
+              products={allProducts}
+            />
           </div>
 
           <div className="mx-auto mt-8 flex max-w-lg justify-center gap-6 text-center sm:mt-10 sm:gap-12">
