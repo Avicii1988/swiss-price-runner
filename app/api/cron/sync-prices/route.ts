@@ -2,18 +2,21 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { sendPriceAlertEmail } from "@/lib/email/send-alert";
+import { SEED_PRODUCTS } from "@/prisma/seed";
 
 /**
  * POST /api/cron/sync-prices
  *
- * Daily sync endpoint (Vercel Cron). Authenticates via CRON_SECRET.
+ * Daily sync endpoint (Vercel Cron at 06:00 UTC).
+ * Authenticates via Bearer CRON_SECRET.
  *
  * Flow:
- *  1. Authenticate.
- *  2. Fetch latest prices from integration sources.
- *  3. Calculate Swiss landed cost (EUR→CHF + taxes + customs).
- *  4. Upsert prices into the database.
- *  5. Evaluate active alerts and send email notifications in batches.
+ *  1. Health check — verify DB is reachable.
+ *  2. Seed products if the Product table is empty.
+ *  3. Fetch latest prices from integration sources.
+ *  4. Calculate Swiss landed cost (EUR→CHF + taxes + customs).
+ *  5. Write Price snapshots to DB.
+ *  6. Evaluate active alerts and send emails in batches.
  */
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -21,7 +24,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const startMs = Date.now();
+
   try {
+    // ── 1. Health check ─────────────────────────────────────────────
+    const dbCheck = await db.$queryRaw<[{ now: Date }]>`SELECT NOW() as now`;
+    console.log("[sync-prices] DB connected at", dbCheck[0].now.toISOString());
+
+    // ── 2. Seed products if table is empty ──────────────────────────
+    const productCount = await db.product.count();
+    let seeded = 0;
+
+    if (productCount === 0) {
+      console.log("[sync-prices] Product table empty — seeding", SEED_PRODUCTS.length, "products");
+
+      for (const p of SEED_PRODUCTS) {
+        await db.product.upsert({
+          where: { gtin: p.gtin },
+          create: {
+            gtin: p.gtin,
+            title: p.title,
+            brand: p.brand,
+            category: p.category,
+            imageUrl: p.imageUrl,
+          },
+          update: {
+            title: p.title,
+            brand: p.brand,
+            category: p.category,
+            imageUrl: p.imageUrl,
+          },
+        });
+        seeded++;
+      }
+
+      console.log("[sync-prices] Seeded", seeded, "products");
+    }
+
+    // ── 3. Load all products ────────────────────────────────────────
     const products = await db.product.findMany({
       select: { id: true, gtin: true, category: true, title: true, imageUrl: true },
     });
@@ -30,54 +70,71 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: "ok", message: "No products to sync" });
     }
 
+    // ── 4. Exchange rate ────────────────────────────────────────────
     const exchangeRate = await getExchangeRate();
+
     let synced = 0;
     let emailsSent = 0;
     let emailsFailed = 0;
 
+    // ── 5. Price sync per product ───────────────────────────────────
     for (const product of products) {
-      // TODO: Replace with real integration client calls
-      const breakdown = calculateSwissPrice({
-        amountEur: 0,
-        exchangeRate,
-        category: "standard",
-        clearanceType: "vereinfacht",
-      });
+      // Find mock source data for this GTIN (from seed)
+      const seedProduct = SEED_PRODUCTS.find((sp) => sp.gtin === product.gtin);
+      const sources = seedProduct?.sources ?? [];
 
-      await db.price.create({
-        data: {
-          productId: product.id,
-          amountChf: breakdown.totalChf,
-          amountEur: breakdown.originalEur,
-          sourceId: "sync",
-          timestamp: new Date(),
-        },
-      });
+      for (const source of sources) {
+        const breakdown = calculateSwissPrice({
+          amountEur: source.currentPriceEur,
+          exchangeRate,
+          category: "standard",
+          clearanceType: "vereinfacht",
+        });
+
+        await db.price.create({
+          data: {
+            productId: product.id,
+            amountChf: breakdown.totalChf,
+            amountEur: breakdown.originalEur,
+            sourceId: source.sourceId,
+            url: source.url !== "#" ? source.url : null,
+            timestamp: new Date(),
+          },
+        });
+      }
 
       synced++;
 
-      // ── Alert processing (batched to avoid cron timeout) ──────────
-      // Fetch alerts where: active, not yet notified, target >= current price
+      // ── 6. Alert processing (batched) ─────────────────────────────
+      // Get the best current CHF price for this product
+      const latestPrice = await db.price.findFirst({
+        where: { productId: product.id },
+        orderBy: { timestamp: "desc" },
+        select: { amountChf: true, sourceId: true },
+      });
+
+      if (!latestPrice) continue;
+
       const triggeredAlerts = await db.userAlert.findMany({
         where: {
           productId: product.id,
           isActive: true,
           isNotified: false,
-          targetPrice: { gte: breakdown.totalChf },
+          targetPrice: { gte: latestPrice.amountChf },
         },
-        take: 50, // batch limit per product to prevent timeout
+        take: 50,
       });
 
       if (triggeredAlerts.length === 0) continue;
 
-      // Mark all as notified FIRST (idempotent — prevents double-send on retry)
+      // Mark notified FIRST (idempotent)
       const alertIds = triggeredAlerts.map((a) => a.id);
       await db.userAlert.updateMany({
         where: { id: { in: alertIds } },
         data: { isNotified: true },
       });
 
-      // Send emails concurrently in batches of 10
+      // Send emails in batches of 10
       const BATCH_SIZE = 10;
       for (let i = 0; i < triggeredAlerts.length; i += BATCH_SIZE) {
         const batch = triggeredAlerts.slice(i, i + BATCH_SIZE);
@@ -89,9 +146,9 @@ export async function POST(request: Request) {
               productTitle: product.title,
               productImage: product.imageUrl ?? "",
               productGtin: product.gtin,
-              currentPriceChf: Number(breakdown.totalChf),
+              currentPriceChf: Number(latestPrice.amountChf),
               targetPriceChf: Number(alert.targetPrice),
-              bestSource: "Sync",
+              bestSource: latestPrice.sourceId,
               shopUrl: "#",
               alertId: alert.id,
             }),
@@ -102,27 +159,36 @@ export async function POST(request: Request) {
           if (r.status === "fulfilled") emailsSent++;
           else {
             emailsFailed++;
-            console.error("[sync-prices] Email send failed:", r.reason);
+            console.error("[sync-prices] Email failed:", r.reason);
           }
         }
       }
     }
 
+    const durationMs = Date.now() - startMs;
+    console.log(`[sync-prices] Done in ${durationMs}ms — synced=${synced} emails=${emailsSent}`);
+
     return NextResponse.json({
       status: "ok",
+      seeded,
       synced,
       emailsSent,
       emailsFailed,
       exchangeRate,
+      durationMs,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("[sync-prices] Error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const durationMs = Date.now() - startMs;
+    console.error(`[sync-prices] Error after ${durationMs}ms:`, error);
+    return NextResponse.json(
+      { error: "Internal server error", durationMs },
+      { status: 500 },
+    );
   }
 }
 
 async function getExchangeRate(): Promise<number> {
-  // TODO: Replace with real exchange rate API
+  // TODO: Replace with real exchange rate API (ECB, Fixer, exchangerate.host)
   return 0.94;
 }
