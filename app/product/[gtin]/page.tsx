@@ -1,28 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import {
-  getMockProductByGtin,
-  getAllGtins,
-  EXCHANGE_RATE,
-} from "@/lib/integrations/mock-service";
+import { getProductByGtin, getAllGtinsFromDb } from "@/lib/data";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
+import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import { getCategoryBySlug } from "@/lib/categories";
 import { ProductDetailClient } from "./client";
 
-// ---------------------------------------------------------------------------
-// Static generation for all known GTINs
-// ---------------------------------------------------------------------------
+export const dynamic = "force-dynamic";
 
-export function generateStaticParams() {
-  return getAllGtins().map((gtin) => ({ gtin }));
+export async function generateStaticParams() {
+  const gtins = await getAllGtinsFromDb();
+  return gtins.map((gtin) => ({ gtin }));
 }
 
-// ---------------------------------------------------------------------------
-// SEO Metadata — Swiss-specific keywords
-// ---------------------------------------------------------------------------
-
-export function generateMetadata({ params }: { params: { gtin: string } }): Metadata {
-  const item = getMockProductByGtin(params.gtin);
+export async function generateMetadata({ params }: { params: { gtin: string } }): Promise<Metadata> {
+  const item = await getProductByGtin(params.gtin);
   if (!item) return { title: "Produkt nicht gefunden – SwissPriceRunner" };
 
   const { product, bestPrice } = item;
@@ -50,14 +42,7 @@ export function generateMetadata({ params }: { params: { gtin: string } }): Meta
   };
 }
 
-// ---------------------------------------------------------------------------
-// JSON-LD Structured Data (Schema.org/Product)
-// ---------------------------------------------------------------------------
-
-function buildJsonLd(params: { gtin: string }) {
-  const item = getMockProductByGtin(params.gtin);
-  if (!item) return null;
-
+function buildJsonLd(item: NonNullable<Awaited<ReturnType<typeof getProductByGtin>>>) {
   const { product, bestPrice } = item;
 
   const offers = product.sources.map((source) => {
@@ -70,10 +55,7 @@ function buildJsonLd(params: { gtin: string }) {
       url: source.url,
       priceCurrency: "CHF",
       price: bd.totalChf.toFixed(2),
-      seller: {
-        "@type": "Organization",
-        name: source.sourceName,
-      },
+      seller: { "@type": "Organization", name: source.sourceName },
       availability: "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",
     };
@@ -90,10 +72,12 @@ function buildJsonLd(params: { gtin: string }) {
     offers: {
       "@type": "AggregateOffer",
       lowPrice: bestPrice.totalChf.toFixed(2),
-      highPrice: Math.max(...product.sources.map((s) => {
-        const bd = calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE });
-        return bd.totalChf;
-      })).toFixed(2),
+      highPrice: Math.max(
+        ...product.sources.map((s) => {
+          const bd = calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE });
+          return bd.totalChf;
+        }),
+      ).toFixed(2),
       priceCurrency: "CHF",
       offerCount: product.sources.length,
       offers,
@@ -101,24 +85,18 @@ function buildJsonLd(params: { gtin: string }) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Page Component (Server)
-// ---------------------------------------------------------------------------
-
-export default function ProductPage({ params }: { params: { gtin: string } }) {
-  const item = getMockProductByGtin(params.gtin);
+export default async function ProductPage({ params }: { params: { gtin: string } }) {
+  const item = await getProductByGtin(params.gtin);
   if (!item) notFound();
 
-  const jsonLd = buildJsonLd(params);
+  const jsonLd = buildJsonLd(item);
 
   return (
     <>
-      {jsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      )}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <ProductDetailClient item={item} />
     </>
   );
