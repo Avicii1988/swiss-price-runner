@@ -36,7 +36,7 @@ export async function GET() {
   try {
     const { data, error } = await resend.emails.send({
       from: `SwissPriceRunner <${from}>`,
-      to: "jan.feusi@gmx.ch",
+      to: "j.m.feusi@gmail.com",
       subject: "SwissPriceRunner – E-Mail-System aktiv",
       react: WelcomeEmail(),
     });
