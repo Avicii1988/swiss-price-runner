@@ -9,15 +9,16 @@ datasource db {
 }
 
 model Product {
-  id        String   @id @default(cuid())
-  gtin      String   @unique
-  title     String
-  brand     String
-  category  String
-  imageUrl  String?
-  embedding String?  @db.Text  // JSON-serialized vector (pgvector migration: Unsupported("vector(512)"))
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String                       @id @default(cuid())
+  gtin          String                       @unique
+  title         String
+  brand         String
+  category      String
+  imageUrl      String?
+  embedding     String?                      @db.Text
+  embedding_vec Unsupported("vector(1536)")?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
 
   prices Price[]
   alerts UserAlert[]
