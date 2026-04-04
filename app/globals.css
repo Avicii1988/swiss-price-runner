@@ -10,7 +10,8 @@
   }
 
   body {
-    @apply bg-white text-gray-900;
+    @apply bg-[#f0f0f0] text-gray-900;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
   input[type="text"],
@@ -33,18 +34,52 @@
   }
 }
 
-/* Galaxus-style rainbow gradient */
+/* Galaxus rainbow bar */
 .rainbow-bar {
-  height: 3px;
+  height: 5px;
   background: linear-gradient(
     90deg,
-    #ff0000 0%,
-    #ff8800 15%,
-    #ffdd00 30%,
-    #00cc44 45%,
-    #0088ff 60%,
-    #6644ff 75%,
-    #cc00ff 90%,
-    #ff0066 100%
+    #e3000b 0%,
+    #f39200 12%,
+    #ffdd00 24%,
+    #94c11f 36%,
+    #009e60 48%,
+    #00a9e0 60%,
+    #0064b4 72%,
+    #6a2382 84%,
+    #e3000b 100%
   );
+}
+
+/* Rainbow border on search focus */
+.search-rainbow-border {
+  position: relative;
+  border-radius: 9999px;
+}
+.search-rainbow-border::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #e3000b, #f39200, #ffdd00, #94c11f, #009e60, #00a9e0, #0064b4, #6a2382, #e3000b);
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: -1;
+}
+.search-rainbow-border:focus-within::before {
+  opacity: 1;
+}
+
+/* Stock progress bar */
+.stock-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e5e5;
+  overflow: hidden;
+}
+.stock-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #e3000b, #f39200);
+  transition: width 0.5s ease;
 }
