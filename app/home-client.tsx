@@ -65,24 +65,33 @@ export default function HomeClient({ allProducts, featured, categories }: HomeCl
       {selectedProduct && <ProductDetailModal item={selectedProduct} onOpenAlert={handleAlert} onClose={() => setSelectedProduct(null)} />}
       {alertProduct && <PriceAlertModal item={alertProduct} onClose={() => setAlertProduct(null)} />}
 
-      <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/80 backdrop-blur-lg">
-        <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-3 px-4 sm:h-14 sm:px-6">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-base font-bold tracking-tight sm:text-lg">Swiss<span className="text-red-600">Price</span>Runner</Link>
-            <CategoryNav />
+      <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/95 backdrop-blur-lg">
+        {/* Top row: logo + search + auth */}
+        <div className="mx-auto flex h-12 max-w-7xl items-center gap-3 px-4 sm:h-14 sm:px-6">
+          <Link href="/" className="shrink-0 text-base font-bold tracking-tight sm:text-lg">Swiss<span className="text-red-600">Price</span>Runner</Link>
+
+          {/* Centered search — visible on desktop in header */}
+          <div className="hidden flex-1 px-4 lg:block">
+            <SearchBar query={query} onChange={setQuery} placeholder={t(lang, "searchPlaceholder")} buttonLabel={t(lang, "searchButton")} products={allProducts} />
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="ml-auto flex items-center gap-2">
             {isLoggedIn && user ? (
               <>
                 <Link href="/account" className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:border-gray-300"><Heart className="h-3.5 w-3.5" /><span className="hidden sm:inline">{user.favorites.length}</span></Link>
                 <Link href="/account" className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:border-gray-300"><Bell className="h-3.5 w-3.5" /><span className="hidden sm:inline">{user.alerts.length}</span></Link>
                 <Link href="/account" className="flex h-7 w-7 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">{user.avatarInitials}</Link>
-                <button onClick={logout} className="hidden items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 sm:flex"><LogOut className="h-3 w-3" /></button>
               </>
             ) : (
               <button onClick={() => setShowAuthModal(true)} className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800"><User className="h-3.5 w-3.5" /><span className="hidden sm:inline">Anmelden</span></button>
             )}
             <LanguageSwitcher current={lang} onChange={setLang} />
+          </div>
+        </div>
+        {/* Bottom row: category nav */}
+        <div className="border-t border-gray-50 bg-white">
+          <div className="relative mx-auto flex max-w-7xl items-center gap-1 px-4 py-1 sm:px-6">
+            <CategoryNav />
           </div>
         </div>
       </header>

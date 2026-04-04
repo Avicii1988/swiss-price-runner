@@ -54,28 +54,20 @@ export default function RootLayout({
                 <p className="text-center text-[10px] font-semibold uppercase tracking-widest text-gray-400">
                   Partner-Netzwerk
                 </p>
-                <div className="mt-3 flex items-center justify-center gap-8 sm:gap-12">
-                  {/* Amazon PartnerNet */}
-                  <div className="flex flex-col items-center gap-1 opacity-40 grayscale transition hover:opacity-70">
-                    <svg viewBox="0 0 120 36" className="h-5 w-auto sm:h-6" fill="currentColor" aria-label="Amazon">
-                      <text x="0" y="26" fontFamily="system-ui, sans-serif" fontSize="22" fontWeight="800" letterSpacing="-0.5">amazon</text>
-                      <path d="M47 30 C55 34, 70 36, 90 30" fill="none" stroke="#FF9900" strokeWidth="2.5" strokeLinecap="round" opacity="0.7" />
-                    </svg>
-                    <span className="text-[8px] text-gray-400">PartnerNet</span>
+                <div className="mt-3 flex items-center justify-center gap-6 sm:gap-10">
+                  <div className="flex flex-col items-center gap-1.5 opacity-40 grayscale transition hover:opacity-70">
+                    <span className="text-base font-extrabold tracking-tight text-gray-900 sm:text-lg" style={{ letterSpacing: "-0.5px" }}>amazon</span>
+                    <span className="text-[8px] font-medium text-gray-400">PartnerNet</span>
                   </div>
-                  {/* Galaxus */}
-                  <div className="flex flex-col items-center gap-1 opacity-40 grayscale transition hover:opacity-70">
-                    <svg viewBox="0 0 100 36" className="h-5 w-auto sm:h-6" fill="currentColor" aria-label="Galaxus">
-                      <text x="0" y="26" fontFamily="system-ui, sans-serif" fontSize="22" fontWeight="800" letterSpacing="-0.5">Galaxus</text>
-                    </svg>
-                    <span className="text-[8px] text-gray-400">Affiliate</span>
+                  <div className="h-6 w-px bg-gray-200" />
+                  <div className="flex flex-col items-center gap-1.5 opacity-40 grayscale transition hover:opacity-70">
+                    <span className="text-base font-extrabold tracking-tight text-gray-900 sm:text-lg" style={{ letterSpacing: "-0.5px" }}>Galaxus</span>
+                    <span className="text-[8px] font-medium text-gray-400">Affiliate</span>
                   </div>
-                  {/* Zalando */}
-                  <div className="flex flex-col items-center gap-1 opacity-40 grayscale transition hover:opacity-70">
-                    <svg viewBox="0 0 100 36" className="h-5 w-auto sm:h-6" fill="currentColor" aria-label="Zalando">
-                      <text x="0" y="26" fontFamily="system-ui, sans-serif" fontSize="22" fontWeight="700" letterSpacing="1">ZALANDO</text>
-                    </svg>
-                    <span className="text-[8px] text-gray-400">Partner</span>
+                  <div className="h-6 w-px bg-gray-200" />
+                  <div className="flex flex-col items-center gap-1.5 opacity-40 grayscale transition hover:opacity-70">
+                    <span className="text-sm font-bold uppercase tracking-widest text-gray-900 sm:text-base">Zalando</span>
+                    <span className="text-[8px] font-medium text-gray-400">Partner</span>
                   </div>
                 </div>
               </div>
@@ -94,6 +86,9 @@ export default function RootLayout({
                 </div>
 
                 <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-gray-500">
+                  <Link href="/impressum" className="transition hover:text-gray-900">
+                    Über uns
+                  </Link>
                   <Link href="/impressum" className="transition hover:text-gray-900">
                     Impressum
                   </Link>
