@@ -15,6 +15,7 @@ model Product {
   brand     String
   category  String
   imageUrl  String?
+  embedding String?  @db.Text  // JSON-serialized vector (pgvector migration: Unsupported("vector(512)"))
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

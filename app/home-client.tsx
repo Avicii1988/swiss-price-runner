@@ -14,11 +14,11 @@ import {
   Apple,
   Footprints,
   TrendingUp,
-  Camera,
 } from "lucide-react";
 import { ProductCard } from "@/components/product-card";
 import { ProductDetailModal } from "@/components/product-detail-modal";
 import { PriceAlertModal } from "@/components/price-alert-modal";
+import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
 import { useAuth } from "@/lib/auth/auth-context";
 import { CATEGORIES } from "@/lib/categories";
@@ -87,15 +87,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
       {alertProduct && <PriceAlertModal item={alertProduct} onClose={() => setAlertProduct(null)} />}
 
       {showVisionModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowVisionModal(false)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <Camera className="mx-auto h-10 w-10 text-gray-400" />
-            <h3 className="mt-3 text-lg font-bold">KI-Bildsuche <span className="ml-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">Beta</span></h3>
-            <p className="mt-2 text-sm text-gray-500">Foto hochladen und Preise vergleichen.</p>
-            <button className="mt-4 w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white">Foto auswählen</button>
-            <button onClick={() => setShowVisionModal(false)} className="mt-2 text-xs text-gray-400">Abbrechen</button>
-          </div>
-        </div>
+        <VisualSearchModal onClose={() => setShowVisionModal(false)} allProducts={allProducts} />
       )}
 
       {/* Shared header */}

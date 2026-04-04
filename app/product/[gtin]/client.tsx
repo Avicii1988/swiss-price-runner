@@ -20,6 +20,7 @@ import { PriceAlertModal } from "@/components/price-alert-modal";
 import { HowWeCalculateButton } from "@/components/how-we-calculate";
 import { EmailAlertForm } from "@/components/email-alert-form";
 import { SiteHeader } from "@/components/site-header";
+import { VisualSearchModal } from "@/components/visual-search-modal";
 import { useAuth } from "@/lib/auth/auth-context";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
@@ -56,6 +57,7 @@ export function ProductDetailClient({ item, allProducts }: Props) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d, avgChf30d } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, setShowAuthModal } = useAuth();
   const [showAlert, setShowAlert] = useState(false);
+  const [showVision, setShowVision] = useState(false);
   const [pdpQuery, setPdpQuery] = useState("");
   const isDropping = priceDrop30d > 0;
   const faved = isFavorite(product.gtin);
@@ -74,9 +76,10 @@ export function ProductDetailClient({ item, allProducts }: Props) {
   return (
     <div className="min-h-screen bg-white">
       {showAlert && <PriceAlertModal item={item} onClose={() => setShowAlert(false)} />}
+      {showVision && <VisualSearchModal onClose={() => setShowVision(false)} allProducts={allProducts} />}
 
       {/* Shared header — with allProducts for global search */}
-      <SiteHeader query={pdpQuery} onQueryChange={setPdpQuery} allProducts={allProducts} />
+      <SiteHeader query={pdpQuery} onQueryChange={setPdpQuery} allProducts={allProducts} showVision={() => setShowVision(true)} />
 
       {/* ═══ MAIN: sidebar + content ═══ */}
       <div className="mx-auto max-w-[1600px] px-5 py-6 sm:px-10">
