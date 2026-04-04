@@ -60,24 +60,15 @@ export async function POST(request: Request) {
             product.category,
           );
 
-          const embJson = JSON.stringify(embedding);
+          const vectorStr = `[${embedding.join(",")}]`;
 
-          // Save JSON embedding
-          await db.product.update({
-            where: { id: product.id },
-            data: { embedding: embJson },
-          });
-
-          // Also write native pgvector column if available
-          try {
-            await db.$executeRawUnsafe(
-              `UPDATE "Product" SET embedding_vec = $1::vector WHERE id = $2`,
-              `[${embedding.join(",")}]`,
-              product.id,
-            );
-          } catch {
-            // pgvector not enabled yet — skip silently
-          }
+          // Write both columns via raw SQL to avoid Prisma vector serialization bug (error 54000)
+          await db.$executeRawUnsafe(
+            `UPDATE "Product" SET embedding = $1, embedding_vec = $2::vector WHERE id = $3`,
+            JSON.stringify(embedding),
+            vectorStr,
+            product.id,
+          );
 
           return product.id;
         }),
