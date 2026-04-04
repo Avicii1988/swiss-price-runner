@@ -111,11 +111,23 @@ export const SEED_PRODUCTS: SeedProduct[] = [
   p("00500000001701", "Jura E8 Kaffeevollautomat",             "Jura",     "haushalt", false, [1299, 1399]),
   p("00196337001801", "Dyson Pure Cool Luftreiniger TP07",     "Dyson",    "haushalt", false, [549, 599]),
 
-  // ── Mode & Bekleidung (4) ──────────────────────────────────────────────
+  // ── Mode & Bekleidung (16) ──────────────────────────────────────────
   p("00400000001901", "The North Face Nuptse 1996 Daunenjacke","The North Face","mode",false,[249, undefined, 249]),
   p("00889842002001", "Patagonia Nano Puff Jacket",            "Patagonia","mode",   false, [219, undefined, 219]),
   p("00889842002101", "Arc'teryx Atom LT Hoody",               "Arc'teryx","mode",   false, [259, 279]),
   p("00764011002201", "On Weather Jacket – Black",             "On Running","mode",  false, [249, 279, 249]),
+  p("00193145100100", "Nike Air Force 1 '07 White",            "Nike",     "mode",   true,  [109.99, 129.9, 109.99]),
+  p("00401938500200", "Adidas Samba OG – White/Black",         "Adidas",   "mode",   true,  [99.95, 119.9, 99.95]),
+  p("00501003600300", "Levi's 501 Original Jeans – Dark Wash", "Levi's",   "mode",   false, [89.95, undefined, 89.95]),
+  p("00886668800400", "Birkenstock Arizona Sandalen – Taupe",  "Birkenstock","mode", false, [79.95, 89.9, 79.95]),
+  p("00194500700500", "Nike Dunk Low Retro – Panda",           "Nike",     "mode",   true,  [109.99, 129.9, 109.99]),
+  p("00401938700600", "Adidas Gazelle Indoor – Gum",           "Adidas",   "mode",   false, [109.95, 129.9, 109.95]),
+  p("00194500700700", "Nike Tech Fleece Jogginghose – Black",  "Nike",     "mode",   false, [89.99, undefined, 89.99]),
+  p("00501003700800", "Levi's Trucker Jacket – Medium Wash",   "Levi's",   "mode",   false, [99.95, undefined, 99.95]),
+  p("00886668800900", "Birkenstock Boston Clog – Mocca",       "Birkenstock","mode", false, [119.95, 139.9, 119.95]),
+  p("00400000801000", "The North Face Borealis Rucksack 28L",  "The North Face","mode",false,[99.95, 109.9, 99.95]),
+  p("00889842801100", "Patagonia Better Sweater Fleece",       "Patagonia","mode",   false, [129, undefined, 129]),
+  p("00764011801200", "On Cloudnova – All White",              "On Running","mode",  false, [159.95, 179.9, 159.95]),
 
   // ── Beauty & Parfum (5) ────────────────────────────────────────────────
   p("00737052766270", "Dior Sauvage Eau de Parfum 100ml",      "Dior",     "beauty", false, [89.95, 99.9, 94.5]),
