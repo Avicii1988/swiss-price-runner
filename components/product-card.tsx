@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { TrendingDown, TrendingUp, ExternalLink, Heart, Bell, Plane, ShieldCheck } from "lucide-react";
-import { Sparkline } from "./sparkline";
+import { TrendingDown, Heart, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
-import { calculateSwissPrice } from "@/lib/pricing/calculator";
-import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface ProductCardProps {
@@ -14,204 +11,86 @@ interface ProductCardProps {
   onAlert?: (item: MockProductWithHistory) => void;
 }
 
-const SOURCE_COLORS: Record<string, string> = {
-  amazon_de: "#FF9900",
-  galaxus_ch: "#0D2B5E",
-  zalando_de: "#FF6900",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  amazon_de: "Amazon.de",
-  galaxus_ch: "Galaxus",
-  zalando_de: "Zalando",
-};
-
-// Determine best-price source type
-function getBadgeInfo(sources: MockProductWithHistory["product"]["sources"]): {
-  type: "import_winner" | "swiss_local" | null;
-  savingsPercent: number;
-} {
-  if (sources.length < 2) return { type: null, savingsPercent: 0 };
-
-  const breakdowns = sources.map((s) => ({
-    ...s,
-    chf: calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE }).totalChf,
-  }));
-
-  const best = breakdowns.reduce((a, b) => (a.chf < b.chf ? a : b));
-  const worst = breakdowns.reduce((a, b) => (a.chf > b.chf ? a : b));
-  const savingsPercent = Math.round(((worst.chf - best.chf) / worst.chf) * 100);
-
-  const isImport = best.sourceId === "amazon_de" || best.sourceId === "zalando_de";
-  const isSwiss = best.sourceId === "galaxus_ch";
-
-  if (isImport && savingsPercent >= 3) return { type: "import_winner", savingsPercent };
-  if (isSwiss) return { type: "swiss_local", savingsPercent: 0 };
-  return { type: null, savingsPercent: 0 };
-}
-
-export function ProductCard({ item, onSelect, onAlert }: ProductCardProps) {
-  const { product, priceHistory, bestPrice, bestSource, priceDrop30d } = item;
-  const isDropping = priceDrop30d > 0;
+export function ProductCard({ item, onAlert }: ProductCardProps) {
+  const { product, bestPrice, bestSource, priceDrop30d, avgChf30d } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, setShowAuthModal } = useAuth();
   const faved = isFavorite(product.gtin);
-  const badge = getBadgeInfo(product.sources);
 
-  const bestSourceId = product.sources.find(
-    (s) => s.sourceName === bestSource,
-  )?.sourceId;
-  const sparkData = priceHistory
-    .filter((p) => p.sourceId === bestSourceId)
-    .map((p) => p.amountChf);
+  const discount = avgChf30d > 0 && bestPrice.totalChf < avgChf30d
+    ? Math.round(((avgChf30d - bestPrice.totalChf) / avgChf30d) * 100)
+    : 0;
 
   return (
-    <Link
-      href={`/product/${product.gtin}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:shadow-lg hover:border-gray-200"
-    >
-      {/* Top badges row */}
-      <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between">
-        <span className="rounded-full bg-gray-900/80 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
-          {product.category}
-        </span>
-        <div className="flex flex-col items-end gap-1">
-          {product.featured && (
-            <span className="rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-              Top Deal
-            </span>
-          )}
-          {badge.type === "import_winner" && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white sm:text-[9px]">
-              <Plane className="h-2.5 w-2.5" /> Import −{badge.savingsPercent}%
-            </span>
-          )}
-          {badge.type === "swiss_local" && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[8px] font-bold uppercase text-white sm:text-[9px]">
-              <ShieldCheck className="h-2.5 w-2.5" /> CH Garantie
-            </span>
-          )}
+    <div className="group relative rounded-xl border border-gray-100 bg-white transition hover:border-gray-200 hover:shadow-md">
+      {/* Quick actions — appear on hover */}
+      <div className="absolute right-2 top-2 z-10 flex flex-col gap-1 opacity-0 transition group-hover:opacity-100">
+        <button
+          onClick={(e) => { e.preventDefault(); if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
+          className={`flex h-8 w-8 items-center justify-center rounded-full border bg-white shadow-sm transition ${faved ? "border-red-200 text-red-500" : "border-gray-200 text-gray-400 hover:text-red-500"}`}
+        >
+          <Heart className={`h-3.5 w-3.5 ${faved ? "fill-current" : ""}`} />
+        </button>
+        <button
+          onClick={(e) => { e.preventDefault(); onAlert?.(item); }}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:text-amber-500"
+        >
+          <Bell className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Discount badge */}
+      {discount >= 3 && (
+        <div className="absolute left-0 top-0 z-10">
+          <span className="rounded-br-xl rounded-tl-xl bg-red-600 px-2 py-1 text-[10px] font-bold text-white">
+            -{discount}%
+          </span>
         </div>
-      </div>
+      )}
 
-      {/* Image */}
-      <div className="flex items-center justify-center bg-gray-50 p-4 pt-10 sm:p-6 sm:pt-10">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={product.imageUrl}
-          alt={product.title}
-          width={160}
-          height={160}
-          className="h-32 w-32 object-contain transition-transform group-hover:scale-105 sm:h-40 sm:w-40"
-        />
-      </div>
+      <Link href={`/product/${product.gtin}`} className="block p-3 sm:p-4">
+        {/* Image */}
+        <div className="flex items-center justify-center py-2 sm:py-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={product.imageUrl}
+            alt={product.title}
+            width={160}
+            height={160}
+            className="h-28 w-28 object-contain transition-transform group-hover:scale-105 sm:h-36 sm:w-36"
+          />
+        </div>
 
-      {/* Content */}
-      <div className="flex flex-1 flex-col p-3 pt-2 sm:p-4 sm:pt-3">
-        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400 sm:text-[11px]">
-          {product.brand}
-        </p>
-        <h3 className="mt-0.5 line-clamp-2 text-xs font-semibold leading-snug text-gray-900 sm:text-sm">
-          {product.title}
-        </h3>
-
-        {/* Sparkline */}
-        <div className="mt-2 sm:mt-3">
-          <Sparkline data={sparkData} width={220} height={40} />
-          <p className="mt-0.5 text-[9px] text-gray-400 sm:text-[10px]">30 Tage Preisverlauf</p>
+        {/* Info */}
+        <div className="mt-2">
+          <p className="text-[10px] font-medium text-gray-400 sm:text-[11px]">{product.brand}</p>
+          <h3 className="mt-0.5 line-clamp-2 text-xs font-medium leading-snug text-gray-900 sm:text-sm">
+            {product.title}
+          </h3>
         </div>
 
         {/* Price */}
-        <div className="mt-2 flex items-end justify-between sm:mt-3">
+        <div className="mt-3 flex items-end justify-between">
           <div>
-            <p className="text-[10px] text-gray-400 sm:text-[11px]">Ab</p>
-            <p className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+            <p className="text-lg font-bold text-gray-900 sm:text-xl">
               CHF {bestPrice.totalChf.toFixed(2)}
             </p>
-            <p className="text-[10px] text-gray-400 sm:text-[11px]">
-              inkl. Zoll + MwSt.
+            <p className="text-[9px] text-gray-400 sm:text-[10px]">
+              {bestSource} · inkl. Zoll
             </p>
           </div>
-          <div className="text-right">
-            {isDropping ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-semibold text-green-700 sm:gap-1 sm:px-2 sm:text-xs">
-                <TrendingDown className="h-3 w-3" />
-                -{Math.abs(priceDrop30d).toFixed(0)}
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 sm:gap-1 sm:px-2 sm:text-xs">
-                <TrendingUp className="h-3 w-3" />
-                +{Math.abs(priceDrop30d).toFixed(0)}
-              </span>
-            )}
-          </div>
+          {priceDrop30d > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-600">
+              <TrendingDown className="h-3 w-3" />
+              {priceDrop30d.toFixed(0)}
+            </span>
+          )}
         </div>
 
-        {/* Source comparison */}
-        <div className="mt-2 space-y-1 border-t border-gray-50 pt-2 sm:mt-3 sm:space-y-1.5 sm:pt-3">
-          {product.sources.map((source) => {
-            const isBest = source.sourceName === bestSource;
-            const isSwissSource = source.sourceId === "galaxus_ch";
-            return (
-              <div
-                key={source.sourceId}
-                className={`flex items-center justify-between rounded-lg px-2 py-1 text-[10px] sm:px-2.5 sm:py-1.5 sm:text-xs ${
-                  isBest ? "bg-green-50 font-semibold" : "bg-gray-50"
-                }`}
-              >
-                <span className="flex items-center gap-1 sm:gap-1.5">
-                  <span
-                    className="inline-block h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2"
-                    style={{ backgroundColor: SOURCE_COLORS[source.sourceId] ?? "#888" }}
-                  />
-                  {SOURCE_LABELS[source.sourceId] ?? source.sourceId}
-                  {isBest && (
-                    <span className="rounded bg-green-600 px-1 py-px text-[8px] font-bold uppercase text-white sm:text-[9px]">
-                      Best
-                    </span>
-                  )}
-                  {isSwissSource && !isBest && (
-                    <span className="rounded bg-gray-200 px-1 py-px text-[7px] font-bold uppercase text-gray-500 sm:text-[8px]">
-                      CH
-                    </span>
-                  )}
-                </span>
-                <span className="font-mono">
-                  EUR {source.currentPriceEur.toFixed(2)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Actions */}
-        <div className="mt-2 flex gap-1.5 sm:mt-3 sm:gap-2">
-          <button
-            onClick={(e) => e.preventDefault()}
-            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-red-600 py-1.5 text-[10px] font-semibold text-white transition hover:bg-red-700 sm:gap-1.5 sm:py-2 sm:text-xs"
-          >
-            <ExternalLink className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            Zum Shop
-          </button>
-          <button
-            onClick={(e) => { e.preventDefault(); onAlert?.(item); }}
-            className="flex items-center justify-center rounded-lg border border-gray-200 px-2 py-1.5 text-gray-500 transition hover:border-amber-300 hover:text-amber-600 sm:px-3 sm:py-2"
-          >
-            <Bell className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              if (!isLoggedIn) { setShowAuthModal(true); return; }
-              toggleFavorite(product.gtin);
-            }}
-            className={`flex items-center justify-center rounded-lg border px-2 py-1.5 transition sm:px-3 sm:py-2 ${
-              faved ? "border-red-300 bg-red-50 text-red-500" : "border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-600"
-            }`}
-          >
-            <Heart className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${faved ? "fill-current" : ""}`} />
-          </button>
-        </div>
-      </div>
-    </Link>
+        {/* Source count */}
+        <p className="mt-2 text-[9px] text-gray-400">
+          {product.sources.length} Angebote vergleichen
+        </p>
+      </Link>
+    </div>
   );
 }

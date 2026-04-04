@@ -6,18 +6,13 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  body {
-    @apply bg-[#fafafa] text-gray-900;
-  }
-
-  /* Smooth scroll */
-  html {
     scroll-behavior: smooth;
   }
 
-  /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
+  body {
+    @apply bg-white text-gray-900;
+  }
+
   input[type="text"],
   input[type="search"],
   input[type="email"],
@@ -36,4 +31,20 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+}
+
+/* Galaxus-style rainbow gradient */
+.rainbow-bar {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    #ff0000 0%,
+    #ff8800 15%,
+    #ffdd00 30%,
+    #00cc44 45%,
+    #0088ff 60%,
+    #6644ff 75%,
+    #cc00ff 90%,
+    #ff0066 100%
+  );
 }

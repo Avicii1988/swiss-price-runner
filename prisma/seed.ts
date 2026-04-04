@@ -30,10 +30,32 @@ export interface MockProduct {
 
 type SeedProduct = MockProduct;
 
-// Deterministic seed from GTIN for unique picsum image per product
-function gtinToSeed(gtin: string): number {
-  return parseInt(gtin.slice(-4), 10) % 1000;
-}
+// Real product images from public CDNs and placeholder services
+const IMAGES: Record<string, string> = {
+  // Smartphones
+  "00194253715085": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=400&hei=400&fmt=p-jpg",
+  "00889842640885": "https://images.samsung.com/is/image/samsung/p6pim/ch/2401/gallery/ch-galaxy-s24-ultra-s928-sm-s928bztdeub-thumb-539573340?$400_400_PNG$",
+  "00194253000100": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-black?wid=400&hei=400&fmt=p-jpg",
+  // Laptops
+  "00194253392828": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mba13-midnight-select-202402?wid=400&hei=400&fmt=p-jpg",
+  // Audio
+  "00027242923379": "https://m.media-amazon.com/images/I/51aXvjzcukL._AC_SL400_.jpg",
+  "00885909961009": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MQD83?wid=400&hei=400&fmt=p-jpg",
+  // Fashion
+  "00193145100100": "https://static.nike.com/a/images/t_default/e6da41d4-3e98-4856-8208-0f6a30b9a1c3/air-force-1-07-shoes-WrLlWX.png",
+  "00401938500200": "https://assets.adidas.com/images/w_400,f_auto,q_auto/5cc3c4e872194c17a72caf6901156498_9366/Samba_OG_Shoes_White_B75806_01_standard.jpg",
+  "00194500700500": "https://static.nike.com/a/images/t_default/3d1e4b41-d1ab-4b43-a817-5c3bba820fd4/dunk-low-retro-shoes-bRDhdd.png",
+  "00886668800400": "https://m.media-amazon.com/images/I/61d8aJsEVKL._AC_SL400_.jpg",
+  // Gaming
+  "00711719565185": "https://m.media-amazon.com/images/I/41Yky+lxkPL._AC_SL400_.jpg",
+  "00045496883386": "https://m.media-amazon.com/images/I/51HqOVsjTpL._AC_SL400_.jpg",
+  // Haushalt
+  "00050946000282": "https://m.media-amazon.com/images/I/51FLDr0HxQL._AC_SL400_.jpg",
+  "00196337069534": "https://m.media-amazon.com/images/I/31SLj8gqR2L._AC_SL400_.jpg",
+  // Beauty
+  "00737052766270": "https://m.media-amazon.com/images/I/51FbkznhHkL._AC_SL400_.jpg",
+  "00500000002501": "https://m.media-amazon.com/images/I/31Wc+NqbOSL._AC_SL400_.jpg",
+};
 
 function p(
   gtin: string,
@@ -43,8 +65,8 @@ function p(
   featured: boolean,
   sources: [eur: number, eur?: number, eur?: number],
 ): SeedProduct {
-  const seed = gtinToSeed(gtin);
-  const img = `https://picsum.photos/seed/${seed}/400/400`;
+  // Use real image if available, else deterministic picsum
+  const img = IMAGES[gtin] ?? `https://picsum.photos/seed/${parseInt(gtin.slice(-4), 10) % 1000}/400/400`;
   const s: SeedProduct["sources"] = [
     { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: sources[0] },
   ];
