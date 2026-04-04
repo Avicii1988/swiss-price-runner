@@ -15,13 +15,13 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: { gtin: string } }): Promise<Metadata> {
   const item = await getProductByGtin(params.gtin);
-  if (!item) return { title: "Produkt nicht gefunden – SwissPriceRunner" };
+  if (!item) return { title: "Produkt nicht gefunden – SwissPrice" };
 
   const { product, bestPrice } = item;
   const cat = getCategoryBySlug(product.category);
 
   return {
-    title: `${product.title} – Preisvergleich Schweiz | SwissPriceRunner`,
+    title: `${product.title} – Preisvergleich Schweiz | SwissPrice`,
     description: `${product.title} ab CHF ${bestPrice.totalChf.toFixed(2)} in der Schweiz kaufen. Preisvergleich inkl. Zoll, MwSt. & Lieferkosten. ${product.brand} Schweiz günstigster Preis CHF.`,
     keywords: [
       product.title,

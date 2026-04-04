@@ -6,7 +6,7 @@ import { BackToTop } from "@/components/back-to-top";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SwissPriceRunner – Price Comparison for Switzerland",
+  title: "SwissPrice – Preisvergleich Schweiz",
   description:
     "Compare prices across Amazon.de, Zalando, and Galaxus. See the real landed cost in CHF including VAT, customs, and shipping.",
   keywords: [
@@ -66,7 +66,7 @@ export default function RootLayout({
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
                 <span className="text-sm font-bold tracking-tight text-gray-900">
-                  Swiss<span className="text-red-600">Price</span>Runner
+                  SWISS<span className="text-red-600">PRICE</span>
                   <span className="ml-2 text-xs font-normal text-gray-400">&copy; {new Date().getFullYear()}</span>
                 </span>
                 <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-gray-500">
@@ -79,7 +79,7 @@ export default function RootLayout({
               </div>
               <p className="mt-4 text-center text-[10px] leading-relaxed text-gray-400">
                 Preise inkl. geschätzter Zollgebühren und Schweizer MwSt. Alle Angaben ohne Gewähr.
-                SwissPriceRunner ist Teilnehmer des Amazon-Partnerprogramms (Amazon PartnerNet).
+                SwissPrice ist Teilnehmer des Amazon-Partnerprogramms (Amazon PartnerNet).
               </p>
               <p className="mt-1 text-center text-[10px] text-amber-700">
                 Affiliate-Hinweis: Diese Website enthält Affiliate-Links.

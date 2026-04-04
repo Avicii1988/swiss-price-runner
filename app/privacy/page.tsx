@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Datenschutzerklärung – SwissPriceRunner",
+  title: "Datenschutzerklärung – SwissPrice",
   description:
-    "Datenschutzerklärung von SwissPriceRunner gemäss dem Schweizer Datenschutzgesetz (nDSG).",
+    "Datenschutzerklärung von SwissPrice gemäss dem Schweizer Datenschutzgesetz (nDSG).",
 };
 
 export default function PrivacyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex h-12 max-w-3xl items-center justify-between px-4 sm:h-14 sm:px-6">
           <Link href="/" className="text-base font-bold tracking-tight sm:text-lg">
-            Swiss<span className="text-red-600">Price</span>Runner
+            SWISS<span className="text-red-600">PRICE</span>
           </Link>
           <Link
             href="/"
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
             </h2>
             <div className="mt-3 space-y-1">
               <p>Verantwortlich für die Datenbearbeitung auf dieser Website:</p>
-              <p className="mt-2 font-semibold">SwissPriceRunner</p>
+              <p className="mt-2 font-semibold">SwissPrice</p>
               <p>Musterstrasse 42</p>
               <p>8001 Zürich, Schweiz</p>
               <p>

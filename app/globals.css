@@ -10,7 +10,7 @@
   }
 
   body {
-    @apply bg-[#f0f0f0] text-gray-900;
+    @apply bg-white text-gray-900;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 

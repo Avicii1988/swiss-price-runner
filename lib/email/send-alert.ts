@@ -26,7 +26,7 @@ export async function sendPriceAlertEmail(params: SendAlertParams) {
   const from = process.env.RESEND_FROM_EMAIL ?? "alerts@swisspricerunner.ch";
 
   const { data, error } = await getResend().emails.send({
-    from: `SwissPriceRunner <${from}>`,
+    from: `SwissPrice <${from}>`,
     to: params.to,
     subject: `Preisalarm: ${params.productTitle} jetzt ab CHF ${params.currentPriceChf.toFixed(2)}`,
     react: PriceAlertEmail({

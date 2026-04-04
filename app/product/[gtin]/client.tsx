@@ -63,7 +63,7 @@ export function ProductDetailClient({ item }: Props) {
       <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/80 backdrop-blur-lg">
         <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-4 sm:h-14 sm:px-6">
           <Link href="/" className="text-base font-bold tracking-tight sm:text-lg">
-            Swiss<span className="text-red-600">Price</span>Runner
+            SWISS<span className="text-red-600">PRICE</span>
           </Link>
           <div className="flex items-center gap-2">
             <button

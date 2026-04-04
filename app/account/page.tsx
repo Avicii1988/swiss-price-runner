@@ -33,7 +33,7 @@ export default function AccountPage() {
         <header className="border-b border-gray-100 bg-white">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
             <Link href="/" className="text-lg font-bold tracking-tight">
-              Swiss<span className="text-red-600">Price</span>Runner
+              SWISS<span className="text-red-600">PRICE</span>
             </Link>
           </div>
         </header>
@@ -64,7 +64,7 @@ export default function AccountPage() {
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="text-lg font-bold tracking-tight">
-            Swiss<span className="text-red-600">Price</span>Runner
+            SWISS<span className="text-red-600">PRICE</span>
           </Link>
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
