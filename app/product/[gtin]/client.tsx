@@ -11,10 +11,7 @@ import {
   Truck,
   Plane,
   TrendingDown,
-  TrendingUp,
   LayoutGrid,
-  Bookmark,
-  Camera,
 } from "lucide-react";
 import { PriceHistoryChart } from "@/components/price-history-chart";
 import { PriceDropBadge } from "@/components/price-drop-badge";
@@ -27,7 +24,7 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
-import { getCategoryBySlug, CATEGORIES } from "@/lib/categories";
+import { getCategoryBySlug } from "@/lib/categories";
 
 const SOURCE_COLORS: Record<string, string> = {
   amazon_de: "#FF9900",
@@ -35,7 +32,6 @@ const SOURCE_COLORS: Record<string, string> = {
   zalando_de: "#FF6900",
 };
 
-// Map category slug → sidebar group
 const SIDEBAR_NAV: Record<string, { parent: string; siblings: string[] }> = {
   smartphones: { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
   laptops: { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
@@ -53,9 +49,10 @@ const SIDEBAR_NAV: Record<string, { parent: string; siblings: string[] }> = {
 
 interface Props {
   item: MockProductWithHistory;
+  allProducts: MockProductWithHistory[];
 }
 
-export function ProductDetailClient({ item }: Props) {
+export function ProductDetailClient({ item, allProducts }: Props) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d, avgChf30d } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, setShowAuthModal } = useAuth();
   const [showAlert, setShowAlert] = useState(false);
@@ -78,57 +75,30 @@ export function ProductDetailClient({ item }: Props) {
     <div className="min-h-screen bg-white">
       {showAlert && <PriceAlertModal item={item} onClose={() => setShowAlert(false)} />}
 
-      {/* Shared header */}
-      <SiteHeader query={pdpQuery} onQueryChange={setPdpQuery} />
+      {/* Shared header — with allProducts for global search */}
+      <SiteHeader query={pdpQuery} onQueryChange={setPdpQuery} allProducts={allProducts} />
 
-      {/* Breadcrumbs */}
-      <nav className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-1.5 overflow-x-auto px-5 py-2.5 text-xs text-gray-400 sm:px-10">
-          <Link href="/" className="shrink-0 text-blue-600 hover:underline">Gesamtsortiment</Link>
-          <ChevronRight className="h-3 w-3 shrink-0" />
-          {sidebarNav && (
-            <>
-              <span className="shrink-0 text-blue-600">{sidebarNav.parent}</span>
-              <ChevronRight className="h-3 w-3 shrink-0" />
-            </>
-          )}
-          {cat && (
-            <>
-              <Link href={`/category/${cat.slug}`} className="shrink-0 text-blue-600 hover:underline">{cat.name}</Link>
-              <ChevronRight className="h-3 w-3 shrink-0" />
-            </>
-          )}
-          <span className="truncate text-gray-600">{product.title}</span>
-        </div>
-      </nav>
-
-      {/* ═══ MAIN: 2-column (sidebar + content) ═══ */}
+      {/* ═══ MAIN: sidebar + content ═══ */}
       <div className="mx-auto max-w-[1600px] px-5 py-6 sm:px-10">
         <div className="flex gap-8">
 
           {/* ── LEFT: Deep-nav sidebar ── */}
           <aside className="hidden w-48 shrink-0 lg:block">
             <nav>
-              {/* Parent with arrow */}
               <Link href="/" className="flex items-center justify-between py-2 text-sm text-gray-700 hover:text-black">
                 Gesamtsortiment <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
               </Link>
               <div className="border-t border-gray-200" />
-
               {sidebarNav && (
                 <>
-                  <button className="flex w-full items-center justify-between py-2 text-left text-sm font-semibold text-gray-900">
+                  <p className="flex items-center justify-between py-2 text-sm font-semibold text-gray-900">
                     {sidebarNav.parent} <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
-                  </button>
+                  </p>
                   <div className="border-t border-gray-200" />
-
-                  {/* Active category */}
                   <p className="py-2 text-sm font-semibold text-gray-900">{cat?.name ?? product.category}</p>
-
-                  {/* Siblings (sub-categories) */}
                   <div className="ml-3 space-y-0.5 border-l border-gray-200 pl-3">
                     {sidebarNav.siblings.map((sub) => (
-                      <p key={sub} className={`py-1 text-[13px] ${sub === (cat?.name ?? "") ? "font-semibold text-black" : "text-gray-500 hover:text-gray-900"}`}>
+                      <p key={sub} className={`py-1 text-[13px] ${sub === (cat?.name ?? "") ? "font-semibold text-black" : "text-gray-500"}`}>
                         {sub}
                       </p>
                     ))}
@@ -139,8 +109,27 @@ export function ProductDetailClient({ item }: Props) {
             </nav>
           </aside>
 
-          {/* ── RIGHT: Product content ── */}
-          <main className="min-w-0 flex-1">
+          {/* ── RIGHT: Product content (max-width for clean proportions) ── */}
+          <main className="min-w-0 flex-1 max-w-4xl">
+            {/* Breadcrumbs — directly above product content, NOT above sidebar */}
+            <nav className="mb-4 flex items-center gap-1.5 overflow-x-auto text-xs text-gray-400">
+              <Link href="/" className="shrink-0 text-blue-600 hover:underline">Gesamtsortiment</Link>
+              <ChevronRight className="h-3 w-3 shrink-0" />
+              {sidebarNav && (
+                <>
+                  <span className="shrink-0 text-blue-600">{sidebarNav.parent}</span>
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                </>
+              )}
+              {cat && (
+                <>
+                  <Link href={`/category/${cat.slug}`} className="shrink-0 text-blue-600 hover:underline">{cat.name}</Link>
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                </>
+              )}
+              <span className="truncate text-gray-600">{product.title}</span>
+            </nav>
+
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               {/* Image */}
               <div className="lg:col-span-5">
@@ -152,21 +141,17 @@ export function ProductDetailClient({ item }: Props) {
 
               {/* Details */}
               <div className="lg:col-span-7">
-                {/* Stock + discount */}
-                <div className="flex items-center gap-2">
-                  {discount >= 3 && (
-                    <span className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white">-{discount}%</span>
-                  )}
-                </div>
+                {/* Discount badge */}
+                {discount >= 3 && (
+                  <span className="mb-2 inline-block rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white">-{discount}%</span>
+                )}
 
-                {/* Price — Galaxus CHF style */}
-                <div className="mt-2">
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-bold text-gray-900">{bestPrice.totalChf.toFixed(0)}.–</span>
-                    {discount >= 3 && (
-                      <span className="text-base text-gray-400 line-through">statt {Math.round(avgChf30d)}.–</span>
-                    )}
-                  </div>
+                {/* Price */}
+                <div className="flex items-baseline gap-3">
+                  <span className="text-4xl font-bold text-gray-900">{bestPrice.totalChf.toFixed(0)}.–</span>
+                  {discount >= 3 && (
+                    <span className="text-base text-gray-400 line-through">statt {Math.round(avgChf30d)}.–</span>
+                  )}
                 </div>
 
                 {/* Brand + Title */}
@@ -196,29 +181,34 @@ export function ProductDetailClient({ item }: Props) {
                   })()}
                 </div>
 
-                {/* CTA buttons — Galaxus style */}
-                <div className="mt-5 space-y-2">
-                  <button onClick={() => setShowAlert(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 py-3.5 text-sm font-semibold text-white transition hover:bg-red-700">
-                    <Bell className="h-4 w-4" /> Preisalarm setzen
-                  </button>
-                  <div className="flex gap-2">
-                    <button className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
-                      <LayoutGrid className="h-4 w-4" /> Vergleichen
-                    </button>
-                    <button
-                      onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
-                      className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition ${faved ? "border-red-300 bg-red-50 text-red-600" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
-                      <Bookmark className={`h-4 w-4 ${faved ? "fill-current" : ""}`} /> Merken
-                    </button>
-                  </div>
-                </div>
-
-                {/* Delivery info */}
+                {/* Delivery */}
                 <div className="mt-4 flex items-center gap-2 text-sm">
                   <Truck className="h-4 w-4 text-green-600" />
-                  <span className="text-green-600 font-medium">Lieferung Schweiz</span>
+                  <span className="font-medium text-green-600">Lieferung Schweiz</span>
                   <span className="text-gray-400">· inkl. Zoll + MwSt.</span>
+                </div>
+
+                {/* CTA — single row: Preisalarm + Zum besten Shop */}
+                <div className="mt-5 flex gap-3">
+                  <button onClick={() => setShowAlert(true)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 py-3 text-sm font-semibold text-white transition hover:bg-red-700">
+                    <Bell className="h-4 w-4" /> Preisalarm setzen
+                  </button>
+                  <button className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                    <ExternalLink className="h-4 w-4" /> Zum besten Shop
+                  </button>
+                </div>
+
+                {/* Secondary: Vergleichen + Favorit */}
+                <div className="mt-2 flex gap-2">
+                  <button className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 py-2 text-sm text-gray-600 transition hover:bg-gray-50">
+                    <LayoutGrid className="h-4 w-4" /> Vergleichen
+                  </button>
+                  <button
+                    onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2 text-sm transition ${faved ? "border-red-300 bg-red-50 text-red-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                    <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} /> Favorit
+                  </button>
                 </div>
 
                 {/* Swiss Price Breakdown */}
@@ -270,20 +260,20 @@ export function ProductDetailClient({ item }: Props) {
                   </div>
                 </div>
 
-                {/* Price History + Email Alert */}
+                {/* Price History Chart */}
                 <div className="mt-6 border-t border-gray-200 pt-5">
-                  <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
-                    <div className="rounded-lg border border-gray-100 bg-white p-4 xl:col-span-3">
-                      <PriceHistoryChart product={product} history30d={priceHistory} />
-                    </div>
-                    <div className="xl:col-span-2">
-                      <EmailAlertForm productGtin={product.gtin} productTitle={product.title} currentPriceChf={bestPrice.totalChf} />
-                    </div>
+                  <div className="rounded-lg border border-gray-100 bg-white p-4">
+                    <PriceHistoryChart product={product} history30d={priceHistory} />
                   </div>
                 </div>
 
+                {/* Email Alert — directly below chart */}
+                <div className="mt-4">
+                  <EmailAlertForm productGtin={product.gtin} productTitle={product.title} currentPriceChf={bestPrice.totalChf} />
+                </div>
+
                 {/* Tags + How we calculate */}
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-5 flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-medium text-gray-600"><ShieldCheck className="h-3 w-3" /> Zoll berechnet</span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-medium text-gray-600"><Truck className="h-3 w-3" /> Lieferung Schweiz</span>
                   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-medium text-gray-600">Kurs: {EXCHANGE_RATE} CHF/EUR</span>
