@@ -108,7 +108,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
       />
 
       {/* ═══ MAIN ═══ */}
-      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6">
+      <div className="mx-auto max-w-[1600px] px-5 py-5 sm:px-10">
         <div className="flex gap-6">
 
           {/* LEFT SIDEBAR with sub-categories */}
@@ -253,9 +253,9 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
             )}
           </main>
 
-          {/* RIGHT SIDEBAR */}
+          {/* RIGHT SIDEBAR — separated by fine divider */}
           {!isFiltered && tagesangebot && (
-            <aside className="hidden w-72 shrink-0 xl:block">
+            <aside className="hidden w-72 shrink-0 border-l border-gray-200 pl-6 xl:block">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-bold text-gray-900">Tagesangebot</h2>
                 <span className="rounded border border-gray-300 px-2 py-0.5 text-xs font-bold text-gray-600">

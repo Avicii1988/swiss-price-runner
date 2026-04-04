@@ -2,21 +2,21 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Search, Camera, Heart, Menu, X, ChevronRight, ChevronDown, ArrowRight } from "lucide-react";
+import { Search, Camera, Heart, Menu, X, ChevronRight, ChevronDown, ArrowRight, User } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 const MENU_ITEMS = [
   { label: "IT + Multimedia", slugs: ["smartphones", "laptops", "kopfhoerer", "foto", "tv-audio"], subs: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto & Video"] },
-  { label: "Haushalt", slugs: ["haushalt"], subs: ["Staubsauger", "Kaffeemaschinen", "Küchengeräte", "Luftreiniger"] },
-  { label: "Sport", slugs: ["sport"], subs: ["Fitness", "Velo", "Wandern", "Ski"] },
-  { label: "Mode", slugs: ["mode", "schuhe"], subs: ["Sneakers", "Laufschuhe", "Jacken", "Jeans", "Accessoires"] },
-  { label: "Gaming + Spielzeug", slugs: ["gaming"], subs: ["PlayStation", "Xbox", "Nintendo", "PC Gaming"] },
-  { label: "Baby + Eltern", slugs: ["baby"], subs: ["Kinderwagen", "Spielzeug", "Möbel"] },
-  { label: "Beauty + Gesundheit", slugs: ["beauty"], subs: ["Parfum", "Pflege", "Haarpflege", "Make-up"] },
-  { label: "Uhren + Schmuck", slugs: ["uhren"], subs: ["Smartwatches", "Sportuhren", "Schmuck"] },
-  { label: "Bücher + Medien", slugs: ["buecher"], subs: ["Belletristik", "Sachbücher", "eBooks"] },
+  { label: "Haushalt", slugs: ["haushalt"], subs: ["Staubsauger", "Kaffeemaschinen", "Küchengeräte"] },
+  { label: "Sport", slugs: ["sport"], subs: ["Fitness", "Velo", "Wandern"] },
+  { label: "Mode", slugs: ["mode", "schuhe"], subs: ["Sneakers", "Laufschuhe", "Jacken", "Jeans"] },
+  { label: "Gaming + Spielzeug", slugs: ["gaming"], subs: ["PlayStation", "Xbox", "Nintendo"] },
+  { label: "Baby + Eltern", slugs: ["baby"], subs: [] },
+  { label: "Beauty + Gesundheit", slugs: ["beauty"], subs: ["Parfum", "Pflege", "Make-up"] },
+  { label: "Uhren + Schmuck", slugs: ["uhren"], subs: [] },
+  { label: "Bücher + Medien", slugs: ["buecher"], subs: [] },
 ];
 
 interface SiteHeaderProps {
@@ -55,57 +55,22 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
   return (
     <>
-      {/* Mobile Menu — full-width dropdown below header, NOT overlay */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[45] lg:hidden" style={{ top: "calc(5px + 56px + 49px)" }}>
-          <div className="absolute inset-0 bg-black/30" onClick={() => setMobileMenuOpen(false)} />
-          <div className="relative max-h-[70vh] overflow-y-auto bg-white shadow-xl">
-            {MENU_ITEMS.map((item) => (
-              <div key={item.label}>
-                <button
-                  onClick={() => {
-                    if (item.subs.length > 0) setExpandedMenu(expandedMenu === item.label ? null : item.label);
-                    else { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }
-                  }}
-                  className="flex w-full items-center justify-between border-b border-gray-100 px-5 py-3.5 text-[15px] text-gray-800 hover:bg-gray-50"
-                >
-                  <span>{item.label}</span>
-                  {item.subs.length > 0 ? (
-                    <ChevronDown className={`h-4 w-4 text-gray-400 transition ${expandedMenu === item.label ? "rotate-180" : ""}`} />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                  )}
-                </button>
-                {expandedMenu === item.label && (
-                  <div className="border-b border-gray-100 bg-gray-50 py-1">
-                    <button onClick={() => { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }}
-                      className="w-full px-8 py-2 text-left text-sm font-medium text-blue-600">Alle in {item.label}</button>
-                    {item.subs.map((sub) => (
-                      <button key={sub} onClick={() => { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }}
-                        className="w-full px-8 py-2 text-left text-sm text-gray-600 hover:text-gray-900">{sub}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Rainbow bar */}
       <div className="rainbow-bar sticky top-0 z-50" />
 
       {/* Header */}
-      <header className="sticky top-[5px] z-40 bg-white">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-4 px-4 sm:px-6">
+      <header className="sticky top-[5px] z-40 bg-white" id="site-header">
+        {/* Main row: logo + search + icons */}
+        <div className="mx-auto flex h-14 items-center gap-3 px-5 sm:gap-5 sm:px-10 lg:gap-8">
+          {/* Logo */}
           <Link href="/" className="shrink-0 text-xl font-black tracking-tight sm:text-2xl">
             SWISS<span className="text-red-600">PRICE</span>
           </Link>
 
-          {/* Search — desktop + mobile unified */}
-          <div ref={searchRef} className="search-shine relative flex-1">
+          {/* Search bar — ~45% on desktop, full on mobile */}
+          <div ref={searchRef} className="search-shine relative flex-1 lg:max-w-[45%]">
             <div className="flex items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg">
-              <Search className="ml-3 h-4 w-4 text-gray-400 sm:ml-4" />
+              <Search className="ml-3 h-4 w-4 shrink-0 text-gray-400 sm:ml-4" />
               <input type="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
                 placeholder="Wonach suchst du?" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base outline-none placeholder:text-gray-400 sm:px-3" />
               <button onClick={() => showVision?.()} className="mr-1 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 sm:mr-2">
@@ -143,16 +108,21 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           </div>
 
           {/* Right icons */}
-          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+            {/* Desktop: black "Anmelden" text button */}
             {isLoggedIn && user ? (
-              <Link href="/account" className="rounded-full bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-800">
+              <Link href="/account" className="hidden rounded-full bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-800 sm:block">
                 {user.name.split(" ")[0]}
               </Link>
             ) : (
-              <button onClick={() => setShowAuthModal(true)} className="rounded-full bg-gray-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-gray-800">
+              <button onClick={() => setShowAuthModal(true)} className="hidden rounded-full bg-gray-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-gray-800 sm:block">
                 Anmelden
               </button>
             )}
+            {/* Mobile: user icon */}
+            <button onClick={() => isLoggedIn ? undefined : setShowAuthModal(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 sm:hidden">
+              <User className="h-5 w-5" />
+            </button>
             <Link href="/account" className="hidden h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 sm:flex">
               <Heart className="h-5 w-5" />
             </Link>
@@ -160,14 +130,51 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           </div>
         </div>
 
-        {/* Mobile: ☰ Menü bar below header */}
-        <div className="flex items-center border-t border-gray-100 px-4 py-1.5 lg:hidden">
+        {/* ☰ Menü bar — below header, no border between logo and search */}
+        <div className="flex items-center px-5 py-1.5 sm:px-10 lg:hidden">
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-            <Menu className="h-5 w-5" /> Menü
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            Menü
           </button>
         </div>
         <div className="border-b border-gray-200" />
       </header>
+
+      {/* Mobile menu — full-page below header, Galaxus-style */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: "calc(5px + 56px + 37px)" }}>
+          <nav>
+            {MENU_ITEMS.map((item) => (
+              <div key={item.label}>
+                <button
+                  onClick={() => {
+                    if (item.subs.length > 0) setExpandedMenu(expandedMenu === item.label ? null : item.label);
+                    else { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }
+                  }}
+                  className="flex w-full items-center justify-between border-b border-gray-100 px-5 py-4 text-[15px] text-gray-800"
+                >
+                  <span>{item.label}</span>
+                  {item.subs.length > 0 ? (
+                    <ChevronDown className={`h-4 w-4 text-gray-400 transition ${expandedMenu === item.label ? "rotate-180" : ""}`} />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+                {expandedMenu === item.label && (
+                  <div className="border-b border-gray-100 bg-gray-50 py-1">
+                    <button onClick={() => { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }}
+                      className="w-full px-8 py-2.5 text-left text-sm font-medium text-blue-600">Alle in {item.label}</button>
+                    {item.subs.map((sub) => (
+                      <button key={sub} onClick={() => { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }}
+                        className="w-full px-8 py-2.5 text-left text-sm text-gray-600 hover:text-gray-900">{sub}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
+        </div>
+      )}
     </>
   );
 }
