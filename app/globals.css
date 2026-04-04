@@ -34,40 +34,35 @@
   }
 }
 
-/* Galaxus rainbow bar */
+/* Rainbow bar */
 .rainbow-bar {
   height: 5px;
-  background: linear-gradient(
-    90deg,
-    #e3000b 0%,
-    #f39200 12%,
-    #ffdd00 24%,
-    #94c11f 36%,
-    #009e60 48%,
-    #00a9e0 60%,
-    #0064b4 72%,
-    #6a2382 84%,
-    #e3000b 100%
-  );
+  background: linear-gradient(90deg, #e3000b 0%, #f39200 12%, #ffdd00 24%, #94c11f 36%, #009e60 48%, #00a9e0 60%, #0064b4 72%, #6a2382 84%, #e3000b 100%);
 }
 
-/* Rainbow border on search focus */
-.search-rainbow-border {
+/* Search shine effect — animated rainbow glow on focus */
+.search-shine {
   position: relative;
   border-radius: 9999px;
 }
-.search-rainbow-border::before {
+.search-shine::before {
   content: "";
   position: absolute;
   inset: -2px;
   border-radius: 9999px;
   background: linear-gradient(90deg, #e3000b, #f39200, #ffdd00, #94c11f, #009e60, #00a9e0, #0064b4, #6a2382, #e3000b);
+  background-size: 200% 100%;
   opacity: 0;
-  transition: opacity 0.2s;
   z-index: -1;
+  transition: opacity 0.3s ease;
 }
-.search-rainbow-border:focus-within::before {
+.search-shine:focus-within::before {
   opacity: 1;
+  animation: shine-move 3s linear infinite;
+}
+@keyframes shine-move {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
 }
 
 /* Stock progress bar */
@@ -80,6 +75,6 @@
 .stock-bar-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, #e3000b, #f39200);
+  background: linear-gradient(90deg, #16a34a, #22c55e);
   transition: width 0.5s ease;
 }
