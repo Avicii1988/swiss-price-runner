@@ -62,10 +62,10 @@ export async function POST(request: Request) {
 
           const vectorStr = `[${embedding.join(",")}]`;
 
-          // Write both columns via raw SQL to avoid Prisma vector serialization bug (error 54000)
+          // Write both columns with explicit ::vector cast
           await db.$executeRawUnsafe(
-            `UPDATE "Product" SET embedding = $1, embedding_vec = $2::vector WHERE id = $3`,
-            JSON.stringify(embedding),
+            `UPDATE "Product" SET embedding = $1::vector, embedding_vec = $2::vector WHERE id = $3`,
+            vectorStr,
             vectorStr,
             product.id,
           );
