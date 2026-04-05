@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthProvider } from "@/lib/auth/auth-context";
+import { NextAuthProvider } from "@/components/session-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { BackToTop } from "@/components/back-to-top";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
@@ -31,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="de-CH">
       <body className="min-h-screen bg-white text-gray-900 antialiased">
+        <NextAuthProvider>
         <AuthProvider>
           <AuthModal />
           {children}
@@ -92,6 +94,7 @@ export default function RootLayout({
             </div>
           </footer>
         </AuthProvider>
+        </NextAuthProvider>
       </body>
     </html>
   );
