@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User } from "lucide-react";
+import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User, UserCheck } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -170,9 +170,15 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Favoriten">
                 <Heart className="h-5 w-5" />
               </Link>
-              <button onClick={() => isLoggedIn ? undefined : setShowAuthModal(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
-                <User className="h-5 w-5" />
-              </button>
+              {isLoggedIn ? (
+                <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
+                  <UserCheck className="h-5 w-5" />
+                </Link>
+              ) : (
+                <button onClick={() => setShowAuthModal(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
+                  <User className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -201,10 +207,10 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: `calc(9px + ${hideTopRow ? 0 : 44}px + 42px + 1px)` }}>
-          {/* Menu logo */}
-          <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3">
-            <svg width="20" height="20" viewBox="0 0 36 36" fill="none"><path d="M18 3C12.5 3 8 7.5 8 13V21C8 21 7 22 6 23V24H30V23C29 22 28 21 28 21V13C28 7.5 23.5 3 18 3Z" fill="#E30613"/><path d="M14.5 26C14.5 28 16 30 18 30C20 30 21.5 28 21.5 26H14.5Z" fill="#E30613"/><rect x="16" y="9" width="4" height="10" rx="0.8" fill="white"/><rect x="13" y="12" width="10" height="4" rx="0.8" fill="white"/></svg>
-            <span className="text-sm font-black">Preis<span className="text-[#E30613]">Alarm</span></span>
+          {/* Menu logo — centered */}
+          <div className="flex items-center justify-center gap-2 border-b border-gray-100 py-4">
+            <svg width="24" height="24" viewBox="0 0 36 36" fill="none"><path d="M18 3C12.5 3 8 7.5 8 13V21C8 21 7 22 6 23V24H30V23C29 22 28 21 28 21V13C28 7.5 23.5 3 18 3Z" fill="#E30613"/><path d="M14.5 26C14.5 28 16 30 18 30C20 30 21.5 28 21.5 26H14.5Z" fill="#E30613"/><rect x="16" y="9" width="4" height="10" rx="0.8" fill="white"/><rect x="13" y="12" width="10" height="4" rx="0.8" fill="white"/></svg>
+            <span className="text-base font-black">Preis<span className="text-[#E30613]">Alarm</span></span>
           </div>
           <nav>
             {MENU_ITEMS.map((item) => (

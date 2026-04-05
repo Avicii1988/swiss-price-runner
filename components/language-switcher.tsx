@@ -24,7 +24,7 @@ export function LanguageSwitcher({ current, onChange }: LanguageSwitcherProps) {
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
         title={active?.label}
       >
@@ -32,8 +32,8 @@ export function LanguageSwitcher({ current, onChange }: LanguageSwitcherProps) {
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl">
+          <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-[101] mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl">
             <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Sprache</p>
             {LANGUAGES.map((lang) => (
               <button
