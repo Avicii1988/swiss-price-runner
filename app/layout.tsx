@@ -44,20 +44,31 @@ export default function RootLayout({
               <p className="text-center text-[10px] font-semibold uppercase tracking-widest text-gray-400">
                 Partner-Netzwerk
               </p>
-              <div className="mt-4 flex items-center justify-center gap-10 sm:gap-14">
-                <div className="text-center transition hover:opacity-80">
-                  <p className="text-lg font-extrabold tracking-tight sm:text-xl" style={{ color: "#FF9900", letterSpacing: "-0.5px" }}>amazon</p>
-                  <p className="mt-0.5 text-[8px] text-gray-400">PartnerNet</p>
+              <div className="mt-4 flex items-center justify-center gap-8 sm:gap-12">
+                {/* Amazon — wordmark + smile */}
+                <div className="flex flex-col items-center gap-1 transition hover:opacity-80">
+                  <svg className="h-6 sm:h-7" viewBox="0 0 120 36" fill="none">
+                    <text x="0" y="24" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="900" fill="#232F3E" letterSpacing="-0.5">amazon</text>
+                    <path d="M38 28C50 33 72 35 92 29" fill="none" stroke="#FF9900" strokeWidth="2.5" strokeLinecap="round" />
+                    <path d="M88 26L93 29L88 32" fill="none" stroke="#FF9900" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-[8px] text-gray-400">PartnerNet</span>
                 </div>
                 <div className="h-8 w-px bg-gray-200" />
-                <div className="text-center transition hover:opacity-80">
-                  <p className="text-lg font-extrabold tracking-tight sm:text-xl" style={{ color: "#0D2B5E", letterSpacing: "-0.5px" }}>Galaxus</p>
-                  <p className="mt-0.5 text-[8px] text-gray-400">Affiliate</p>
+                {/* Galaxus — brand navy */}
+                <div className="flex flex-col items-center gap-1 transition hover:opacity-80">
+                  <svg className="h-6 sm:h-7" viewBox="0 0 110 28" fill="none">
+                    <text x="0" y="22" fontFamily="Arial, sans-serif" fontSize="22" fontWeight="800" fill="#0D2B5E" letterSpacing="-0.5">Galaxus</text>
+                  </svg>
+                  <span className="text-[8px] text-gray-400">Affiliate</span>
                 </div>
                 <div className="h-8 w-px bg-gray-200" />
-                <div className="text-center transition hover:opacity-80">
-                  <p className="text-base font-bold uppercase tracking-[0.2em] sm:text-lg" style={{ color: "#FF6900" }}>Zalando</p>
-                  <p className="mt-0.5 text-[8px] text-gray-400">Partner</p>
+                {/* Zalando — orange with triangle accent */}
+                <div className="flex flex-col items-center gap-1 transition hover:opacity-80">
+                  <svg className="h-6 sm:h-7" viewBox="0 0 110 28" fill="none">
+                    <text x="0" y="22" fontFamily="Arial, sans-serif" fontSize="18" fontWeight="700" fill="#FF6900" letterSpacing="2">ZALANDO</text>
+                  </svg>
+                  <span className="text-[8px] text-gray-400">Partner</span>
                 </div>
               </div>
             </div>

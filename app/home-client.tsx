@@ -164,7 +164,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
             {/* When filtered — product grid only */}
             {isFiltered && (
               <>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
                   {filtered.slice(0, 40).map((item) => <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />)}
                 </div>
                 {filtered.length === 0 && <div className="py-20 text-center"><Package className="mx-auto h-10 w-10 text-gray-300" /><p className="mt-3 text-sm text-gray-400">Keine Produkte gefunden.</p></div>}
