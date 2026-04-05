@@ -141,17 +141,27 @@ export const CATEGORIES: Category[] = [
   },
   {
     slug: "beauty",
-    name: "Beauty & Parfum",
+    name: "Beauty & Pflege",
     icon: Sparkles,
-    description: "Düfte, Pflege, Make-up und Wellness",
-    productCount: 2345,
+    description: "Pflege, Make-up und Wellness",
+    productCount: 1545,
     subcategories: [
-      { slug: "beauty-parfum-herren", name: "Herrendüfte", productCount: 345 },
-      { slug: "beauty-parfum-damen", name: "Damendüfte", productCount: 456 },
       { slug: "beauty-pflege", name: "Hautpflege", productCount: 567 },
       { slug: "beauty-makeup", name: "Make-up", productCount: 432 },
       { slug: "beauty-haarpflege", name: "Haarpflege", productCount: 345 },
       { slug: "beauty-wellness", name: "Wellness & Spa", productCount: 200 },
+    ],
+  },
+  {
+    slug: "parfum",
+    name: "Parfum & Düfte",
+    icon: Sparkles,
+    description: "Herren- und Damendüfte der Top-Marken zum besten Preis",
+    productCount: 890,
+    subcategories: [
+      { slug: "parfum-herren", name: "Herrendüfte", productCount: 345 },
+      { slug: "parfum-damen", name: "Damendüfte", productCount: 456 },
+      { slug: "parfum-unisex", name: "Unisex-Düfte", productCount: 89 },
     ],
   },
   {

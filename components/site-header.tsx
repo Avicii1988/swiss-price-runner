@@ -14,9 +14,10 @@ const MENU_ITEMS = [
   { label: "Haushalt", slugs: ["haushalt"], subs: ["Staubsauger", "Kaffeemaschinen", "Küchengeräte"] },
   { label: "Sport", slugs: ["sport"], subs: ["Fitness", "Velo", "Wandern"] },
   { label: "Mode", slugs: ["mode", "schuhe"], subs: ["Sneakers", "Laufschuhe", "Jacken", "Jeans"] },
+  { label: "Parfum", slugs: ["parfum"], subs: ["Herrendüfte", "Damendüfte", "Unisex"] },
   { label: "Gaming + Spielzeug", slugs: ["gaming"], subs: ["PlayStation", "Xbox", "Nintendo"] },
   { label: "Baby + Eltern", slugs: ["baby"], subs: [] },
-  { label: "Beauty + Gesundheit", slugs: ["beauty"], subs: ["Parfum", "Pflege", "Make-up"] },
+  { label: "Beauty + Pflege", slugs: ["beauty"], subs: ["Hautpflege", "Haarpflege", "Make-up"] },
   { label: "Uhren + Schmuck", slugs: ["uhren"], subs: [] },
   { label: "Bücher + Medien", slugs: ["buecher"], subs: [] },
 ];

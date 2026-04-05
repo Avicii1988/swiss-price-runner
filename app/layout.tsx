@@ -75,22 +75,44 @@ export default function RootLayout({
               </div>
             </div>
 
-            {/* Links + legal */}
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-                <PreisAlarmLogo size="sm" />
-                <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-gray-500">
-                  <Link href="/impressum" className="transition hover:text-gray-900">Impressum</Link>
-                  <Link href="/privacy" className="transition hover:text-gray-900">Datenschutz</Link>
-                  <Link href="/account" className="transition hover:text-gray-900">Mein Konto</Link>
-                </nav>
+            {/* About + Links */}
+            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+              <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+                {/* About */}
+                <div>
+                  <PreisAlarmLogo size="sm" />
+                  <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                    PreisAlarm ist die Schweizer Vergleichsplattform für Lifestyle-Produkte.
+                    Wir helfen dir, die besten Deals bei Parfum, Mode, Elektronik und mehr
+                    zu finden — inklusive Zoll, MwSt. und Lieferkosten in die Schweiz.
+                  </p>
+                </div>
+                {/* Links */}
+                <div>
+                  <p className="text-xs font-bold text-gray-700">Links</p>
+                  <nav className="mt-2 flex flex-col gap-1.5 text-xs text-gray-500">
+                    <Link href="/impressum" className="transition hover:text-gray-900">Impressum</Link>
+                    <Link href="/privacy" className="transition hover:text-gray-900">Datenschutz</Link>
+                    <Link href="/account" className="transition hover:text-gray-900">Mein Konto</Link>
+                  </nav>
+                </div>
+                {/* Kategorien */}
+                <div>
+                  <p className="text-xs font-bold text-gray-700">Beliebte Kategorien</p>
+                  <nav className="mt-2 flex flex-col gap-1.5 text-xs text-gray-500">
+                    <Link href="/category/parfum" className="transition hover:text-gray-900">Parfum & Düfte</Link>
+                    <Link href="/category/mode" className="transition hover:text-gray-900">Mode & Schuhe</Link>
+                    <Link href="/category/smartphones" className="transition hover:text-gray-900">Smartphones</Link>
+                    <Link href="/category/haushalt" className="transition hover:text-gray-900">Haushalt & Küche</Link>
+                  </nav>
+                </div>
               </div>
-              <p className="mt-4 text-center text-[10px] leading-relaxed text-gray-400">
-                &copy; {new Date().getFullYear()} Jan Feusi – PreisAlarm. Alle Rechte vorbehalten.
-              </p>
-              <p className="mt-1 text-center text-[10px] text-gray-400">
-                Als Amazon-Partner verdiene ich an qualifizierten Verkäufen.
-              </p>
+              <div className="mt-6 border-t border-gray-100 pt-4">
+                <p className="text-center text-[10px] text-gray-400">
+                  &copy; {new Date().getFullYear()} Jan Feusi – PreisAlarm. Alle Rechte vorbehalten.
+                  · Als Amazon-Partner verdiene ich an qualifizierten Verkäufen.
+                </p>
+              </div>
             </div>
           </footer>
         </AuthProvider>

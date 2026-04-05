@@ -151,10 +151,21 @@ export const SEED_PRODUCTS: SeedProduct[] = [
   p("00889842801100", "Patagonia Better Sweater Fleece",       "Patagonia","mode",   false, [129, undefined, 129]),
   p("00764011801200", "On Cloudnova – All White",              "On Running","mode",  false, [159.95, 179.9, 159.95]),
 
-  // ── Beauty & Parfum (5) ────────────────────────────────────────────────
-  p("00737052766270", "Dior Sauvage Eau de Parfum 100ml",      "Dior",     "beauty", false, [89.95, 99.9, 94.5]),
-  p("00361422671355", "Chanel N°5 Eau de Parfum 50ml",         "Chanel",   "beauty", false, [109, undefined, 115]),
-  p("00320000002301", "Tom Ford Oud Wood EDP 50ml",            "Tom Ford", "beauty", false, [179, undefined, 189]),
+  // ── Parfum (12) ─────────────────────────────────────────────────────────
+  p("00737052766270", "Dior Sauvage Eau de Parfum 100ml",            "Dior",        "parfum", true,  [89.95, 109.9, 94.5]),
+  p("00361422671355", "Chanel N°5 Eau de Parfum 50ml",               "Chanel",      "parfum", true,  [109, 129.9, 115]),
+  p("00320000002301", "Tom Ford Oud Wood EDP 50ml",                  "Tom Ford",    "parfum", false, [179, 209.9, 189]),
+  p("00360000005001", "Lancôme La Vie Est Belle EDP 75ml",           "Lancôme",     "parfum", true,  [79.95, 99.9, 84.5]),
+  p("00360000005002", "Yves Saint Laurent Libre EDP 90ml",           "YSL",         "parfum", false, [89.95, 109.9, 94.5]),
+  p("00360000005003", "Chanel Chance Eau Tendre EDT 100ml",          "Chanel",      "parfum", false, [99.95, 119.9, 105]),
+  p("00360000005004", "Giorgio Armani Acqua di Giò Profondo 75ml",   "Armani",      "parfum", false, [69.95, 89.9, 74.5]),
+  p("00360000005005", "Hugo Boss Bottled EDP 100ml",                 "Hugo Boss",   "parfum", false, [59.95, 79.9, 64.5]),
+  p("00360000005006", "Versace Eros EDT 100ml",                      "Versace",     "parfum", false, [54.95, 69.9, 59.5]),
+  p("00360000005007", "Prada Luna Rossa Carbon EDT 100ml",           "Prada",       "parfum", false, [74.95, 89.9, 79.5]),
+  p("00360000005008", "Dolce & Gabbana Light Blue EDT 100ml",        "D&G",         "parfum", false, [49.95, 64.9, 54.5]),
+  p("00360000005009", "Jean Paul Gaultier Le Male Elixir 125ml",     "JPG",         "parfum", false, [84.95, 99.9, 89.5]),
+
+  // ── Beauty & Pflege (2) ────────────────────────────────────────────────
   p("00380000002401", "La Mer Crème de la Mer 60ml",           "La Mer",   "beauty", false, [335, 359]),
   p("00500000002501", "Dyson Airwrap Multi-Styler",            "Dyson",    "beauty", true,  [499, 549]),
 

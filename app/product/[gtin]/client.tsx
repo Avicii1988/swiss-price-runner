@@ -44,7 +44,8 @@ const SIDEBAR_NAV: Record<string, { parent: string; siblings: string[] }> = {
   mode: { parent: "Mode", siblings: ["Sneakers", "Laufschuhe", "Jacken", "Jeans"] },
   schuhe: { parent: "Mode", siblings: ["Sneakers", "Laufschuhe", "Jacken", "Jeans"] },
   gaming: { parent: "Gaming + Spielzeug", siblings: ["PlayStation", "Xbox", "Nintendo"] },
-  beauty: { parent: "Beauty + Gesundheit", siblings: ["Parfum", "Pflege", "Make-up"] },
+  parfum: { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex"] },
+  beauty: { parent: "Beauty + Pflege", siblings: ["Hautpflege", "Haarpflege", "Make-up"] },
   uhren: { parent: "Uhren + Schmuck", siblings: ["Smartwatches", "Sportuhren"] },
 };
 
