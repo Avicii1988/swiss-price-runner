@@ -65,7 +65,7 @@ export function ProductCard({ item, onAlert }: ProductCardProps) {
               alt={product.title}
               width={160}
               height={160}
-              className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
+              className="max-h-full max-w-full scale-110 object-contain transition-transform group-hover:scale-[1.15]"
             />
           </div>
         </div>

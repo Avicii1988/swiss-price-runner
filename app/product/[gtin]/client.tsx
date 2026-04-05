@@ -74,7 +74,7 @@ export function ProductDetailClient({ item, allProducts }: Props) {
     ? Math.round(((avgChf30d - bestPrice.totalChf) / avgChf30d) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-white pb-20 sm:pb-0">
+    <div className="min-h-screen bg-white pb-44 sm:pb-0">
       {showAlert && <PriceAlertModal item={item} onClose={() => setShowAlert(false)} />}
       {showVision && <VisualSearchModal onClose={() => setShowVision(false)} allProducts={allProducts} />}
 

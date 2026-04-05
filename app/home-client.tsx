@@ -169,18 +169,28 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                       {featured.slice(0, 4).map((item) => {
                         const disc = item.avgChf30d > 0 && item.bestPrice.totalChf < item.avgChf30d
                           ? Math.round(((item.avgChf30d - item.bestPrice.totalChf) / item.avgChf30d) * 100) : 0;
+                        const bestSrcId = item.product.sources.find((s) => s.sourceName === item.bestSource)?.sourceId ?? "";
                         return (
                           <Link key={item.product.gtin} href={`/product/${item.product.gtin}`}
                             className="group relative rounded-xl border border-gray-100 bg-white p-3 transition hover:shadow-md sm:p-4">
                             {disc >= 2 && <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-0.5 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white"><Percent className="h-2.5 w-2.5" /> -{disc}%</span>}
-                            <div className="flex items-center justify-center py-3">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={item.product.imageUrl} alt={item.product.title} width={120} height={120} className="h-24 w-24 object-contain group-hover:scale-105 transition-transform sm:h-28 sm:w-28" />
+                            <div className="aspect-square overflow-hidden rounded-2xl bg-neutral-50 p-3">
+                              <div className="flex h-full w-full items-center justify-center">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={item.product.imageUrl} alt={item.product.title} width={160} height={160} className="max-h-full max-w-full scale-110 object-contain transition-transform group-hover:scale-[1.15]" />
+                              </div>
                             </div>
-                            <p className="mt-1 line-clamp-2 text-xs font-medium text-gray-900 sm:text-sm">{item.product.title}</p>
-                            <div className="mt-2 flex items-end justify-between">
-                              <span className="text-base font-bold sm:text-lg">CHF {item.bestPrice.totalChf.toFixed(2)}</span>
-                              {item.priceDrop30d > 0 && <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-600"><TrendingDown className="h-3 w-3" /> {item.priceDrop30d.toFixed(0)}</span>}
+                            <p className="mt-2 line-clamp-2 text-xs font-medium text-gray-900 sm:text-sm">{item.product.title}</p>
+                            <div className="mt-2">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-xs font-medium text-gray-500">CHF</span>
+                                <span className="text-2xl font-bold tracking-tight text-gray-900">{item.bestPrice.totalChf.toFixed(2)}</span>
+                              </div>
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-200 text-[8px] font-bold text-gray-500">{bestSrcId === "amazon_de" ? "A" : bestSrcId === "galaxus_ch" ? "G" : "Z"}</span>
+                                <span className="text-[10px] text-gray-400">{item.bestSource}</span>
+                                {item.priceDrop30d > 0 && <span className="ml-auto inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-600"><TrendingDown className="h-3 w-3" /> {item.priceDrop30d.toFixed(0)}</span>}
+                              </div>
                             </div>
                           </Link>
                         );
