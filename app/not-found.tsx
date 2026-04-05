@@ -11,7 +11,7 @@ export default function NotFound() {
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex h-14 max-w-7xl items-center px-4 sm:px-6">
           <Link href="/" className="text-lg font-bold tracking-tight">
-            SWISS<span className="text-red-600">PRICE</span>
+            Preis<span className="text-red-600">Alarm</span>
           </Link>
         </div>
       </header>

@@ -3,21 +3,23 @@ import Link from "next/link";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { AuthModal } from "@/components/auth-modal";
 import { BackToTop } from "@/components/back-to-top";
+import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SwissPrice – Preisvergleich Schweiz",
+  title: "PreisAlarm – Preisvergleich Schweiz",
   description:
-    "Compare prices across Amazon.de, Zalando, and Galaxus. See the real landed cost in CHF including VAT, customs, and shipping.",
+    "Preise vergleichen auf Amazon.de, Zalando und Galaxus. Echter Schweizer Endpreis inkl. Zoll, MwSt. und Lieferkosten.",
   keywords: [
-    "price comparison",
-    "Switzerland",
     "Preisvergleich",
     "Schweiz",
+    "PreisAlarm",
     "Amazon",
     "Galaxus",
     "Zalando",
     "CHF",
+    "Preisalarm",
+    "Zoll",
   ],
 };
 
@@ -34,11 +36,10 @@ export default function RootLayout({
           {children}
           <BackToTop />
 
-          {/* ── Global Footer ── */}
           <footer className="border-t border-gray-200 bg-white pb-20 sm:pb-0">
             <div className="rainbow-bar" />
 
-            {/* Partner logos — brand colors */}
+            {/* Partner logos */}
             <div className="border-b border-gray-100 py-6">
               <p className="text-center text-[10px] font-semibold uppercase tracking-widest text-gray-400">
                 Partner-Netzwerk
@@ -64,10 +65,7 @@ export default function RootLayout({
             {/* Links + legal */}
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-                <Link href="/" className="text-sm font-bold tracking-tight text-gray-900 transition hover:opacity-70">
-                  SWISS<span className="text-red-600">PRICE</span>
-                  <span className="ml-2 text-xs font-normal text-gray-400">&copy; {new Date().getFullYear()}</span>
-                </Link>
+                <PreisAlarmLogo size="sm" />
                 <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-gray-500">
                   <Link href="/impressum" className="transition hover:text-gray-900">Impressum</Link>
                   <Link href="/privacy" className="transition hover:text-gray-900">Datenschutz</Link>
@@ -75,7 +73,7 @@ export default function RootLayout({
                 </nav>
               </div>
               <p className="mt-4 text-center text-[10px] leading-relaxed text-gray-400">
-                Preise inkl. geschätzter Zollgebühren und Schweizer MwSt. Alle Angaben ohne Gewähr.
+                &copy; {new Date().getFullYear()} Jan Feusi – PreisAlarm. Alle Rechte vorbehalten.
               </p>
               <p className="mt-1 text-center text-[10px] text-gray-400">
                 Als Amazon-Partner verdiene ich an qualifizierten Verkäufen.

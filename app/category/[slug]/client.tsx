@@ -176,7 +176,7 @@ export default function CategoryClient({ slug, products }: PageProps) {
       <header className="sticky top-0 z-40 border-b border-gray-100 bg-white/80 backdrop-blur-lg">
         <div className="mx-auto flex h-12 max-w-7xl items-center justify-between px-4 sm:h-14 sm:px-6">
           <Link href="/" className="text-base font-bold tracking-tight sm:text-lg">
-            SWISS<span className="text-red-600">PRICE</span>
+            Preis<span className="text-red-600">Alarm</span>
           </Link>
           <Link href="/account" className="text-xs text-gray-500 hover:text-gray-700">
             Mein Konto

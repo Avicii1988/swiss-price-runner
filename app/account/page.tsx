@@ -34,7 +34,7 @@ export default function AccountPage() {
         <header className="border-b border-gray-100 bg-white">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
             <Link href="/" className="text-lg font-bold tracking-tight">
-              SWISS<span className="text-red-600">PRICE</span>
+              Preis<span className="text-red-600">Alarm</span>
             </Link>
           </div>
         </header>
@@ -65,7 +65,7 @@ export default function AccountPage() {
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="text-lg font-bold tracking-tight">
-            SWISS<span className="text-red-600">PRICE</span>
+            Preis<span className="text-red-600">Alarm</span>
           </Link>
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
@@ -238,35 +238,7 @@ export default function AccountPage() {
               )}
             </section>
 
-            {/* Saved Searches */}
-            <section className="rounded-2xl border border-gray-100 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-base font-bold text-gray-900">
-                <Search className="h-4 w-4 text-red-500" />
-                Gespeicherte Suchen
-              </h2>
-              {user.savedSearches.length === 0 ? (
-                <p className="mt-4 text-center text-xs text-gray-400 py-6">
-                  Keine gespeicherten Suchen.
-                </p>
-              ) : (
-                <div className="mt-3 space-y-2">
-                  {user.savedSearches.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 text-xs">
-                      <div>
-                        <p className="font-semibold text-gray-900">&ldquo;{s.query}&rdquo;</p>
-                        {s.category && <p className="text-[10px] text-gray-400">Kategorie: {s.category}</p>}
-                      </div>
-                      <button
-                        onClick={() => removeSavedSearch(s.id)}
-                        className="text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+            {/* Gespeicherte Suchen removed — only Merkliste + Favoriten remain */}
           </div>
         </div>
       </main>

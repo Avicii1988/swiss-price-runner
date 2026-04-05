@@ -47,7 +47,7 @@ export default function PriceAlertEmail({
           {/* Header */}
           <Section style={header}>
             <Text style={logo}>
-              SWISS<span style={{ color: "#dc2626" }}>PRICE</span>
+              Preis<span style={{ color: "#dc2626" }}>Alarm</span>
             </Text>
           </Section>
 
@@ -128,7 +128,7 @@ export default function PriceAlertEmail({
           <Section style={footer}>
             <Text style={footerText}>
               Du erhältst diese E-Mail, weil du einen Preisalarm auf
-              SwissPrice eingerichtet hast.
+              PreisAlarm eingerichtet hast.
             </Text>
             <Text style={footerText}>
               <Link href={unsubscribeUrl} style={unsubscribeLink}>
@@ -150,7 +150,7 @@ export default function PriceAlertEmail({
               </Link>
             </Text>
             <Text style={footerBrand}>
-              SwissPrice · Musterstrasse 42 · 8001 Zürich · Schweiz
+              PreisAlarm · Musterstrasse 42 · 8001 Zürich · Schweiz
             </Text>
           </Section>
         </Container>

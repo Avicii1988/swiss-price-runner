@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Impressum – SwissPrice",
-  description: "Impressum und rechtliche Angaben von SwissPrice.",
+  title: "Impressum – PreisAlarm",
+  description: "Impressum und rechtliche Angaben von PreisAlarm.",
 };
 
 export default function ImpressumPage() {
@@ -13,7 +13,7 @@ export default function ImpressumPage() {
       <header className="border-b border-gray-100 bg-white">
         <div className="mx-auto flex h-12 max-w-3xl items-center justify-between px-4 sm:h-14 sm:px-6">
           <Link href="/" className="text-base font-bold tracking-tight sm:text-lg">
-            SWISS<span className="text-red-600">PRICE</span>
+            Preis<span className="text-red-600">Alarm</span>
           </Link>
           <Link
             href="/"
@@ -37,7 +37,7 @@ export default function ImpressumPage() {
           <section>
             <h2 className="text-base font-bold text-gray-900">Betreiber</h2>
             <div className="mt-3 space-y-1">
-              <p className="font-semibold">SwissPrice</p>
+              <p className="font-semibold">PreisAlarm</p>
               <p>Jan Feusi</p>
               <p>Falknisstrasse 47</p>
               <p>7304 Maienfeld</p>
@@ -92,7 +92,7 @@ export default function ImpressumPage() {
               Affiliate-Hinweis
             </h2>
             <p className="mt-2 text-xs leading-relaxed text-gray-600">
-              SwissPrice enthält sogenannte Affiliate-Links. Wenn du über
+              PreisAlarm enthält sogenannte Affiliate-Links. Wenn du über
               diese Links ein Produkt kaufst, erhalten wir eine Provision vom
               jeweiligen Anbieter. Für dich entstehen dadurch keine zusätzlichen
               Kosten. Die Provisionen beeinflussen weder die Reihenfolge der
@@ -142,7 +142,7 @@ export default function ImpressumPage() {
             <p className="mt-3">
               Die Urheber- und alle anderen Rechte an Inhalten, Bildern, Fotos
               oder anderen Dateien auf dieser Website gehören ausschliesslich
-              SwissPrice oder den speziell genannten Rechteinhabern. Für die
+              PreisAlarm oder den speziell genannten Rechteinhabern. Für die
               Reproduktion jeglicher Elemente ist die schriftliche Zustimmung des
               Urheberrechtsträgers im Voraus einzuholen.
             </p>

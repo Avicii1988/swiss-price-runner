@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
+import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -122,9 +123,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
         {/* ── DESKTOP (lg+) ── */}
         <div className="hidden lg:block">
           <div className="mx-auto flex h-[100px] max-w-[1600px] items-center px-10">
-            <Link href="/" className="shrink-0 text-2xl font-black tracking-tight xl:text-3xl">
-              SWISS<span className="text-red-600">PRICE</span>
-            </Link>
+            <PreisAlarmLogo size="lg" />
             <div className="flex-1" />
             <div ref={searchRef} className="search-shine relative w-[45%]">
               <div className="flex items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg">
@@ -161,9 +160,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
         <div className="lg:hidden">
           {/* Row 1: Logo + icons — hides on scroll down */}
           <div className={`flex items-center justify-between px-4 transition-all duration-300 sm:px-6 ${hideTopRow ? "h-0 overflow-hidden opacity-0" : "h-11 opacity-100"}`}>
-            <Link href="/" className="text-xl font-black tracking-tight">
-              SWISS<span className="text-red-600">PRICE</span>
-            </Link>
+            <PreisAlarmLogo size="md" />
             <div className="flex items-center gap-0.5">
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
