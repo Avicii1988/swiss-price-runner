@@ -35,7 +35,7 @@ export default function RootLayout({
           <BackToTop />
 
           {/* ── Global Footer ── */}
-          <footer className="border-t border-gray-200 bg-white">
+          <footer className="border-t border-gray-200 bg-white pb-20 sm:pb-0">
             {/* Rainbow bar */}
             <div className="rainbow-bar" />
 

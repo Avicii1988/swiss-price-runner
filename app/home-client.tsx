@@ -174,7 +174,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                           <Link key={item.product.gtin} href={`/product/${item.product.gtin}`}
                             className="group relative rounded-xl border border-gray-100 bg-white p-3 transition hover:shadow-md sm:p-4">
                             {disc >= 2 && <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-0.5 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white"><Percent className="h-2.5 w-2.5" /> -{disc}%</span>}
-                            <div className="aspect-square overflow-hidden rounded-2xl bg-neutral-50 p-3">
+                            <div className="aspect-square overflow-hidden rounded-2xl p-3">
                               <div className="flex h-full w-full items-center justify-center">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={item.product.imageUrl} alt={item.product.title} width={160} height={160} className="max-h-full max-w-full scale-110 object-contain transition-transform group-hover:scale-[1.15]" />

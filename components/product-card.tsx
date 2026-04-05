@@ -57,7 +57,7 @@ export function ProductCard({ item, onAlert }: ProductCardProps) {
 
       <Link href={`/product/${product.gtin}`} className="block p-3 sm:p-4">
         {/* Image — square container with uniform background */}
-        <div className="aspect-square overflow-hidden rounded-2xl bg-neutral-50 p-4">
+        <div className="aspect-square overflow-hidden rounded-2xl p-4">
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
