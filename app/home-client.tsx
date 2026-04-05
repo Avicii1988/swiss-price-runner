@@ -100,11 +100,11 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
       />
 
       {/* ═══ MAIN ═══ */}
-      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
-        <div className="flex gap-8">
+      <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
+        <div className="flex gap-6 lg:gap-8">
 
-          {/* LEFT SIDEBAR — flush with logo */}
-          <aside className="hidden w-40 shrink-0 lg:block">
+          {/* LEFT SIDEBAR — aligned with logo */}
+          <aside className="hidden w-[155px] shrink-0 lg:block">
             <nav>
               {SIDEBAR_ITEMS.map((item, i) => (
                 <div key={item.label}>
@@ -302,10 +302,22 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
               </Link>
             </aside>
           )}
+          {/* Right spacer when no Tagesangebot — keeps grid proportions */}
+          {isFiltered && <div className="hidden w-72 shrink-0 xl:block" />}
         </div>
       </div>
 
       {/* CTA */}
+      <section className="bg-gray-900 px-4 py-10 sm:px-6">
+        <div className="mx-auto max-w-xl text-center">
+          <h2 className="text-lg font-bold text-white">Preisalarm einrichten</h2>
+          <p className="mt-2 text-sm text-gray-400">Wir benachrichtigen dich, sobald dein Wunschpreis erreicht wird.</p>
+          <button onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } if (featured.length > 0) handleAlert(featured[0]); }}
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-700">
+            <Bell className="h-4 w-4" /> Jetzt Alarm einrichten
+          </button>
+        </div>
+      </section>
       <section className="bg-gray-900 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-xl text-center">
           <h2 className="text-lg font-bold text-white">Preisalarm einrichten</h2>

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User } from "lucide-react";
+import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User, Settings } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -139,7 +139,10 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             </div>
             <div className="flex-1" />
             {/* Right: Pin + Heart + Lang + Auth */}
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-0.5">
+              <button className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" title="Einstellungen">
+                <Settings className="h-5 w-5" />
+              </button>
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link href="/account" className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
                 <Pin className="h-5 w-5" />
@@ -147,8 +150,10 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               <Link href="/account" className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Favoriten">
                 <Heart className="h-5 w-5" />
               </Link>
-              {isLoggedIn && user ? (
-                <Link href="/account" className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">{user.name.split(" ")[0]}</Link>
+              {isLoggedIn ? (
+                <Link href="/account" className="ml-1 flex h-10 w-10 items-center justify-center rounded-full text-gray-900 hover:bg-gray-100">
+                  <User className="h-5 w-5 fill-current" />
+                </Link>
               ) : (
                 <button onClick={() => setShowAuthModal(true)} className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">Anmelden</button>
               )}
@@ -245,9 +250,9 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           {/* Entdecken section in mobile menu */}
           <div className="border-t border-gray-100 px-5 py-3">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Entdecken</p>
-            <button onClick={() => { onCategorySelect?.([], "Top 100"); setMobileMenuOpen(false); }} className="block w-full py-2 text-left text-[15px] text-gray-700">Top 100 Deals</button>
-            <button onClick={() => { onCategorySelect?.([], "Preisstürze"); setMobileMenuOpen(false); }} className="block w-full py-2 text-left text-[15px] text-gray-700">Preisstürze</button>
-            <button onClick={() => { onCategorySelect?.([], "Neu"); setMobileMenuOpen(false); }} className="block w-full py-2 text-left text-[15px] text-gray-700">Neu im Preisvergleich</button>
+            <button onClick={() => { onCategorySelect?.([], "Top 100 Deals"); setMobileMenuOpen(false); }} className="block w-full border-b border-gray-50 py-3 text-left text-[15px] text-gray-700 hover:text-black">Top 100 Deals</button>
+            <button onClick={() => { onCategorySelect?.([], "Preisstürze"); setMobileMenuOpen(false); }} className="block w-full border-b border-gray-50 py-3 text-left text-[15px] text-gray-700 hover:text-black">Preisstürze</button>
+            <button onClick={() => { onCategorySelect?.([], "Neu im Preisvergleich"); setMobileMenuOpen(false); }} className="block w-full py-3 text-left text-[15px] text-gray-700 hover:text-black">Neu im Preisvergleich</button>
           </div>
         </div>
       )}
