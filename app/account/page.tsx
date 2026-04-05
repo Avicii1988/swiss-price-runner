@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   Pin,
+  Heart,
   Bell,
   Search,
   Trash2,
@@ -103,8 +104,8 @@ export default function AccountPage() {
               <div className="mt-3 space-y-2">
                 {[
                   { label: "Merkliste", count: user.favorites.length, icon: Pin },
+                  { label: "Favoriten", count: user.favorites.length, icon: Heart },
                   { label: "Preisalarme", count: user.alerts.length, icon: Bell },
-                  { label: "Gespeicherte Suchen", count: user.savedSearches.length, icon: Search },
                 ].map(({ label, count, icon: Icon }) => (
                   <div key={label} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-xs">
                     <span className="flex items-center gap-2 text-gray-600">
@@ -123,7 +124,7 @@ export default function AccountPage() {
             {/* Favorites */}
             <section className="rounded-2xl border border-gray-100 bg-white p-5">
               <h2 className="flex items-center gap-2 text-base font-bold text-gray-900">
-                <Pin className="h-4 w-4 text-red-500" />
+                <Pin className="h-4 w-4 text-blue-500" />
                 Merkliste
               </h2>
               {favoriteProducts.length === 0 ? (
@@ -133,7 +134,7 @@ export default function AccountPage() {
               ) : (
                 <div className="mt-3 space-y-2">
                   {favoriteProducts.map((item) => item && (
-                    <div key={item.product.gtin} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5">
+                    <Link key={item.product.gtin} href={`/product/${item.product.gtin}`} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 transition hover:bg-gray-100">
                       <div className="flex items-center gap-3">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={item.product.imageUrl} alt="" className="h-10 w-10 rounded-lg object-contain bg-white" />
@@ -143,12 +144,46 @@ export default function AccountPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => toggleFavorite(item.product.gtin)}
+                        onClick={(e) => { e.preventDefault(); toggleFavorite(item.product.gtin); }}
                         className="text-gray-400 hover:text-red-500"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                    </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Favoriten */}
+            <section className="rounded-2xl border border-gray-100 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-base font-bold text-gray-900">
+                <Heart className="h-4 w-4 text-red-500" />
+                Favoriten
+              </h2>
+              {favoriteProducts.length === 0 ? (
+                <p className="mt-4 text-center text-xs text-gray-400 py-6">
+                  Noch keine Favoriten. Klicke auf das Herz-Symbol bei einem Produkt.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {favoriteProducts.map((item) => item && (
+                    <Link key={item.product.gtin} href={`/product/${item.product.gtin}`} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 transition hover:bg-gray-100">
+                      <div className="flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.product.imageUrl} alt="" className="h-10 w-10 rounded-lg object-contain bg-white" />
+                        <div>
+                          <p className="text-xs font-semibold text-gray-900">{item.product.title}</p>
+                          <p className="text-[10px] text-gray-400">CHF {item.bestPrice.totalChf.toFixed(2)} · {item.bestSource}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => { e.preventDefault(); toggleFavorite(item.product.gtin); }}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </Link>
                   ))}
                 </div>
               )}

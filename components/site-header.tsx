@@ -34,17 +34,34 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hideTopRow, setHideTopRow] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const lastScrollY = useRef(0);
   const { user, isLoggedIn, setShowAuthModal } = useAuth();
   const pathname = usePathname();
 
-  // Pulse rainbow bar on route change
+  // Loading glow on route change
   useEffect(() => {
     setLoading(true);
     const t = setTimeout(() => setLoading(false), 600);
     return () => clearTimeout(t);
   }, [pathname]);
+
+  // Scroll-directional: hide top row on scroll down, show on scroll up
+  useEffect(() => {
+    function onScroll() {
+      const y = window.scrollY;
+      if (y > lastScrollY.current && y > 80) {
+        setHideTopRow(true); // scrolling down
+      } else {
+        setHideTopRow(false); // scrolling up
+      }
+      lastScrollY.current = y;
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -64,7 +81,6 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
   const showDropdown = searchFocused && query.length >= 2;
 
-  // Search dropdown (shared between desktop/mobile)
   const SearchResults = () => (
     <>
       {showDropdown && suggestions.length > 0 && (
@@ -98,23 +114,18 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
   return (
     <>
-      {/* Rainbow bar — glows on page transition */}
+      {/* Rainbow bar */}
       <div className={`rainbow-bar sticky top-0 z-50 transition-shadow ${loading ? "loading" : ""}`} />
 
-      {/* ═══ HEADER ═══ */}
+      {/* Header */}
       <header ref={headerRef} className="header-shadow sticky top-[5px] z-40 bg-white">
-        {/* ── DESKTOP HEADER (lg+): tall, spacious, centered search ── */}
+        {/* ── DESKTOP (lg+) ── */}
         <div className="hidden lg:block">
           <div className="mx-auto flex h-[100px] max-w-[1600px] items-center px-10">
-            {/* Logo — left */}
             <Link href="/" className="shrink-0 text-2xl font-black tracking-tight xl:text-3xl">
               SWISS<span className="text-red-600">PRICE</span>
             </Link>
-
-            {/* Spacer */}
             <div className="flex-1" />
-
-            {/* Search — centered, ~45% width */}
             <div ref={searchRef} className="search-shine relative w-[45%]">
               <div className="flex items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg">
                 <Search className="ml-5 h-5 w-5 shrink-0 text-gray-400" />
@@ -126,40 +137,39 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               </div>
               <SearchResults />
             </div>
-
-            {/* Spacer */}
             <div className="flex-1" />
-
-            {/* Icons — right */}
+            {/* Right: Pin + Heart + Lang + Auth */}
             <div className="flex shrink-0 items-center gap-1">
               <LanguageSwitcher current={lang} onChange={setLang} />
-              <Link href="/account" className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
+              <Link href="/account" className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
+                <Pin className="h-5 w-5" />
+              </Link>
+              <Link href="/account" className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Favoriten">
                 <Heart className="h-5 w-5" />
               </Link>
               {isLoggedIn && user ? (
-                <Link href="/account" className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">
-                  {user.name.split(" ")[0]}
-                </Link>
+                <Link href="/account" className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">{user.name.split(" ")[0]}</Link>
               ) : (
-                <button onClick={() => setShowAuthModal(true)} className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">
-                  Anmelden
-                </button>
+                <button onClick={() => setShowAuthModal(true)} className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">Anmelden</button>
               )}
             </div>
           </div>
           <div className="border-b border-gray-200" />
         </div>
 
-        {/* ── MOBILE HEADER (<lg): both rows stay sticky ── */}
+        {/* ── MOBILE (<lg): scroll-directional ── */}
         <div className="lg:hidden">
-          {/* Row 1: Logo + icons — always visible */}
-          <div className="flex h-11 items-center justify-between px-4 sm:px-6">
+          {/* Row 1: Logo + icons — hides on scroll down */}
+          <div className={`flex items-center justify-between px-4 transition-all duration-300 sm:px-6 ${hideTopRow ? "h-0 overflow-hidden opacity-0" : "h-11 opacity-100"}`}>
             <Link href="/" className="text-xl font-black tracking-tight">
               SWISS<span className="text-red-600">PRICE</span>
             </Link>
             <div className="flex items-center gap-0.5">
               <LanguageSwitcher current={lang} onChange={setLang} />
-              <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
+              <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
+                <Pin className="h-5 w-5" />
+              </Link>
+              <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Favoriten">
                 <Heart className="h-5 w-5" />
               </Link>
               <button onClick={() => isLoggedIn ? undefined : setShowAuthModal(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
@@ -168,7 +178,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             </div>
           </div>
 
-          {/* Row 2: ☰ Menü + Search */}
+          {/* Row 2: ☰ Menü + Search — always visible */}
           <div className="flex items-center gap-3 px-4 pb-2 sm:px-6">
             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-gray-700">
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -190,9 +200,9 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
         </div>
       </header>
 
-      {/* Mobile menu — full-page below header */}
+      {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: "calc(5px + 44px + 42px + 1px)" }}>
+        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: `calc(5px + ${hideTopRow ? 0 : 44}px + 42px + 1px)` }}>
           <nav>
             {MENU_ITEMS.map((item) => (
               <div key={item.label}>

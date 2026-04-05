@@ -185,10 +185,13 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                 </div>
 
                 {/* Delivery */}
-                <div className="mt-4 flex items-center gap-2 text-sm">
-                  <Truck className="h-4 w-4 text-green-600" />
-                  <span className="font-medium text-green-600">Lieferung Schweiz</span>
+                <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Truck className="h-4 w-4 text-green-600" />
+                    <span className="font-medium text-green-600">Lieferung Schweiz</span>
+                  </span>
                   <span className="text-gray-400">· inkl. Zoll + MwSt.</span>
+                  <span className="text-xs text-gray-400">· Kurs: {EXCHANGE_RATE} CHF/EUR</span>
                 </div>
 
                 {/* CTA — single row: Preisalarm + Zum besten Shop */}

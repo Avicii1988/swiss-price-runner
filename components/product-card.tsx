@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { TrendingDown, Pin, Bell } from "lucide-react";
+import { TrendingDown, Heart, Pin, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -30,20 +30,28 @@ export function ProductCard({ item, onAlert }: ProductCardProps) {
 
   return (
     <div className="group relative rounded-xl border border-gray-100 bg-white transition hover:border-gray-200 hover:shadow-md">
-      {/* Quick actions — appear on hover */}
+      {/* Quick actions — appear on hover: Heart + Pin + Bell */}
       <div className="absolute right-2 top-2 z-10 flex flex-col gap-1 opacity-0 transition group-hover:opacity-100">
         <button
           onClick={(e) => { e.preventDefault(); if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
-          className={`flex h-8 w-8 items-center justify-center rounded-full border bg-white shadow-sm transition ${faved ? "border-red-200 text-red-500" : "border-gray-200 text-gray-400 hover:text-red-500"}`}
-          title={faved ? "Gemerkt" : "Merken"}
+          className={`flex h-7 w-7 items-center justify-center rounded-full border bg-white shadow-sm transition ${faved ? "border-red-200 text-red-500" : "border-gray-200 text-gray-400 hover:text-red-500"}`}
+          title="Favorit"
         >
-          <Pin className={`h-3.5 w-3.5 ${faved ? "fill-current" : ""}`} />
+          <Heart className={`h-3 w-3 ${faved ? "fill-current" : ""}`} />
+        </button>
+        <button
+          onClick={(e) => { e.preventDefault(); if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
+          className={`flex h-7 w-7 items-center justify-center rounded-full border bg-white shadow-sm transition ${faved ? "border-blue-200 text-blue-500" : "border-gray-200 text-gray-400 hover:text-blue-500"}`}
+          title="Merken"
+        >
+          <Pin className={`h-3 w-3 ${faved ? "fill-current" : ""}`} />
         </button>
         <button
           onClick={(e) => { e.preventDefault(); onAlert?.(item); }}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:text-amber-500"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:text-amber-500"
+          title="Preisalarm"
         >
-          <Bell className="h-3.5 w-3.5" />
+          <Bell className="h-3 w-3" />
         </button>
       </div>
 
