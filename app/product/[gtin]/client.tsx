@@ -74,7 +74,7 @@ export function ProductDetailClient({ item, allProducts }: Props) {
     ? Math.round(((avgChf30d - bestPrice.totalChf) / avgChf30d) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-white pb-60 sm:pb-0">
+    <div className="min-h-screen bg-white pb-24 sm:pb-0">
       {showAlert && <PriceAlertModal item={item} onClose={() => setShowAlert(false)} />}
       {showVision && <VisualSearchModal onClose={() => setShowVision(false)} allProducts={allProducts} />}
 
@@ -202,13 +202,19 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                   </button>
                 </div>
 
-                {/* Merken (Pin to Merkliste) */}
-                <div className="mt-2">
+                {/* Merken + Favorit side-by-side */}
+                <div className="mt-2 flex gap-2">
                   <button
                     onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
-                    className={`flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition ${faved ? "border-red-300 bg-red-50 text-red-600" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition ${faved ? "border-blue-300 bg-blue-50 text-blue-600" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
                     <Pin className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
                     {faved ? "Gemerkt" : "Merken"}
+                  </button>
+                  <button
+                    onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition ${faved ? "border-red-300 bg-red-50 text-red-600" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
+                    <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
+                    Favorit
                   </button>
                 </div>
 
@@ -252,8 +258,8 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                         <div className="flex items-center gap-2">
                           <ShippingTooltip breakdown={s.breakdown} sourceId={s.sourceId} />
                           <span className="text-lg font-bold text-gray-900">{s.breakdown.totalChf.toFixed(0)}.–</span>
-                          <button className="ml-2 rounded-lg bg-red-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-red-700">
-                            <ExternalLink className="h-3.5 w-3.5" />
+                          <button className="ml-2 flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700">
+                            <ExternalLink className="h-4 w-4" /> Zum Shop
                           </button>
                         </div>
                       </div>

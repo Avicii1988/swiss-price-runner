@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -10,8 +9,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Area,
-  ComposedChart,
+  LineChart,
 } from "recharts";
 import type { MockPricePoint } from "@/lib/integrations/mock-service";
 import type { MockProduct } from "@/prisma/seed";
@@ -42,13 +40,20 @@ const RANGES = [
 
 type RangeKey = (typeof RANGES)[number]["key"];
 
-// Custom tooltip
+// Custom tooltip — deduplicated
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ dataKey: string; value: number; color: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
+  // Deduplicate by dataKey (Area + Line both produce entries)
+  const seen = new Set<string>();
+  const unique = payload.filter((entry) => {
+    if (seen.has(entry.dataKey)) return false;
+    seen.add(entry.dataKey);
+    return true;
+  });
   return (
     <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
       <p className="text-[10px] font-medium text-gray-400">{label}</p>
-      {payload.map((entry) => (
+      {unique.map((entry) => (
         <div key={entry.dataKey} className="flex items-center gap-1.5 text-[11px]">
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: entry.color }} />
           <span className="text-gray-600">{SOURCE_LABELS[entry.dataKey] ?? entry.dataKey}</span>
@@ -68,7 +73,7 @@ export function PriceHistoryChart({ product, history30d }: PriceHistoryChartProp
     return generatePriceHistory(product, days);
   }, [activeRange, product, history30d]);
 
-  // Transform: pivot history into { date, amazon_de, galaxus_ch, zalando_de }
+  // Pivot: { date, amazon_de, galaxus_ch, zalando_de }
   const sourceIds = useMemo(() => [...new Set(history.map((p) => p.sourceId))], [history]);
   const chartData = useMemo(() => {
     const dates = [...new Set(history.map((p) => p.date))].sort();
@@ -88,7 +93,6 @@ export function PriceHistoryChart({ product, history30d }: PriceHistoryChartProp
 
   return (
     <div>
-      {/* Header + range toggle */}
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs font-bold text-gray-700">
           Preisverlauf (CHF inkl. Zoll &amp; MwSt.)
@@ -99,9 +103,7 @@ export function PriceHistoryChart({ product, history30d }: PriceHistoryChartProp
               key={r.key}
               onClick={() => setActiveRange(r.key)}
               className={`rounded-md px-2.5 py-1 text-[10px] font-semibold transition ${
-                activeRange === r.key
-                  ? "bg-gray-900 text-white"
-                  : "text-gray-500 hover:text-gray-700"
+                activeRange === r.key ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-700"
               }`}
             >
               {r.label}
@@ -110,54 +112,23 @@ export function PriceHistoryChart({ product, history30d }: PriceHistoryChartProp
         </div>
       </div>
 
-      {/* Recharts LineChart */}
+      {/* Pure LineChart — no Area, no duplicates */}
       <ResponsiveContainer width="100%" height={260}>
-        <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+        <LineChart data={chartData} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 9, fill: "#9ca3af" }}
-            tickLine={false}
-            axisLine={{ stroke: "#e5e7eb" }}
-            interval={Math.max(0, Math.floor(chartData.length / 5) - 1)}
-          />
-          <YAxis
-            tick={{ fontSize: 9, fill: "#9ca3af" }}
-            tickLine={false}
-            axisLine={false}
+          <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={{ stroke: "#e5e7eb" }}
+            interval={Math.max(0, Math.floor(chartData.length / 5) - 1)} />
+          <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false}
             tickFormatter={(v: number) => `${v.toFixed(0)}`}
-            label={{ value: "CHF", position: "insideTopLeft", offset: -5, style: { fontSize: 8, fill: "#9ca3af" } }}
-          />
+            label={{ value: "CHF", position: "insideTopLeft", offset: -5, style: { fontSize: 8, fill: "#9ca3af" } }} />
           <Tooltip content={<ChartTooltip />} />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
-            formatter={(value: string) => SOURCE_LABELS[value] ?? value}
-          />
+          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
+            formatter={(value: string) => SOURCE_LABELS[value] ?? value} />
           {sourceIds.map((sid) => (
-            <Area
-              key={`area-${sid}`}
-              type="monotone"
-              dataKey={sid}
-              stroke="none"
-              fill={SOURCE_COLORS[sid] ?? "#888"}
-              fillOpacity={0.04}
-              legendType="none"
-            />
+            <Line key={sid} type="monotone" dataKey={sid} stroke={SOURCE_COLORS[sid] ?? "#888"}
+              strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
           ))}
-          {sourceIds.map((sid) => (
-            <Line
-              key={sid}
-              type="monotone"
-              dataKey={sid}
-              stroke={SOURCE_COLORS[sid] ?? "#888"}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
-            />
-          ))}
-        </ComposedChart>
+        </LineChart>
       </ResponsiveContainer>
     </div>
   );
