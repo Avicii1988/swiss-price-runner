@@ -44,15 +44,16 @@ export default function PrivacyPage() {
             <div className="mt-3 space-y-1">
               <p>Verantwortlich für die Datenbearbeitung auf dieser Website:</p>
               <p className="mt-2 font-semibold">SwissPrice</p>
-              <p>Musterstrasse 42</p>
-              <p>8001 Zürich, Schweiz</p>
+              <p>Jan Feusi</p>
+              <p>Falknisstrasse 47</p>
+              <p>7304 Maienfeld, Schweiz</p>
               <p>
                 E-Mail:{" "}
                 <a
-                  href="mailto:datenschutz@swisspricerunner.ch"
+                  href="mailto:jan.feusi[at]gmx.ch"
                   className="text-red-600 hover:underline"
                 >
-                  datenschutz@swisspricerunner.ch
+                  jan.feusi[at]gmx.ch
                 </a>
               </p>
             </div>
@@ -259,10 +260,10 @@ export default function PrivacyPage() {
             <p className="mt-3">
               Zur Ausübung deiner Rechte kontaktiere uns unter:{" "}
               <a
-                href="mailto:datenschutz@swisspricerunner.ch"
+                href="mailto:jan.feusi[at]gmx.ch"
                 className="text-red-600 hover:underline"
               >
-                datenschutz@swisspricerunner.ch
+                jan.feusi[at]gmx.ch
               </a>
             </p>
           </section>

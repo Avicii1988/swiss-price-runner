@@ -150,10 +150,10 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           <div className="border-b border-gray-200" />
         </div>
 
-        {/* ── MOBILE HEADER (<lg): 2 rows ── */}
+        {/* ── MOBILE HEADER (<lg): both rows stay sticky ── */}
         <div className="lg:hidden">
-          {/* Row 1: Logo + icons */}
-          <div className="flex h-12 items-center justify-between px-4 sm:px-6">
+          {/* Row 1: Logo + icons — always visible */}
+          <div className="flex h-11 items-center justify-between px-4 sm:px-6">
             <Link href="/" className="text-xl font-black tracking-tight">
               SWISS<span className="text-red-600">PRICE</span>
             </Link>
@@ -192,7 +192,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
       {/* Mobile menu — full-page below header */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: "calc(5px + 48px + 42px + 1px)" }}>
+        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: "calc(5px + 44px + 42px + 1px)" }}>
           <nav>
             {MENU_ITEMS.map((item) => (
               <div key={item.label}>

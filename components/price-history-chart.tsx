@@ -143,6 +143,7 @@ export function PriceHistoryChart({ product, history30d }: PriceHistoryChartProp
               stroke="none"
               fill={SOURCE_COLORS[sid] ?? "#888"}
               fillOpacity={0.04}
+              legendType="none"
             />
           ))}
           {sourceIds.map((sid) => (

@@ -38,8 +38,9 @@ export default function ImpressumPage() {
             <h2 className="text-base font-bold text-gray-900">Betreiber</h2>
             <div className="mt-3 space-y-1">
               <p className="font-semibold">SwissPrice</p>
-              <p>Musterstrasse 42</p>
-              <p>8001 Zürich</p>
+              <p>Jan Feusi</p>
+              <p>Falknisstrasse 47</p>
+              <p>7304 Maienfeld</p>
               <p>Schweiz</p>
             </div>
           </section>
@@ -50,14 +51,8 @@ export default function ImpressumPage() {
             <div className="mt-3 space-y-1">
               <p>
                 E-Mail:{" "}
-                <a
-                  href="mailto:kontakt@swisspricerunner.ch"
-                  className="text-red-600 hover:underline"
-                >
-                  kontakt@swisspricerunner.ch
-                </a>
+                <span className="text-red-600">jan.feusi<span className="hidden">NOSPAM</span>[at]gmx.ch</span>
               </p>
-              <p>Telefon: +41 44 000 00 00</p>
             </div>
           </section>
 
@@ -86,8 +81,8 @@ export default function ImpressumPage() {
               Verantwortlich für den Inhalt
             </h2>
             <div className="mt-3 space-y-1">
-              <p>Max Muster, Geschäftsführer</p>
-              <p>Musterstrasse 42, 8001 Zürich</p>
+              <p>Jan Feusi</p>
+              <p>Falknisstrasse 47, 7304 Maienfeld</p>
             </div>
           </section>
 
