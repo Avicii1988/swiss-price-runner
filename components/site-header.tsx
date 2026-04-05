@@ -36,11 +36,18 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [hideTopRow, setHideTopRow] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const lastScrollY = useRef(0);
   const { user, isLoggedIn, setShowAuthModal } = useAuth();
   const pathname = usePathname();
+
+  const toggleDarkMode = useCallback(() => {
+    const next = !darkMode;
+    setDarkMode(next);
+    document.documentElement.classList.toggle("dark", next);
+  }, [darkMode]);
 
   // Loading glow on route change
   useEffect(() => {
@@ -140,7 +147,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             <div className="flex-1" />
             {/* Right: Pin + Heart + Lang + Auth */}
             <div className="flex shrink-0 items-center gap-0.5">
-              <button className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" title="Einstellungen">
+              <button onClick={toggleDarkMode} className={`flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-gray-100 ${darkMode ? "text-yellow-400" : "text-gray-500"}`} title={darkMode ? "Light Mode" : "Dark Mode"}>
                 <Settings className="h-5 w-5" />
               </button>
               <LanguageSwitcher current={lang} onChange={setLang} />

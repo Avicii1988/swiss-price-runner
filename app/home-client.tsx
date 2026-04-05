@@ -181,7 +181,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                       <Flame className="h-5 w-5 text-orange-500" />
                       <h2 className="text-lg font-bold text-gray-900">Top Deals des Tages</h2>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-3">
                       {featured.slice(0, 4).map((item) => {
                         const disc = item.avgChf30d > 0 && item.bestPrice.totalChf < item.avgChf30d
                           ? Math.round(((item.avgChf30d - item.bestPrice.totalChf) / item.avgChf30d) * 100) : 0;
@@ -225,7 +225,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                       </div>
                       <button onClick={() => selectCategory(["smartphones", "laptops", "kopfhoerer"], "Apple")} className="flex items-center gap-1 text-xs font-medium text-blue-600">Alle <ArrowRight className="h-3 w-3" /></button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-3">
                       {appleProducts.map((item) => <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />)}
                     </div>
                   </section>
@@ -241,7 +241,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                       </div>
                       <button onClick={() => selectCategory(["mode", "schuhe"], "Mode")} className="flex items-center gap-1 text-xs font-medium text-blue-600">Alle <ArrowRight className="h-3 w-3" /></button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-3">
                       {shoeProducts.map((item) => <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />)}
                     </div>
                   </section>
@@ -254,7 +254,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                       <TrendingUp className="h-5 w-5 text-green-500" />
                       <h2 className="text-lg font-bold text-gray-900">Gerade beliebt</h2>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-3">
                       {trendingProducts.map((item) => <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />)}
                     </div>
                   </section>
@@ -307,17 +307,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
         </div>
       </div>
 
-      {/* CTA */}
-      <section className="bg-gray-900 px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-xl text-center">
-          <h2 className="text-lg font-bold text-white">Preisalarm einrichten</h2>
-          <p className="mt-2 text-sm text-gray-400">Wir benachrichtigen dich, sobald dein Wunschpreis erreicht wird.</p>
-          <button onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } if (featured.length > 0) handleAlert(featured[0]); }}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-700">
-            <Bell className="h-4 w-4" /> Jetzt Alarm einrichten
-          </button>
-        </div>
-      </section>
+      {/* CTA — single instance */}
       <section className="bg-gray-900 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-xl text-center">
           <h2 className="text-lg font-bold text-white">Preisalarm einrichten</h2>
