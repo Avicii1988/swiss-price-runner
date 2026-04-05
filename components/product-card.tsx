@@ -11,10 +11,18 @@ interface ProductCardProps {
   onAlert?: (item: MockProductWithHistory) => void;
 }
 
+const SOURCE_ICONS: Record<string, string> = {
+  amazon_de: "A",
+  galaxus_ch: "G",
+  zalando_de: "Z",
+};
+
 export function ProductCard({ item, onAlert }: ProductCardProps) {
   const { product, bestPrice, bestSource, priceDrop30d, avgChf30d } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, setShowAuthModal } = useAuth();
   const faved = isFavorite(product.gtin);
+
+  const bestSourceId = product.sources.find((s) => s.sourceName === bestSource)?.sourceId ?? "";
 
   const discount = avgChf30d > 0 && bestPrice.totalChf < avgChf30d
     ? Math.round(((avgChf30d - bestPrice.totalChf) / avgChf30d) * 100)
@@ -48,35 +56,44 @@ export function ProductCard({ item, onAlert }: ProductCardProps) {
       )}
 
       <Link href={`/product/${product.gtin}`} className="block p-3 sm:p-4">
-        {/* Image */}
-        <div className="flex items-center justify-center py-2 sm:py-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={product.imageUrl}
-            alt={product.title}
-            width={160}
-            height={160}
-            className="h-28 w-28 object-contain transition-transform group-hover:scale-105 sm:h-36 sm:w-36"
-          />
+        {/* Image — square container with uniform background */}
+        <div className="aspect-square overflow-hidden rounded-2xl bg-neutral-50 p-4">
+          <div className="flex h-full w-full items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={product.imageUrl}
+              alt={product.title}
+              width={160}
+              height={160}
+              className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
+            />
+          </div>
         </div>
 
         {/* Info */}
-        <div className="mt-2">
+        <div className="mt-3">
           <p className="text-[10px] font-medium text-gray-400 sm:text-[11px]">{product.brand}</p>
           <h3 className="mt-0.5 line-clamp-2 text-xs font-medium leading-snug text-gray-900 sm:text-sm">
             {product.title}
           </h3>
         </div>
 
-        {/* Price */}
+        {/* Price — large amount, small currency */}
         <div className="mt-3 flex items-end justify-between">
           <div>
-            <p className="text-lg font-bold text-gray-900 sm:text-xl">
-              CHF {bestPrice.totalChf.toFixed(2)}
-            </p>
-            <p className="text-[9px] text-gray-400 sm:text-[10px]">
-              {bestSource} · inkl. Zoll
-            </p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs font-medium text-gray-500">CHF</span>
+              <span className="text-2xl font-bold tracking-tight text-gray-900">
+                {bestPrice.totalChf.toFixed(2)}
+              </span>
+            </div>
+            {/* Shop with icon placeholder */}
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-200 text-[8px] font-bold text-gray-500">
+                {SOURCE_ICONS[bestSourceId] ?? "·"}
+              </span>
+              <span className="text-[10px] text-gray-400">{bestSource}</span>
+            </div>
           </div>
           {priceDrop30d > 0 && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-600">

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Search, Camera, Heart, Menu, X, ChevronRight, ChevronDown, ArrowRight, User } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -32,9 +33,18 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const { user, isLoggedIn, setShowAuthModal } = useAuth();
+  const pathname = usePathname();
+
+  // Pulse rainbow bar on route change
+  useEffect(() => {
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(t);
+  }, [pathname]);
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -88,8 +98,8 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
   return (
     <>
-      {/* Rainbow bar */}
-      <div className="rainbow-bar sticky top-0 z-50" />
+      {/* Rainbow bar — glows on page transition */}
+      <div className={`rainbow-bar sticky top-0 z-50 transition-shadow ${loading ? "loading" : ""}`} />
 
       {/* ═══ HEADER ═══ */}
       <header ref={headerRef} className="header-shadow sticky top-[5px] z-40 bg-white">

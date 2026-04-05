@@ -34,10 +34,24 @@
   }
 }
 
-/* Rainbow bar */
+/* Rainbow bar with loading glow */
 .rainbow-bar {
   height: 5px;
   background: linear-gradient(90deg, #e3000b 0%, #f39200 12%, #ffdd00 24%, #94c11f 36%, #009e60 48%, #00a9e0 60%, #0064b4 72%, #6a2382 84%, #e3000b 100%);
+  background-size: 200% 100%;
+  animation: rainbow-idle 8s linear infinite;
+}
+.rainbow-bar.loading {
+  animation: rainbow-load 1s linear infinite;
+  box-shadow: 0 0 12px 2px rgba(0, 168, 224, 0.3);
+}
+@keyframes rainbow-idle {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
+}
+@keyframes rainbow-load {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
 }
 
 /* Search shine effect — animated rainbow glow on focus */
