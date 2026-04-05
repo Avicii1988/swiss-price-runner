@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { TrendingDown, Heart, Bell } from "lucide-react";
+import { TrendingDown, Pin, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -35,8 +35,9 @@ export function ProductCard({ item, onAlert }: ProductCardProps) {
         <button
           onClick={(e) => { e.preventDefault(); if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
           className={`flex h-8 w-8 items-center justify-center rounded-full border bg-white shadow-sm transition ${faved ? "border-red-200 text-red-500" : "border-gray-200 text-gray-400 hover:text-red-500"}`}
+          title={faved ? "Gemerkt" : "Merken"}
         >
-          <Heart className={`h-3.5 w-3.5 ${faved ? "fill-current" : ""}`} />
+          <Pin className={`h-3.5 w-3.5 ${faved ? "fill-current" : ""}`} />
         </button>
         <button
           onClick={(e) => { e.preventDefault(); onAlert?.(item); }}

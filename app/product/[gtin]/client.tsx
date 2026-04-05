@@ -11,7 +11,7 @@ import {
   Truck,
   Plane,
   TrendingDown,
-  LayoutGrid,
+  Pin,
 } from "lucide-react";
 import { PriceHistoryChart } from "@/components/price-history-chart";
 import { PriceDropBadge } from "@/components/price-drop-badge";
@@ -202,15 +202,13 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                   </button>
                 </div>
 
-                {/* Secondary: Vergleichen + Favorit */}
-                <div className="mt-2 flex gap-2">
-                  <button className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-200 py-2 text-sm text-gray-600 transition hover:bg-gray-50">
-                    <LayoutGrid className="h-4 w-4" /> Vergleichen
-                  </button>
+                {/* Merken (Pin to Merkliste) */}
+                <div className="mt-2">
                   <button
                     onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
-                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2 text-sm transition ${faved ? "border-red-300 bg-red-50 text-red-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-                    <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} /> Favorit
+                    className={`flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition ${faved ? "border-red-300 bg-red-50 text-red-600" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
+                    <Pin className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
+                    {faved ? "Gemerkt" : "Merken"}
                   </button>
                 </div>
 

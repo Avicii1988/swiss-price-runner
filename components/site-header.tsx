@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Camera, Heart, Menu, X, ChevronRight, ChevronDown, ArrowRight, User } from "lucide-react";
+import { Search, Camera, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
@@ -134,7 +134,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             <div className="flex shrink-0 items-center gap-1">
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link href="/account" className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
-                <Heart className="h-5 w-5" />
+                <Pin className="h-5 w-5" />
               </Link>
               {isLoggedIn && user ? (
                 <Link href="/account" className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">
@@ -160,7 +160,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             <div className="flex items-center gap-0.5">
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
-                <Heart className="h-5 w-5" />
+                <Pin className="h-5 w-5" />
               </Link>
               <button onClick={() => isLoggedIn ? undefined : setShowAuthModal(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
                 <User className="h-5 w-5" />

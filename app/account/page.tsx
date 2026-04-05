@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  Heart,
+  Pin,
   Bell,
   Search,
   Trash2,
@@ -102,7 +102,7 @@ export default function AccountPage() {
               </h3>
               <div className="mt-3 space-y-2">
                 {[
-                  { label: "Favoriten", count: user.favorites.length, icon: Heart },
+                  { label: "Merkliste", count: user.favorites.length, icon: Pin },
                   { label: "Preisalarme", count: user.alerts.length, icon: Bell },
                   { label: "Gespeicherte Suchen", count: user.savedSearches.length, icon: Search },
                 ].map(({ label, count, icon: Icon }) => (
@@ -123,12 +123,12 @@ export default function AccountPage() {
             {/* Favorites */}
             <section className="rounded-2xl border border-gray-100 bg-white p-5">
               <h2 className="flex items-center gap-2 text-base font-bold text-gray-900">
-                <Heart className="h-4 w-4 text-red-500" />
-                Meine Favoriten
+                <Pin className="h-4 w-4 text-red-500" />
+                Merkliste
               </h2>
               {favoriteProducts.length === 0 ? (
                 <p className="mt-4 text-center text-xs text-gray-400 py-6">
-                  Noch keine Favoriten gespeichert. Klicke auf das Herz-Symbol bei einem Produkt.
+                  Noch keine Produkte gemerkt. Klicke auf das Pin-Symbol bei einem Produkt.
                 </p>
               ) : (
                 <div className="mt-3 space-y-2">
