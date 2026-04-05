@@ -100,7 +100,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
       />
 
       {/* ═══ MAIN ═══ */}
-      <div className="mx-auto max-w-[1600px] px-5 py-5 sm:px-10">
+      <div className="mx-auto max-w-7xl px-5 py-5 sm:px-10">
         <div className="flex gap-6">
 
           {/* LEFT SIDEBAR with sub-categories */}

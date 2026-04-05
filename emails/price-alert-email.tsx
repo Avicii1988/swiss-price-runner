@@ -150,7 +150,7 @@ export default function PriceAlertEmail({
               </Link>
             </Text>
             <Text style={footerBrand}>
-              PreisAlarm · Musterstrasse 42 · 8001 Zürich · Schweiz
+              PreisAlarm · Falknisstrasse 47 · 7304 Maienfeld · Schweiz
             </Text>
           </Section>
         </Container>

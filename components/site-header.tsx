@@ -242,6 +242,13 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               </div>
             ))}
           </nav>
+          {/* Entdecken section in mobile menu */}
+          <div className="border-t border-gray-100 px-5 py-3">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Entdecken</p>
+            <button onClick={() => { onCategorySelect?.([], "Top 100"); setMobileMenuOpen(false); }} className="block w-full py-2 text-left text-[15px] text-gray-700">Top 100 Deals</button>
+            <button onClick={() => { onCategorySelect?.([], "Preisstürze"); setMobileMenuOpen(false); }} className="block w-full py-2 text-left text-[15px] text-gray-700">Preisstürze</button>
+            <button onClick={() => { onCategorySelect?.([], "Neu"); setMobileMenuOpen(false); }} className="block w-full py-2 text-left text-[15px] text-gray-700">Neu im Preisvergleich</button>
+          </div>
         </div>
       )}
     </>
