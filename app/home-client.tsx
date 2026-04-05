@@ -100,11 +100,11 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
       />
 
       {/* ═══ MAIN ═══ */}
-      <div className="mx-auto max-w-7xl px-5 py-5 sm:px-10">
-        <div className="flex gap-6">
+      <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8">
+        <div className="flex gap-8">
 
-          {/* LEFT SIDEBAR with sub-categories */}
-          <aside className="hidden w-48 shrink-0 lg:block">
+          {/* LEFT SIDEBAR — flush with logo */}
+          <aside className="hidden w-40 shrink-0 lg:block">
             <nav>
               {SIDEBAR_ITEMS.map((item, i) => (
                 <div key={item.label}>
@@ -164,7 +164,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
             {/* When filtered — product grid only */}
             {isFiltered && (
               <>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-3">
                   {filtered.slice(0, 40).map((item) => <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />)}
                 </div>
                 {filtered.length === 0 && <div className="py-20 text-center"><Package className="mx-auto h-10 w-10 text-gray-300" /><p className="mt-3 text-sm text-gray-400">Keine Produkte gefunden.</p></div>}
@@ -273,7 +273,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
 
           {/* RIGHT SIDEBAR — separated by fine divider */}
           {!isFiltered && tagesangebot && (
-            <aside className="hidden w-72 shrink-0 border-l border-gray-200 pl-6 xl:block">
+            <aside className="hidden w-72 shrink-0 pl-8 xl:block">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-bold text-gray-900">Tagesangebot</h2>
                 <span className="rounded border border-gray-300 px-2 py-0.5 text-xs font-bold text-gray-600">

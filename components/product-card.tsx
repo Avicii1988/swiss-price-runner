@@ -4,6 +4,7 @@ import Link from "next/link";
 import { TrendingDown, Heart, Pin, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
+import { getCategoryBySlug } from "@/lib/categories";
 
 interface ProductCardProps {
   item: MockProductWithHistory;
@@ -11,98 +12,80 @@ interface ProductCardProps {
   onAlert?: (item: MockProductWithHistory) => void;
 }
 
-const SOURCE_ICONS: Record<string, string> = {
-  amazon_de: "A",
-  galaxus_ch: "G",
-  zalando_de: "Z",
-};
-
 export function ProductCard({ item, onAlert }: ProductCardProps) {
   const { product, bestPrice, bestSource, priceDrop30d, avgChf30d } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, isPinned, togglePin, setShowAuthModal } = useAuth();
   const faved = isFavorite(product.gtin);
   const pinned = isPinned(product.gtin);
-
-  const bestSourceId = product.sources.find((s) => s.sourceName === bestSource)?.sourceId ?? "";
+  const cat = getCategoryBySlug(product.category);
 
   const discount = avgChf30d > 0 && bestPrice.totalChf < avgChf30d
-    ? Math.round(((avgChf30d - bestPrice.totalChf) / avgChf30d) * 100)
-    : 0;
+    ? Math.round(((avgChf30d - bestPrice.totalChf) / avgChf30d) * 100) : 0;
 
   return (
-    <div className="group relative rounded-xl border border-gray-100 bg-white transition hover:border-gray-200 hover:shadow-md">
-      {/* Quick actions — 3 independent icons */}
+    <div className="group relative flex flex-col">
+      {/* Quick actions — top right on hover */}
       <div className="absolute right-2 top-2 z-10 flex flex-col gap-1 opacity-0 transition group-hover:opacity-100">
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
-          className={`flex h-7 w-7 items-center justify-center rounded-full border bg-white shadow-sm transition ${faved ? "border-red-200 text-red-500" : "border-gray-200 text-gray-400 hover:text-red-500"}`}
-          title="Favorit"
-        >
+        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
+          className={`flex h-7 w-7 items-center justify-center rounded-full border bg-white shadow-sm transition ${faved ? "border-red-200 text-red-500" : "border-gray-200 text-gray-400 hover:text-red-500"}`} title="Favorit">
           <Heart className={`h-3 w-3 ${faved ? "fill-current" : ""}`} />
         </button>
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isLoggedIn) { setShowAuthModal(true); return; } togglePin(product.gtin); }}
-          className={`flex h-7 w-7 items-center justify-center rounded-full border bg-white shadow-sm transition ${pinned ? "border-blue-200 text-blue-500" : "border-gray-200 text-gray-400 hover:text-blue-500"}`}
-          title="Merken"
-        >
+        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!isLoggedIn) { setShowAuthModal(true); return; } togglePin(product.gtin); }}
+          className={`flex h-7 w-7 items-center justify-center rounded-full border bg-white shadow-sm transition ${pinned ? "border-blue-200 text-blue-500" : "border-gray-200 text-gray-400 hover:text-blue-500"}`} title="Merken">
           <Pin className={`h-3 w-3 ${pinned ? "fill-current" : ""}`} />
         </button>
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert?.(item); }}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:text-amber-500"
-          title="Preisalarm"
-        >
+        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert?.(item); }}
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:text-amber-500" title="Preisalarm">
           <Bell className="h-3 w-3" />
         </button>
       </div>
 
       {/* Discount badge */}
       {discount >= 3 && (
-        <div className="absolute left-0 top-0 z-10">
-          <span className="rounded-br-xl rounded-tl-xl bg-red-600 px-2 py-1 text-[10px] font-bold text-white">
-            -{discount}%
-          </span>
-        </div>
+        <span className="absolute left-2 top-2 z-10 rounded bg-[#E30613] px-2 py-0.5 text-[11px] font-bold text-white">
+          -{discount}%
+        </span>
       )}
 
-      <Link href={`/product/${product.gtin}`} className="block p-3 sm:p-4">
-        {/* Image — clean white bg */}
-        <div className="aspect-square overflow-hidden rounded-2xl p-4">
+      <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col">
+        {/* Image — Galaxus tall aspect ratio with light bg */}
+        <div className="aspect-[4/5] overflow-hidden rounded-lg bg-[#f5f5f5] p-4">
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={product.imageUrl} alt={product.title} width={160} height={160}
-              className="max-h-full max-w-full scale-110 object-contain transition-transform group-hover:scale-[1.15]" />
+            <img src={product.imageUrl} alt={product.title} width={200} height={250}
+              className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105" />
           </div>
         </div>
 
-        {/* Info */}
-        <div className="mt-3">
-          <p className="text-[10px] font-medium text-gray-400 sm:text-[11px]">{product.brand}</p>
-          <h3 className="mt-0.5 line-clamp-2 text-xs font-medium leading-snug text-gray-900 sm:text-sm">{product.title}</h3>
-        </div>
+        {/* Info — Galaxus style */}
+        <div className="mt-3 flex flex-1 flex-col">
+          {/* Category in blue */}
+          <p className="text-xs font-medium text-blue-600">{cat?.name ?? product.category}</p>
 
-        {/* Price */}
-        <div className="mt-3 flex items-end justify-between">
-          <div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xs font-medium text-gray-500">CHF</span>
-              <span className="text-2xl font-bold tracking-tight text-gray-900">{bestPrice.totalChf.toFixed(2)}</span>
-            </div>
-            <div className="mt-1 flex items-center gap-1.5">
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-gray-200 text-[8px] font-bold text-gray-500">
-                {SOURCE_ICONS[bestSourceId] ?? "·"}
+          {/* Price — "XXX.–" format */}
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-lg font-bold text-gray-900 sm:text-xl">{bestPrice.totalChf.toFixed(0)}.–</span>
+            {discount >= 3 && (
+              <span className="text-xs text-gray-400 line-through">statt {Math.round(avgChf30d)}.–</span>
+            )}
+          </div>
+
+          {/* Brand bold + title */}
+          <p className="mt-0.5 line-clamp-2 text-sm text-gray-900">
+            <span className="font-bold">{product.brand}</span>{" "}
+            {product.title.replace(product.brand, "").trim()}
+          </p>
+
+          {/* Source info */}
+          <p className="mt-1.5 text-[10px] text-gray-400">
+            {bestSource} · {product.sources.length} Angebote
+            {priceDrop30d > 0 && (
+              <span className="ml-1 inline-flex items-center gap-0.5 font-semibold text-green-600">
+                <TrendingDown className="h-2.5 w-2.5" /> {priceDrop30d.toFixed(0)}
               </span>
-              <span className="text-[10px] text-gray-400">{bestSource}</span>
-            </div>
-          </div>
-          {priceDrop30d > 0 && (
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-600">
-              <TrendingDown className="h-3 w-3" /> {priceDrop30d.toFixed(0)}
-            </span>
-          )}
+            )}
+          </p>
         </div>
-
-        <p className="mt-2 text-[9px] text-gray-400">{product.sources.length} Angebote vergleichen</p>
       </Link>
     </div>
   );
