@@ -11,7 +11,8 @@ export interface User {
   email: string;
   name: string;
   avatarInitials: string;
-  favorites: string[]; // GTINs
+  favorites: string[]; // GTINs — Heart
+  pinned: string[];    // GTINs — Pin (Merkliste)
   savedSearches: SavedSearch[];
   alerts: PriceAlert[];
 }
@@ -47,6 +48,8 @@ interface AuthContextType {
   logout: () => void;
   toggleFavorite: (gtin: string) => void;
   isFavorite: (gtin: string) => boolean;
+  togglePin: (gtin: string) => void;
+  isPinned: (gtin: string) => boolean;
   addSavedSearch: (query: string, category: string | null) => void;
   removeSavedSearch: (id: string) => void;
   addAlert: (alert: Omit<PriceAlert, "id" | "createdAt" | "isActive">) => void;
@@ -81,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: entry.name,
         avatarInitials: entry.name.split(" ").map((n) => n[0]).join("").toUpperCase(),
         favorites: [],
+        pinned: [],
         savedSearches: [],
         alerts: [],
       });
@@ -99,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       name,
       avatarInitials: name.split(" ").map((n) => n[0]).join("").toUpperCase(),
       favorites: [],
+      pinned: [],
       savedSearches: [],
       alerts: [],
     });
@@ -123,6 +128,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isFavorite = useCallback(
     (gtin: string) => user?.favorites.includes(gtin) ?? false,
+    [user],
+  );
+
+  const togglePin = useCallback((gtin: string) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const has = prev.pinned.includes(gtin);
+      return { ...prev, pinned: has ? prev.pinned.filter((g) => g !== gtin) : [...prev.pinned, gtin] };
+    });
+  }, []);
+
+  const isPinned = useCallback(
+    (gtin: string) => user?.pinned.includes(gtin) ?? false,
     [user],
   );
 
@@ -188,6 +206,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         toggleFavorite,
         isFavorite,
+        togglePin,
+        isPinned,
         addSavedSearch,
         removeSavedSearch,
         addAlert,

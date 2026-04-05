@@ -23,7 +23,7 @@ export default function AccountPage() {
     setShowAuthModal,
     logout,
     toggleFavorite,
-    removeSavedSearch,
+    togglePin,
     updateAlert,
     removeAlert,
   } = useAuth();
@@ -56,6 +56,10 @@ export default function AccountPage() {
   }
 
   const favoriteProducts = user.favorites
+    .map((gtin) => getMockProductByGtin(gtin))
+    .filter(Boolean);
+
+  const pinnedProducts = (user.pinned ?? [])
     .map((gtin) => getMockProductByGtin(gtin))
     .filter(Boolean);
 
@@ -103,7 +107,7 @@ export default function AccountPage() {
               </h3>
               <div className="mt-3 space-y-2">
                 {[
-                  { label: "Merkliste", count: user.favorites.length, icon: Pin },
+                  { label: "Merkliste", count: (user.pinned ?? []).length, icon: Pin },
                   { label: "Favoriten", count: user.favorites.length, icon: Heart },
                   { label: "Preisalarme", count: user.alerts.length, icon: Bell },
                 ].map(({ label, count, icon: Icon }) => (
@@ -127,13 +131,13 @@ export default function AccountPage() {
                 <Pin className="h-4 w-4 text-blue-500" />
                 Merkliste
               </h2>
-              {favoriteProducts.length === 0 ? (
+              {pinnedProducts.length === 0 ? (
                 <p className="mt-4 text-center text-xs text-gray-400 py-6">
                   Noch keine Produkte gemerkt. Klicke auf das Pin-Symbol bei einem Produkt.
                 </p>
               ) : (
                 <div className="mt-3 space-y-2">
-                  {favoriteProducts.map((item) => item && (
+                  {pinnedProducts.map((item) => item && (
                     <Link key={item.product.gtin} href={`/product/${item.product.gtin}`} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 transition hover:bg-gray-100">
                       <div className="flex items-center gap-3">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -144,7 +148,7 @@ export default function AccountPage() {
                         </div>
                       </div>
                       <button
-                        onClick={(e) => { e.preventDefault(); toggleFavorite(item.product.gtin); }}
+                        onClick={(e) => { e.preventDefault(); togglePin(item.product.gtin); }}
                         className="text-gray-400 hover:text-red-500"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

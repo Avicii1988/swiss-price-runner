@@ -8,28 +8,28 @@ interface PreisAlarmLogoProps {
 
 export function PreisAlarmLogo({ className = "", size = "md", linkHome = true }: PreisAlarmLogoProps) {
   const sizes = {
-    sm: { icon: 24, text: "text-lg", gap: "gap-1.5" },
-    md: { icon: 28, text: "text-xl", gap: "gap-2" },
-    lg: { icon: 34, text: "text-2xl xl:text-3xl", gap: "gap-2.5" },
+    sm: { icon: 22, text: "text-base", gap: "gap-1.5" },
+    md: { icon: 26, text: "text-lg", gap: "gap-2" },
+    lg: { icon: 32, text: "text-2xl xl:text-[28px]", gap: "gap-2" },
   };
   const s = sizes[size];
 
   const content = (
     <span className={`inline-flex items-center ${s.gap} ${className}`}>
-      {/* Bell icon with Swiss cross badge */}
-      <svg width={s.icon} height={s.icon} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-        {/* Bell body */}
-        <path d="M16 4C11.6 4 8 7.6 8 12V20L6 22V23H26V22L24 20V12C24 7.6 20.4 4 16 4Z" fill="#1f2937" />
+      {/* Modern bell with Swiss cross negative-space cutout */}
+      <svg width={s.icon} height={s.icon} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+        {/* Bell body — rounded, modern shape */}
+        <path d="M18 3C12.5 3 8 7.5 8 13V21C8 21 7 22 6 23V24H30V23C29 22 28 21 28 21V13C28 7.5 23.5 3 18 3Z" fill="#E30613" />
         {/* Bell clapper */}
-        <rect x="13" y="25" width="6" height="2" rx="1" fill="#1f2937" />
-        {/* Swiss cross badge */}
-        <circle cx="23" cy="9" r="6" fill="#dc2626" />
-        <rect x="21" y="5.5" width="4" height="7" rx="0.5" fill="white" />
-        <rect x="19.5" y="7" width="7" height="4" rx="0.5" fill="white" />
+        <path d="M14.5 26C14.5 28 16 30 18 30C20 30 21.5 28 21.5 26H14.5Z" fill="#E30613" />
+        {/* Swiss cross — white negative space on bell */}
+        <rect x="16" y="9" width="4" height="10" rx="0.8" fill="white" />
+        <rect x="13" y="12" width="10" height="4" rx="0.8" fill="white" />
+        {/* Bell highlight — subtle shine */}
+        <path d="M12 11C12 8.5 14 6 17 5.2" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
       </svg>
-      {/* Text */}
-      <span className={`${s.text} font-black tracking-tight`}>
-        Preis<span className="text-red-600">Alarm</span>
+      <span className={`${s.text} font-black tracking-tight`} style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" }}>
+        Preis<span className="text-[#E30613]">Alarm</span>
       </span>
     </span>
   );

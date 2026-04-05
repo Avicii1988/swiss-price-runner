@@ -115,11 +115,12 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
   return (
     <>
-      {/* Rainbow bar */}
+      {/* Rainbow bar — with gap below */}
       <div className={`rainbow-bar sticky top-0 z-50 transition-shadow ${loading ? "loading" : ""}`} />
+      <div className="h-1 bg-white sticky top-[5px] z-[49]" />
 
       {/* Header */}
-      <header ref={headerRef} className="header-shadow sticky top-[5px] z-40 bg-white">
+      <header ref={headerRef} className="header-shadow sticky top-[9px] z-40 bg-white">
         {/* ── DESKTOP (lg+) ── */}
         <div className="hidden lg:block">
           <div className="mx-auto flex h-[100px] max-w-[1600px] items-center px-10">
@@ -199,7 +200,12 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: `calc(5px + ${hideTopRow ? 0 : 44}px + 42px + 1px)` }}>
+        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: `calc(9px + ${hideTopRow ? 0 : 44}px + 42px + 1px)` }}>
+          {/* Menu logo */}
+          <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-3">
+            <svg width="20" height="20" viewBox="0 0 36 36" fill="none"><path d="M18 3C12.5 3 8 7.5 8 13V21C8 21 7 22 6 23V24H30V23C29 22 28 21 28 21V13C28 7.5 23.5 3 18 3Z" fill="#E30613"/><path d="M14.5 26C14.5 28 16 30 18 30C20 30 21.5 28 21.5 26H14.5Z" fill="#E30613"/><rect x="16" y="9" width="4" height="10" rx="0.8" fill="white"/><rect x="13" y="12" width="10" height="4" rx="0.8" fill="white"/></svg>
+            <span className="text-sm font-black">Preis<span className="text-[#E30613]">Alarm</span></span>
+          </div>
           <nav>
             {MENU_ITEMS.map((item) => (
               <div key={item.label}>

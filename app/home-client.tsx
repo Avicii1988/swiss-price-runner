@@ -130,6 +130,22 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                 </div>
               ))}
             </nav>
+
+            {/* Entdecken section */}
+            <div className="mt-5 border-t border-gray-200 pt-4">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Entdecken</p>
+              <div className="space-y-0.5">
+                <button onClick={() => clearFilter()} className="w-full py-1.5 text-left text-[13px] text-gray-600 transition hover:text-black">
+                  Top 100 Deals
+                </button>
+                <button onClick={() => clearFilter()} className="w-full py-1.5 text-left text-[13px] text-gray-600 transition hover:text-black">
+                  Preisstürze
+                </button>
+                <button onClick={() => clearFilter()} className="w-full py-1.5 text-left text-[13px] text-gray-600 transition hover:text-black">
+                  Neu im Preisvergleich
+                </button>
+              </div>
+            </div>
           </aside>
 
           {/* CENTER */}

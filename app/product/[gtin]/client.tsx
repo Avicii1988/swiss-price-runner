@@ -55,12 +55,13 @@ interface Props {
 
 export function ProductDetailClient({ item, allProducts }: Props) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d, avgChf30d } = item;
-  const { isLoggedIn, isFavorite, toggleFavorite, setShowAuthModal } = useAuth();
+  const { isLoggedIn, isFavorite, toggleFavorite, isPinned, togglePin, setShowAuthModal } = useAuth();
   const [showAlert, setShowAlert] = useState(false);
   const [showVision, setShowVision] = useState(false);
   const [pdpQuery, setPdpQuery] = useState("");
   const isDropping = priceDrop30d > 0;
   const faved = isFavorite(product.gtin);
+  const pinned = isPinned(product.gtin);
   const cat = getCategoryBySlug(product.category);
   const sidebarNav = SIDEBAR_NAV[product.category];
 
@@ -193,6 +194,9 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                   <span className="text-gray-400">· inkl. Zoll + MwSt.</span>
                   <span className="text-xs text-gray-400">· Kurs: {EXCHANGE_RATE} CHF/EUR</span>
                 </div>
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Letztes Update: {new Date().toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" })}, {new Date().toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })} Uhr
+                </p>
 
                 {/* CTA — single row: Preisalarm + Zum besten Shop */}
                 <div className="mt-5 flex gap-3">
@@ -205,13 +209,13 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                   </button>
                 </div>
 
-                {/* Merken + Favorit side-by-side */}
+                {/* Merken + Favorit — independent states */}
                 <div className="mt-2 flex gap-2">
                   <button
-                    onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
-                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition ${faved ? "border-blue-300 bg-blue-50 text-blue-600" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
-                    <Pin className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
-                    {faved ? "Gemerkt" : "Merken"}
+                    onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } togglePin(product.gtin); }}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition ${pinned ? "border-blue-300 bg-blue-50 text-blue-600" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
+                    <Pin className={`h-4 w-4 ${pinned ? "fill-current" : ""}`} />
+                    {pinned ? "Gemerkt" : "Merken"}
                   </button>
                   <button
                     onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } toggleFavorite(product.gtin); }}
