@@ -96,14 +96,15 @@ export default function RootLayout({
                     <Link href="/account" className="transition hover:text-gray-900">Mein Konto</Link>
                   </nav>
                 </div>
-                {/* Kategorien */}
+                {/* Kategorien — dynamic from CATEGORIES */}
                 <div>
-                  <p className="text-xs font-bold text-gray-700">Beliebte Kategorien</p>
+                  <p className="text-xs font-bold text-gray-700">Gesamtsortiment</p>
                   <nav className="mt-2 flex flex-col gap-1.5 text-xs text-gray-500">
-                    <Link href="/category/parfum" className="transition hover:text-gray-900">Parfum & Düfte</Link>
-                    <Link href="/category/mode" className="transition hover:text-gray-900">Mode & Schuhe</Link>
                     <Link href="/category/smartphones" className="transition hover:text-gray-900">Smartphones</Link>
                     <Link href="/category/haushalt" className="transition hover:text-gray-900">Haushalt & Küche</Link>
+                    <Link href="/category/mode" className="transition hover:text-gray-900">Mode & Bekleidung</Link>
+                    <Link href="/category/sport" className="transition hover:text-gray-900">Sport & Outdoor</Link>
+                    <Link href="/category/parfum" className="transition hover:text-gray-900">Parfum & Düfte</Link>
                   </nav>
                 </div>
               </div>

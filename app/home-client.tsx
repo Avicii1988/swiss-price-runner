@@ -3,9 +3,6 @@
 import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
-  Package,
-  ChevronRight,
-  X,
   Bell,
   ArrowRight,
   Flame,
@@ -20,8 +17,8 @@ import { ProductDetailModal } from "@/components/product-detail-modal";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
+import { CategorySidebar } from "@/components/category-sidebar";
 import { useAuth } from "@/lib/auth/auth-context";
-import { CATEGORIES } from "@/lib/categories";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface HomeClientProps {
@@ -30,49 +27,16 @@ interface HomeClientProps {
   categories: string[];
 }
 
-const SIDEBAR_ITEMS = [
-  { label: "IT + Multimedia", slugs: ["smartphones", "laptops", "kopfhoerer", "foto", "tv-audio"], subs: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
-  { label: "Haushalt", slugs: ["haushalt"], subs: ["Staubsauger", "Kaffeemaschinen", "Küchengeräte"] },
-  { label: "Sport", slugs: ["sport"], subs: ["Fitness", "Velo", "Wandern"] },
-  { label: "Mode", slugs: ["mode", "schuhe"], subs: ["Sneakers", "Laufschuhe", "Jacken", "Jeans"] },
-  { label: "Parfum", slugs: ["parfum"], subs: ["Herrendüfte", "Damendüfte", "Unisex"] },
-  { label: "Gaming + Spielzeug", slugs: ["gaming"], subs: ["PlayStation", "Xbox", "Nintendo"] },
-  { label: "Baby + Eltern", slugs: ["baby"], subs: [] },
-  { label: "Beauty + Pflege", slugs: ["beauty"], subs: ["Hautpflege", "Haarpflege", "Make-up"] },
-  { label: "Uhren + Schmuck", slugs: ["uhren"], subs: [] },
-  { label: "Bücher + Medien", slugs: ["buecher"], subs: [] },
-];
-
 export default function HomeClient({ allProducts, featured }: HomeClientProps) {
-  const [activeSlugs, setActiveSlugs] = useState<string[] | null>(null);
-  const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<MockProductWithHistory | null>(null);
   const [alertProduct, setAlertProduct] = useState<MockProductWithHistory | null>(null);
   const [showVisionModal, setShowVisionModal] = useState(false);
-  const [expandedSidebar, setExpandedSidebar] = useState<string | null>(null);
 
   const { isLoggedIn, setShowAuthModal } = useAuth();
 
-  const filtered = useMemo(() => {
-    let items = allProducts;
-    if (activeSlugs && activeSlugs.length > 0) items = items.filter((p) => activeSlugs.includes(p.product.category));
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      items = items.filter((p) => p.product.title.toLowerCase().includes(q) || p.product.brand.toLowerCase().includes(q) || p.product.gtin.includes(q));
-    }
-    return items;
-  }, [allProducts, activeSlugs, query]);
-
   const handleSelect = useCallback((item: MockProductWithHistory) => setSelectedProduct(item), []);
   const handleAlert = useCallback((item: MockProductWithHistory) => { setSelectedProduct(null); setAlertProduct(item); }, []);
-
-  const selectCategory = (slugs: string[], label: string) => {
-    if (activeLabel === label) { setActiveSlugs(null); setActiveLabel(null); }
-    else { setActiveSlugs(slugs.length > 0 ? slugs : null); setActiveLabel(label); }
-  };
-
-  const clearFilter = () => { setActiveSlugs(null); setActiveLabel(null); setQuery(""); };
 
   // Themed product groups
   const appleProducts = useMemo(() => allProducts.filter((p) => p.product.brand === "Apple").slice(0, 4), [allProducts]);
@@ -80,7 +44,6 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
   const trendingProducts = useMemo(() => [...allProducts].sort((a, b) => b.priceDrop30d - a.priceDrop30d).slice(0, 4), [allProducts]);
 
   const tagesangebot = featured[0];
-  const isFiltered = !!(query.trim() || activeSlugs);
 
   return (
     <div className="min-h-screen bg-white">
@@ -96,7 +59,6 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
         query={query}
         onQueryChange={setQuery}
         allProducts={allProducts}
-        onCategorySelect={selectCategory}
         showVision={() => setShowVisionModal(true)}
       />
 
@@ -104,76 +66,13 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
       <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
         <div className="flex gap-6 lg:gap-8">
 
-          {/* LEFT SIDEBAR — aligned with logo */}
-          <aside className="hidden w-[155px] shrink-0 lg:block">
-            <nav>
-              {SIDEBAR_ITEMS.map((item, i) => (
-                <div key={item.label}>
-                  <button onClick={() => {
-                    selectCategory(item.slugs, item.label);
-                    setExpandedSidebar(expandedSidebar === item.label ? null : item.label);
-                  }}
-                    className={`flex w-full items-center justify-between py-2.5 text-left text-[14px] transition hover:text-black ${
-                      activeLabel === item.label ? "font-semibold text-black" : "text-gray-600"
-                    }`}>
-                    <span>{item.label}</span>
-                    {item.subs.length > 0 && <ChevronRight className={`h-3.5 w-3.5 text-gray-400 transition ${expandedSidebar === item.label ? "rotate-90" : ""}`} />}
-                  </button>
-                  {expandedSidebar === item.label && item.subs.length > 0 && (
-                    <div className="mb-1 ml-3 space-y-0.5 border-l border-gray-200 pl-3">
-                      {item.subs.map((sub) => (
-                        <button key={sub} onClick={() => selectCategory(item.slugs, item.label)}
-                          className="block w-full py-1 text-left text-[13px] text-gray-500 transition hover:text-black">{sub}</button>
-                      ))}
-                    </div>
-                  )}
-                  {i < SIDEBAR_ITEMS.length - 1 && <div className="border-t border-gray-200" />}
-                </div>
-              ))}
-            </nav>
-
-            {/* Entdecken section */}
-            <div className="mt-5 border-t border-gray-200 pt-4">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Entdecken</p>
-              <div className="space-y-0.5">
-                <button onClick={() => clearFilter()} className="w-full py-1.5 text-left text-[13px] text-gray-600 transition hover:text-black">
-                  Top 100 Deals
-                </button>
-                <button onClick={() => clearFilter()} className="w-full py-1.5 text-left text-[13px] text-gray-600 transition hover:text-black">
-                  Preisstürze
-                </button>
-                <button onClick={() => clearFilter()} className="w-full py-1.5 text-left text-[13px] text-gray-600 transition hover:text-black">
-                  Neu im Preisvergleich
-                </button>
-              </div>
-            </div>
+          {/* LEFT SIDEBAR — Gesamtsortiment drill-down */}
+          <aside className="hidden w-[180px] shrink-0 lg:block">
+            <CategorySidebar />
           </aside>
 
           {/* CENTER */}
           <main className="min-w-0 flex-1">
-            {/* Breadcrumb when filtered */}
-            {isFiltered && (
-              <div className="mb-4 flex items-center gap-2 text-xs">
-                <button onClick={clearFilter} className="text-gray-400 hover:text-gray-600">Alle</button>
-                <ChevronRight className="h-3 w-3 text-gray-300" />
-                <span className="font-semibold text-gray-900">{activeLabel ?? `"${query}"`}</span>
-                <span className="text-gray-400">({filtered.length})</span>
-                <button onClick={clearFilter} className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200"><X className="h-3 w-3" /></button>
-              </div>
-            )}
-
-            {/* When filtered — product grid only */}
-            {isFiltered && (
-              <>
-                <div className="grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-3">
-                  {filtered.slice(0, 40).map((item) => <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />)}
-                </div>
-                {filtered.length === 0 && <div className="py-20 text-center"><Package className="mx-auto h-10 w-10 text-gray-300" /><p className="mt-3 text-sm text-gray-400">Keine Produkte gefunden.</p></div>}
-              </>
-            )}
-
-            {/* When NOT filtered — themed sections */}
-            {!isFiltered && (
               <>
                 {/* 🔥 Top Deals des Tages */}
                 {featured.length > 0 && (
@@ -224,7 +123,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                         <Apple className="h-5 w-5 text-gray-700" />
                         <h2 className="text-lg font-bold text-gray-900">Apple-Welt</h2>
                       </div>
-                      <button onClick={() => selectCategory(["smartphones", "laptops", "kopfhoerer"], "Apple")} className="flex items-center gap-1 text-xs font-medium text-blue-600">Alle <ArrowRight className="h-3 w-3" /></button>
+                      <Link href="/category/smartphones" className="flex items-center gap-1 text-xs font-medium text-blue-600">Alle <ArrowRight className="h-3 w-3" /></Link>
                     </div>
                     <div className="grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-3">
                       {appleProducts.map((item) => <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />)}
@@ -240,7 +139,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                         <Footprints className="h-5 w-5 text-orange-500" />
                         <h2 className="text-lg font-bold text-gray-900">Zeit für neue Laufschuhe</h2>
                       </div>
-                      <button onClick={() => selectCategory(["mode", "schuhe"], "Mode")} className="flex items-center gap-1 text-xs font-medium text-blue-600">Alle <ArrowRight className="h-3 w-3" /></button>
+                      <Link href="/category/schuhe" className="flex items-center gap-1 text-xs font-medium text-blue-600">Alle <ArrowRight className="h-3 w-3" /></Link>
                     </div>
                     <div className="grid grid-cols-2 gap-5 sm:gap-6 lg:grid-cols-3">
                       {shoeProducts.map((item) => <ProductCard key={item.product.gtin} item={item} onSelect={handleSelect} onAlert={handleAlert} />)}
@@ -261,19 +160,11 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                   </section>
                 )}
 
-                {/* Show all */}
-                <div className="mt-4 text-center">
-                  <button onClick={() => { setActiveSlugs([]); setActiveLabel("Alle"); }}
-                    className="rounded-lg border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    Alle {allProducts.length} Produkte anzeigen
-                  </button>
-                </div>
               </>
-            )}
           </main>
 
-          {/* RIGHT SIDEBAR — separated by fine divider */}
-          {!isFiltered && tagesangebot && (
+          {/* RIGHT SIDEBAR — Tagesangebot */}
+          {tagesangebot && (
             <aside className="hidden w-72 shrink-0 pl-8 xl:block">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-bold text-gray-900">Tagesangebot</h2>
@@ -303,8 +194,6 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
               </Link>
             </aside>
           )}
-          {/* Right spacer when no Tagesangebot — keeps grid proportions */}
-          {isFiltered && <div className="hidden w-72 shrink-0 xl:block" />}
         </div>
       </div>
 

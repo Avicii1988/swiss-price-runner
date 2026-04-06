@@ -13,11 +13,13 @@ import {
   Baby,
   Dumbbell,
   BookOpen,
+  Monitor,
+  Pipette,
   type LucideIcon,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// Category hierarchy – PriceRunner-style with subcategories
+// Category hierarchy – Galaxus-style with drill-down subcategories
 // ---------------------------------------------------------------------------
 
 export interface SubCategory {
@@ -34,6 +36,25 @@ export interface Category {
   subcategories: SubCategory[];
   productCount: number;
 }
+
+/** Top-level sidebar groups – used for the Gesamtsortiment view */
+export interface SidebarGroup {
+  label: string;
+  icon: LucideIcon;
+  categorySlugs: string[];
+}
+
+export const SIDEBAR_GROUPS: SidebarGroup[] = [
+  { label: "IT & Multimedia", icon: Monitor, categorySlugs: ["smartphones", "laptops", "kopfhoerer", "tv-audio", "foto"] },
+  { label: "Haushalt", icon: Home, categorySlugs: ["haushalt"] },
+  { label: "Sport", icon: Dumbbell, categorySlugs: ["sport"] },
+  { label: "Mode", icon: Shirt, categorySlugs: ["mode", "schuhe"] },
+  { label: "Parfum", icon: Pipette, categorySlugs: ["parfum", "beauty"] },
+  { label: "Gaming & Spielzeug", icon: Gamepad2, categorySlugs: ["gaming"] },
+  { label: "Baby & Kind", icon: Baby, categorySlugs: ["baby"] },
+  { label: "Uhren & Schmuck", icon: Watch, categorySlugs: ["uhren"] },
+  { label: "Bücher & Medien", icon: BookOpen, categorySlugs: ["buecher"] },
+];
 
 export const CATEGORIES: Category[] = [
   {
@@ -258,4 +279,60 @@ export function getCategoryBySlug(slug: string): Category | undefined {
 
 export function getAllCategorySlugs(): string[] {
   return CATEGORIES.map((c) => c.slug);
+}
+
+/** Find a subcategory by its slug, returning both parent and sub */
+export function getSubCategoryBySlug(
+  subSlug: string,
+): { parent: Category; sub: SubCategory } | undefined {
+  for (const cat of CATEGORIES) {
+    const sub = cat.subcategories.find((s) => s.slug === subSlug);
+    if (sub) return { parent: cat, sub };
+  }
+  return undefined;
+}
+
+/** Parse a [...slug] array into category context */
+export function parseCategorySlugs(slugs: string[]): {
+  parentCategory: Category | undefined;
+  activeSubCategory: SubCategory | undefined;
+  breadcrumbs: { label: string; href: string }[];
+} {
+  const breadcrumbs: { label: string; href: string }[] = [
+    { label: "Gesamtsortiment", href: "/" },
+  ];
+
+  if (slugs.length === 0) {
+    return { parentCategory: undefined, activeSubCategory: undefined, breadcrumbs };
+  }
+
+  const parentSlug = slugs[0];
+  const parentCategory = getCategoryBySlug(parentSlug);
+  if (!parentCategory) {
+    return { parentCategory: undefined, activeSubCategory: undefined, breadcrumbs };
+  }
+
+  breadcrumbs.push({ label: parentCategory.name, href: `/category/${parentSlug}` });
+
+  if (slugs.length < 2) {
+    return { parentCategory, activeSubCategory: undefined, breadcrumbs };
+  }
+
+  const subSlug = slugs[1];
+  const activeSubCategory = parentCategory.subcategories.find(
+    (s) => s.slug === subSlug,
+  );
+  if (activeSubCategory) {
+    breadcrumbs.push({
+      label: activeSubCategory.name,
+      href: `/category/${parentSlug}/${subSlug}`,
+    });
+  }
+
+  return { parentCategory, activeSubCategory, breadcrumbs };
+}
+
+/** Find the SidebarGroup that contains a given category slug */
+export function getSidebarGroupForCategory(slug: string): SidebarGroup | undefined {
+  return SIDEBAR_GROUPS.find((g) => g.categorySlugs.includes(slug));
 }
