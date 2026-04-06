@@ -228,40 +228,37 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           <nav>
             {MENU_ITEMS.map((item) => (
               <div key={item.label}>
-                <button
-                  onClick={() => {
-                    if (item.subs.length > 0) setExpandedMenu(expandedMenu === item.label ? null : item.label);
-                    else { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }
-                  }}
-                  className="flex w-full items-center justify-between border-b border-gray-100 px-5 py-4 text-[16px] text-gray-800"
-                >
-                  <span>{item.label}</span>
-                  {item.subs.length > 0 ? (
+                {item.subs.length > 0 ? (
+                  <button
+                    onClick={() => setExpandedMenu(expandedMenu === item.label ? null : item.label)}
+                    className="flex w-full items-center justify-between border-b border-gray-100 px-5 py-4 text-[16px] text-gray-800"
+                  >
+                    <span>{item.label}</span>
                     <ChevronDown className={`h-5 w-5 text-gray-400 transition ${expandedMenu === item.label ? "rotate-180" : ""}`} />
-                  ) : (
+                  </button>
+                ) : (
+                  <Link
+                    href={`/category/${item.slugs[0]}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex w-full items-center justify-between border-b border-gray-100 px-5 py-4 text-[16px] text-gray-800"
+                  >
+                    <span>{item.label}</span>
                     <ChevronRight className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
+                  </Link>
+                )}
                 {expandedMenu === item.label && (
                   <div className="border-b border-gray-100 bg-gray-50 py-1">
-                    <button onClick={() => { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }}
-                      className="w-full px-8 py-3 text-left text-sm font-medium text-blue-600">Alle in {item.label}</button>
-                    {item.subs.map((sub) => (
-                      <button key={sub} onClick={() => { onCategorySelect?.(item.slugs, item.label); setMobileMenuOpen(false); }}
-                        className="w-full px-8 py-3 text-left text-[15px] text-gray-600 hover:text-gray-900">{sub}</button>
+                    <Link href={`/category/${item.slugs[0]}`} onClick={() => setMobileMenuOpen(false)}
+                      className="block w-full px-8 py-3 text-left text-sm font-medium text-blue-600">Alle in {item.label}</Link>
+                    {item.slugs.map((slug) => (
+                      <Link key={slug} href={`/category/${slug}`} onClick={() => setMobileMenuOpen(false)}
+                        className="block w-full px-8 py-3 text-left text-[15px] text-gray-600 hover:text-gray-900 capitalize">{slug.replace(/-/g, " ")}</Link>
                     ))}
                   </div>
                 )}
               </div>
             ))}
           </nav>
-          {/* Entdecken section in mobile menu */}
-          <div className="border-t border-gray-100 px-5 py-3">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Entdecken</p>
-            <button onClick={() => { onCategorySelect?.([], "Top 100 Deals"); setMobileMenuOpen(false); }} className="block w-full border-b border-gray-50 py-3 text-left text-[15px] text-gray-700 hover:text-black">Top 100 Deals</button>
-            <button onClick={() => { onCategorySelect?.([], "Preisstürze"); setMobileMenuOpen(false); }} className="block w-full border-b border-gray-50 py-3 text-left text-[15px] text-gray-700 hover:text-black">Preisstürze</button>
-            <button onClick={() => { onCategorySelect?.([], "Neu im Preisvergleich"); setMobileMenuOpen(false); }} className="block w-full py-3 text-left text-[15px] text-gray-700 hover:text-black">Neu im Preisvergleich</button>
-          </div>
         </div>
       )}
     </>
