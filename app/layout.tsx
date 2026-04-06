@@ -77,7 +77,7 @@ export default function RootLayout({
 
             {/* About + Links */}
             <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-              <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                 {/* About */}
                 <div>
                   <PreisAlarmLogo size="sm" />
@@ -94,17 +94,6 @@ export default function RootLayout({
                     <Link href="/impressum" className="transition hover:text-gray-900">Impressum</Link>
                     <Link href="/privacy" className="transition hover:text-gray-900">Datenschutz</Link>
                     <Link href="/account" className="transition hover:text-gray-900">Mein Konto</Link>
-                  </nav>
-                </div>
-                {/* Kategorien — dynamic from CATEGORIES */}
-                <div>
-                  <p className="text-xs font-bold text-gray-700">Gesamtsortiment</p>
-                  <nav className="mt-2 flex flex-col gap-1.5 text-xs text-gray-500">
-                    <Link href="/category/smartphones" className="transition hover:text-gray-900">Smartphones</Link>
-                    <Link href="/category/haushalt" className="transition hover:text-gray-900">Haushalt & Küche</Link>
-                    <Link href="/category/mode" className="transition hover:text-gray-900">Mode & Bekleidung</Link>
-                    <Link href="/category/sport" className="transition hover:text-gray-900">Sport & Outdoor</Link>
-                    <Link href="/category/parfum" className="transition hover:text-gray-900">Parfum & Düfte</Link>
                   </nav>
                 </div>
               </div>
