@@ -48,11 +48,11 @@ export function ProductCard({ item, onAlert }: ProductCardProps) {
       )}
 
       <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col">
-        {/* Image — Galaxus tall aspect ratio with light bg */}
-        <div className="aspect-[4/5] overflow-hidden rounded-lg bg-[#f5f5f5] p-4">
+        {/* Image — uniform square, light bg, consistent sizing */}
+        <div className="aspect-square overflow-hidden rounded-lg bg-[#f5f5f5] p-5">
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={product.imageUrl} alt={product.title} width={200} height={250}
+            <img src={product.imageUrl} alt={product.title} width={200} height={200}
               className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105" />
           </div>
         </div>

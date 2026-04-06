@@ -109,7 +109,7 @@ export default function RootLayout({
               </div>
               <div className="mt-6 border-t border-gray-100 pt-4">
                 <p className="text-center text-[10px] text-gray-400">
-                  &copy; {new Date().getFullYear()} Jan Feusi – PreisAlarm. Alle Rechte vorbehalten.
+                  &copy; {new Date().getFullYear()} PreisAlarm. Alle Rechte vorbehalten.
                   · Als Amazon-Partner verdiene ich an qualifizierten Verkäufen.
                 </p>
               </div>
