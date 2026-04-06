@@ -1,12 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   CATEGORIES,
   SIDEBAR_GROUPS,
   type Category,
-  type SubCategory,
 } from "@/lib/categories";
 
 interface CategorySidebarProps {
@@ -17,9 +17,10 @@ interface CategorySidebarProps {
 }
 
 /**
- * Galaxus-style drill-down sidebar.
+ * Galaxus-style drill-down sidebar with strict accordion behavior.
  *
  * - Homepage: shows Gesamtsortiment (all top-level groups → categories)
+ *   Only one group expanded at a time.
  * - Category page: shows "← Gesamtsortiment", parent highlighted, subcategories listed
  * - Subcategory page: shows "← Parent", subcategory highlighted
  */
@@ -27,6 +28,18 @@ export function CategorySidebar({
   activeCategorySlug,
   activeSubSlug,
 }: CategorySidebarProps) {
+  // Accordion state — find which group contains the active category and expand it by default
+  const defaultExpanded = activeCategorySlug
+    ? undefined
+    : SIDEBAR_GROUPS.find((g) => g.categorySlugs.length > 1)?.label ?? null;
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(
+    defaultExpanded ?? null,
+  );
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroup((prev) => (prev === label ? null : label));
+  };
+
   // ── Inside a category ──────────────────────────────────────
   if (activeCategorySlug) {
     const category = CATEGORIES.find((c) => c.slug === activeCategorySlug);
@@ -81,7 +94,7 @@ export function CategorySidebar({
           </div>
         )}
 
-        {/* Divider + all categories link */}
+        {/* All categories */}
         <div className="mt-4 border-t border-gray-200 pt-3">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">
             Alle Kategorien
@@ -103,50 +116,71 @@ export function CategorySidebar({
     );
   }
 
-  // ── Homepage: Gesamtsortiment ──────────────────────────────
+  // ── Homepage: Gesamtsortiment (strict accordion) ───────────
   return (
     <nav>
       <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
         Gesamtsortiment
       </p>
-      {SIDEBAR_GROUPS.map((group, i) => {
+      {SIDEBAR_GROUPS.map((group) => {
         const Icon = group.icon;
         const cats = CATEGORIES.filter((c) =>
           group.categorySlugs.includes(c.slug),
         );
+        const isExpanded = expandedGroup === group.label;
+
         return (
-          <div key={group.label}>
-            {/* Group with single category → direct link */}
+          <div key={group.label} className="py-0.5">
+            {/* Single-category group → direct link */}
             {cats.length === 1 ? (
               <Link
                 href={`/category/${cats[0].slug}`}
-                className="group flex w-full items-center gap-2.5 py-2.5 text-left text-[14px] text-gray-600 transition hover:text-gray-900"
+                className="group flex w-full items-center gap-2.5 py-2 text-left text-[14px] text-gray-600 transition hover:text-gray-900"
               >
-                <Icon className="h-[18px] w-[18px] text-gray-400 transition group-hover:text-red-500" strokeWidth={1.75} />
+                <Icon
+                  className="h-[18px] w-[18px] text-gray-400 transition group-hover:text-red-500"
+                  strokeWidth={1.75}
+                />
                 <span>{group.label}</span>
               </Link>
             ) : (
-              /* Group with multiple categories → expandable */
-              <div>
-                <div className="flex items-center gap-2.5 py-2.5 text-[14px] text-gray-600">
-                  <Icon className="h-[18px] w-[18px] text-gray-400" strokeWidth={1.75} />
-                  <span className="font-medium">{group.label}</span>
-                </div>
-                <div className="mb-1 ml-[13px] border-l border-gray-200 pl-3">
-                  {cats.map((cat) => (
-                    <Link
-                      key={cat.slug}
-                      href={`/category/${cat.slug}`}
-                      className="block py-1 text-[13px] text-gray-500 transition hover:text-gray-900"
-                    >
-                      {cat.name}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-            {i < SIDEBAR_GROUPS.length - 1 && (
-              <div className="border-t border-gray-100" />
+              /* Multi-category group → accordion toggle */
+              <>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className="group flex w-full items-center gap-2.5 py-2 text-left text-[14px] text-gray-600 transition hover:text-gray-900"
+                >
+                  <Icon
+                    className={`h-[18px] w-[18px] transition ${
+                      isExpanded
+                        ? "text-red-500"
+                        : "text-gray-400 group-hover:text-red-500"
+                    }`}
+                    strokeWidth={1.75}
+                  />
+                  <span className={isExpanded ? "font-medium text-gray-900" : ""}>
+                    {group.label}
+                  </span>
+                  <ChevronRight
+                    className={`ml-auto h-3.5 w-3.5 text-gray-400 transition ${
+                      isExpanded ? "rotate-90" : ""
+                    }`}
+                  />
+                </button>
+                {isExpanded && (
+                  <div className="mb-1 ml-[13px] border-l border-gray-200 pl-3">
+                    {cats.map((cat) => (
+                      <Link
+                        key={cat.slug}
+                        href={`/category/${cat.slug}`}
+                        className="block py-1.5 text-[13px] text-gray-500 transition hover:text-gray-900"
+                      >
+                        {cat.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         );

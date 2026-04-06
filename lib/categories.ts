@@ -14,7 +14,7 @@ import {
   Dumbbell,
   BookOpen,
   Monitor,
-  Pipette,
+  Droplets,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,7 +49,7 @@ export const SIDEBAR_GROUPS: SidebarGroup[] = [
   { label: "Haushalt", icon: Home, categorySlugs: ["haushalt"] },
   { label: "Sport", icon: Dumbbell, categorySlugs: ["sport"] },
   { label: "Mode", icon: Shirt, categorySlugs: ["mode", "schuhe"] },
-  { label: "Parfum", icon: Pipette, categorySlugs: ["parfum", "beauty"] },
+  { label: "Parfum", icon: Droplets, categorySlugs: ["parfum", "beauty"] },
   { label: "Gaming & Spielzeug", icon: Gamepad2, categorySlugs: ["gaming"] },
   { label: "Baby & Kind", icon: Baby, categorySlugs: ["baby"] },
   { label: "Uhren & Schmuck", icon: Watch, categorySlugs: ["uhren"] },
