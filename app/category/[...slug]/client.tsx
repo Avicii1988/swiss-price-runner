@@ -159,13 +159,6 @@ export default function CategoryClient({
         showVision={() => {}}
       />
 
-      {/* Breadcrumbs */}
-      <div className="border-b border-gray-100 bg-white">
-        <div className="mx-auto max-w-[1400px] px-3 py-2.5 sm:px-5 lg:px-6">
-          <Breadcrumbs items={breadcrumbs} />
-        </div>
-      </div>
-
       {/* ═══ MAIN 3-COLUMN LAYOUT ═══ */}
       <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
         <div className="flex gap-6 lg:gap-8">
@@ -179,8 +172,13 @@ export default function CategoryClient({
             </div>
           </aside>
 
-          {/* CENTER — filters + product grid */}
+          {/* CENTER — breadcrumbs + filters + product grid */}
           <main className="min-w-0 flex-1">
+            {/* Breadcrumbs — inline with content, Galaxus-style */}
+            <div className="mb-4">
+              <Breadcrumbs items={breadcrumbs} />
+            </div>
+
             {/* Category title */}
             <div className="mb-4">
               <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
