@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 48" fill="none">
+  <!-- Red bell with Swiss cross -->
+  <g transform="translate(4, 4)">
+    <!-- Bell body -->
+    <path d="M20 3C14.5 3 10 7.5 10 13V21C10 21 9 22 8 23V24H32V23C31 22 30 21 30 21V13C30 7.5 25.5 3 20 3Z" fill="#E30613"/>
+    <!-- Bell clapper -->
+    <path d="M16.5 26C16.5 28 18 30 20 30C22 30 23.5 28 23.5 26H16.5Z" fill="#E30613"/>
+    <!-- Swiss cross -->
+    <rect x="18" y="9" width="4" height="10" rx="0.8" fill="white"/>
+    <rect x="15" y="12" width="10" height="4" rx="0.8" fill="white"/>
+    <!-- Bell highlight -->
+    <path d="M14 11C14 8.5 16 6 19 5.2" stroke="white" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+  </g>
+  <!-- "PreisAlarm" text -->
+  <text x="50" y="33" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="-0.5">
+    <tspan fill="#1a1a1a">Preis</tspan><tspan fill="#E30613">Alarm</tspan>
+  </text>
+  <!-- ".ch" suffix -->
+  <text x="222" y="33" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="28" font-weight="900" letter-spacing="-0.5" fill="#9CA3AF">.ch</text>
+</svg>

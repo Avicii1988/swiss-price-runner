@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { SubCategory } from "@/lib/categories";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
-import { ProductCard } from "@/components/product-card";
+import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
 import { ProductDetailModal } from "@/components/product-detail-modal";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -279,36 +279,57 @@ export default function CategoryClient({
             )}
 
             {/* Product grid */}
-            <div
-              className={
-                viewMode === "grid"
-                  ? "grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3"
-                  : "space-y-3"
-              }
-            >
-              {filtered.map((item) => (
-                <ProductCard
-                  key={item.product.gtin}
-                  item={item}
-                  onSelect={handleSelect}
-                  onAlert={handleAlert}
-                />
-              ))}
-            </div>
-
-            {filtered.length === 0 && (
-              <div className="py-20 text-center">
-                <p className="text-sm text-gray-400">
-                  Keine Produkte mit den gewählten Filtern gefunden.
+            {filtered.length > 0 ? (
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
+                    : "space-y-3"
+                }
+              >
+                {filtered.map((item) => (
+                  <ProductCard
+                    key={item.product.gtin}
+                    item={item}
+                    onSelect={handleSelect}
+                    onAlert={handleAlert}
+                    layout={viewMode}
+                  />
+                ))}
+              </div>
+            ) : products.length > 0 ? (
+              /* Filters active but no results */
+              <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 py-20">
+                <svg className="h-16 w-16 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <p className="mt-4 text-sm font-medium text-gray-500">
+                  Keine Produkte gefunden
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Versuche andere Filter oder setze sie zurück.
                 </p>
                 {activeFilterCount > 0 && (
                   <button
                     onClick={clearAllFilters}
-                    className="mt-3 text-sm font-medium text-red-600 hover:text-red-700"
+                    className="mt-4 rounded-lg bg-red-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-red-700"
                   >
                     Filter zurücksetzen
                   </button>
                 )}
+              </div>
+            ) : (
+              /* No products at all — show skeletons as placeholder */
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
+                    : "space-y-3"
+                }
+              >
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <ProductCardSkeleton key={i} layout={viewMode} />
+                ))}
               </div>
             )}
           </main>
