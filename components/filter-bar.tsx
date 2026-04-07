@@ -227,7 +227,7 @@ function FilterDropdown({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+        className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${
           active
             ? "border-red-200 bg-red-50 text-red-600"
             : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"

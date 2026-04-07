@@ -228,12 +228,12 @@ export default function CategoryClient({
                 </button>
 
                 {/* Sort */}
-                <div className="flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1.5">
+                <div className="flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1.5">
                   <ArrowUpDown className="h-3 w-3 text-gray-400" />
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value as SortOption)}
-                    className="bg-transparent text-[10px] font-medium text-gray-600 outline-none sm:text-xs"
+                    className="bg-transparent text-xs font-medium text-gray-600 outline-none"
                   >
                     <option value="popular">Beliebt</option>
                     <option value="price_asc">Preis aufsteigend</option>
@@ -243,7 +243,7 @@ export default function CategoryClient({
                 </div>
 
                 {/* View mode */}
-                <div className="hidden items-center gap-0.5 rounded-lg border border-gray-200 p-0.5 sm:flex">
+                <div className="hidden items-center gap-0.5 rounded-md border border-gray-200 p-0.5 sm:flex">
                   <button
                     onClick={() => setViewMode("grid")}
                     className={`rounded-md p-1 ${

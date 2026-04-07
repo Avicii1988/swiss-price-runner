@@ -76,16 +76,19 @@ export default function RootLayout({
             {/* Footer content */}
             <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
               <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
-                {/* About */}
+                {/* Über uns */}
                 <div className="sm:col-span-2 lg:col-span-1">
                   <PreisAlarmLogo size="sm" />
                   <p className="mt-3 text-xs leading-relaxed text-gray-500">
-                    Die Schweizer Vergleichsplattform für Lifestyle-Produkte.
-                    Echte Endpreise inkl. Zoll, MwSt. und Lieferkosten.
+                    PreisAlarm.ch ist die unabhängige Schweizer Preisvergleichsplattform für
+                    Lifestyle, Technik und Beauty. Wir berechnen den echten Schweizer Endpreis —
+                    inklusive Zoll, MwSt. (8.1%) und Lieferkosten — damit du immer den besten
+                    Deal findest. Unsere KI-Bildsuche und automatischen Preisalarme machen
+                    den Einkauf so einfach wie nie.
                   </p>
                 </div>
 
-                {/* Legal */}
+                {/* Rechtliches */}
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Rechtliches</p>
                   <nav className="mt-3 flex flex-col gap-2 text-xs text-gray-500">
@@ -102,19 +105,32 @@ export default function RootLayout({
                     <Link href="/account" className="transition hover:text-slate-900">Mein Konto</Link>
                     <Link href="/impressum" className="transition hover:text-slate-900">Über uns</Link>
                     <Link href="/impressum" className="transition hover:text-slate-900">FAQ</Link>
+                    <Link href="/impressum" className="transition hover:text-slate-900">Kontakt</Link>
                   </nav>
                 </div>
 
-                {/* Trust */}
+                {/* FAQ Highlights */}
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Sicherheit</p>
-                  <div className="mt-3 flex flex-col gap-2 text-xs text-gray-500">
-                    <span className="flex items-center gap-1.5">
-                      <svg viewBox="0 0 12 12" className="h-3 w-3 shrink-0"><rect width="12" height="12" rx="1" fill="#D81E05"/><path d="M5 3h2v6H5z" fill="#fff"/><path d="M3 5h6v2H3z" fill="#fff"/></svg>
-                      Hosting in der Schweiz
-                    </span>
-                    <span>SSL-verschlüsselt</span>
-                    <span>nDSG-konform</span>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-700">Häufige Fragen</p>
+                  <div className="mt-3 flex flex-col gap-2.5 text-xs text-gray-500">
+                    <div>
+                      <p className="font-medium text-slate-700">Sind die Preise verbindlich?</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed">
+                        Die Preise werden in Echtzeit berechnet. Der endgültige Preis kann im Partnershop abweichen.
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-700">Wie funktioniert der Preisalarm?</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed">
+                        Setze deinen Wunschpreis und wir benachrichtigen dich per E-Mail, sobald er erreicht wird.
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-700">Ist Zoll inbegriffen?</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed">
+                        Ja — alle Preise enthalten Schweizer MwSt. (8.1%), Zoll und Lieferkosten.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -15,7 +15,7 @@ export function TrustBrandsBar() {
           {BRANDS.map((brand) => (
             <div
               key={brand.name}
-              className="flex items-center opacity-40 grayscale transition hover:opacity-80 hover:grayscale-0"
+              className="flex items-center opacity-50 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0"
               title={brand.name}
             >
               <svg viewBox={brand.viewBox} className="h-5 sm:h-6" fill="none">
@@ -40,14 +40,14 @@ export function TrustBrandsBar() {
 }
 
 const BRANDS: BrandDef[] = [
+  { name: "Sephora", viewBox: "0 0 100 24", size: "16", weight: "700", fill: "#555", spacing: "3.5" },
+  { name: "Douglas", viewBox: "0 0 95 24", size: "18", weight: "700", fill: "#555", spacing: "1" },
+  { name: "MediaMarkt", viewBox: "0 0 135 24", size: "17", weight: "800", fill: "#555", spacing: "0" },
   { name: "Apple", viewBox: "0 0 70 24", size: "20", weight: "600", fill: "#555", spacing: "-0.5" },
-  { name: "Samsung", viewBox: "0 0 105 24", size: "18", weight: "700", fill: "#555", spacing: "1" },
-  { name: "On", viewBox: "0 0 35 24", size: "22", weight: "900", fill: "#555", spacing: "-0.5" },
-  { name: "Nike", viewBox: "0 0 55 24", size: "20", weight: "800", fill: "#555", spacing: "0.5" },
-  { name: "Clinique", viewBox: "0 0 95 24", size: "17", weight: "400", fill: "#555", spacing: "2", font: "Georgia, Times New Roman, serif" },
-  { name: "Sony", viewBox: "0 0 60 24", size: "20", weight: "800", fill: "#555", spacing: "0.5" },
   { name: "Dyson", viewBox: "0 0 70 24", size: "19", weight: "600", fill: "#555", spacing: "0" },
-  { name: "Sephora", viewBox: "0 0 90 24", size: "16", weight: "700", fill: "#555", spacing: "3", font: "Helvetica Neue, sans-serif" },
+  { name: "Nike", viewBox: "0 0 55 24", size: "20", weight: "800", fill: "#555", spacing: "0.5" },
+  { name: "Samsung", viewBox: "0 0 105 24", size: "18", weight: "700", fill: "#555", spacing: "1" },
+  { name: "Sony", viewBox: "0 0 60 24", size: "20", weight: "800", fill: "#555", spacing: "0.5" },
 ];
 
 interface BrandDef {

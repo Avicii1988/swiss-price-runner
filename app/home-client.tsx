@@ -19,6 +19,7 @@ import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { TrustBrandsBar } from "@/components/trust-brands-bar";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -63,16 +64,22 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
         showVision={() => setShowVisionModal(true)}
       />
 
-      {/* Trust & Brands */}
-      <TrustBrandsBar />
+      {/* Breadcrumbs — Galaxus-style position */}
+      <div className="border-b border-gray-100 bg-white">
+        <div className="mx-auto max-w-[1400px] px-3 py-2.5 sm:px-5 lg:px-6">
+          <Breadcrumbs items={[{ label: "Gesamtsortiment", href: "/" }]} />
+        </div>
+      </div>
 
       {/* ═══ MAIN ═══ */}
       <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
         <div className="flex gap-6 lg:gap-8">
 
-          {/* LEFT SIDEBAR — Gesamtsortiment drill-down */}
+          {/* LEFT SIDEBAR — Gesamtsortiment drill-down, sticky */}
           <aside className="hidden w-[180px] shrink-0 lg:block">
-            <CategorySidebar />
+            <div className="sticky top-20">
+              <CategorySidebar />
+            </div>
           </aside>
 
           {/* CENTER */}
@@ -200,6 +207,9 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
           )}
         </div>
       </div>
+
+      {/* Beliebte Marken */}
+      <TrustBrandsBar />
 
       {/* CTA — single instance */}
       <section className="bg-slate-900 px-4 py-12 sm:px-6">
