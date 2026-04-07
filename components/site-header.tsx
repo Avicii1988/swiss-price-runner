@@ -7,7 +7,7 @@ import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRi
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
-import { SIDEBAR_GROUPS, CATEGORIES } from "@/lib/categories";
+import { CATEGORIES } from "@/lib/categories";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface SiteHeaderProps {
@@ -130,7 +130,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                 <button onClick={() => showVision?.()} className="group/cam relative mr-2 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                   <Camera className="h-5 w-5" />
                   <span className="pointer-events-none absolute -bottom-12 left-1/2 z-50 w-64 -translate-x-1/2 rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 opacity-0 shadow-lg ring-1 ring-gray-200 transition group-hover/cam:opacity-100">
-                    <strong className="text-slate-800">KI-Bildsuche</strong> — Lade ein Foto hoch und finde das günstigste Angebot in der Schweiz.
+                    <strong className="text-slate-800">KI-Bildsuche</strong> — finde das günstigste Angebot der Schweiz.
                   </span>
                 </button>
               </div>
@@ -197,7 +197,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                 <Search className="ml-3 h-4 w-4 text-gray-400" />
                 <input type="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
                   placeholder="Wonach suchst du?" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base outline-none placeholder:text-gray-400" />
-                <button onClick={() => showVision?.()} className="mr-1 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:text-gray-600" title="KI-Bildsuche — Lade ein Foto hoch und finde das günstigste Angebot in der Schweiz.">
+                <button onClick={() => showVision?.()} className="mr-1 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:text-gray-600" title="KI-Bildsuche — finde das günstigste Angebot der Schweiz.">
                   <Camera className="h-4 w-4" />
                 </button>
               </div>
@@ -208,55 +208,60 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
         </div>
       </header>
 
-      {/* Mobile menu — synced with web sidebar SIDEBAR_GROUPS */}
+      {/* Mobile menu — uses master CATEGORIES list directly */}
       {mobileMenuOpen && (
         <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: `calc(9px + ${hideTopRow ? 0 : 44}px + 42px + 1px)` }}>
           {/* Menu header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Gesamtsortiment</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">Alle Kategorien</p>
             <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400"><X className="h-4 w-4" /></button>
           </div>
           <nav>
-            {SIDEBAR_GROUPS.map((group) => {
-              const Icon = group.icon;
-              const cats = CATEGORIES.filter((c) => group.categorySlugs.includes(c.slug));
-              const isExpanded = expandedMenu === group.label;
+            {CATEGORIES.map((cat) => {
+              const Icon = cat.icon;
+              const isExpanded = expandedMenu === cat.slug;
+              const hasSubs = cat.subcategories.length > 0;
 
               return (
-                <div key={group.label}>
-                  {cats.length === 1 ? (
-                    /* Single category — direct link */
-                    <Link
-                      href={`/category/${cats[0].slug}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex w-full items-center gap-3 border-b border-gray-50 px-5 py-3.5 text-[15px] text-slate-800"
-                    >
-                      <Icon className="h-[18px] w-[18px] text-gray-400" strokeWidth={1.75} />
-                      <span>{group.label}</span>
-                      <ChevronRight className="ml-auto h-4 w-4 text-gray-300" />
-                    </Link>
-                  ) : (
-                    /* Multi-category group — accordion */
+                <div key={cat.slug}>
+                  {hasSubs ? (
                     <button
-                      onClick={() => setExpandedMenu(isExpanded ? null : group.label)}
-                      className="flex w-full items-center gap-3 border-b border-gray-50 px-5 py-3.5 text-[15px] text-slate-800"
+                      onClick={() => setExpandedMenu(isExpanded ? null : cat.slug)}
+                      className="flex w-full items-center gap-3 border-b border-gray-50 px-5 py-3 text-[15px] text-slate-800"
                     >
-                      <Icon className={`h-[18px] w-[18px] transition ${isExpanded ? "text-[#D81E05]" : "text-gray-400"}`} strokeWidth={1.75} />
-                      <span className={isExpanded ? "font-medium" : ""}>{group.label}</span>
+                      <Icon className={`h-[16px] w-[16px] transition ${isExpanded ? "text-[#D81E05]" : "text-gray-400"}`} strokeWidth={1.75} />
+                      <span className={isExpanded ? "font-medium" : ""}>{cat.name}</span>
                       <ChevronDown className={`ml-auto h-4 w-4 text-gray-300 transition ${isExpanded ? "rotate-180" : ""}`} />
                     </button>
+                  ) : (
+                    <Link
+                      href={`/category/${cat.slug}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex w-full items-center gap-3 border-b border-gray-50 px-5 py-3 text-[15px] text-slate-800"
+                    >
+                      <Icon className="h-[16px] w-[16px] text-gray-400" strokeWidth={1.75} />
+                      <span>{cat.name}</span>
+                      <ChevronRight className="ml-auto h-4 w-4 text-gray-300" />
+                    </Link>
                   )}
                   {isExpanded && (
                     <div className="border-b border-gray-100 bg-gray-50/80 py-1">
-                      {cats.map((cat) => (
+                      <Link
+                        href={`/category/${cat.slug}`}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block px-12 py-2 text-[13px] font-medium text-[#D81E05]"
+                      >
+                        Alle in {cat.name}
+                      </Link>
+                      {cat.subcategories.map((sub) => (
                         <Link
-                          key={cat.slug}
-                          href={`/category/${cat.slug}`}
+                          key={sub.slug}
+                          href={`/category/${cat.slug}/${sub.slug}`}
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center justify-between px-12 py-2.5 text-[14px] text-gray-600 transition hover:text-slate-900"
+                          className="flex items-center justify-between px-12 py-2 text-[14px] text-gray-600 transition hover:text-slate-900"
                         >
-                          <span>{cat.name}</span>
-                          <span className="text-[10px] text-gray-400">{cat.productCount}</span>
+                          <span>{sub.name}</span>
+                          <span className="text-[10px] text-gray-400">{sub.productCount}</span>
                         </Link>
                       ))}
                     </div>

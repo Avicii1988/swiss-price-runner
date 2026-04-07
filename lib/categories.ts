@@ -8,18 +8,17 @@ import {
   Shirt,
   Watch,
   Camera,
-  Sparkles,
+  Droplets,
   Tv,
   Baby,
   Dumbbell,
   BookOpen,
-  Monitor,
-  Droplets,
   type LucideIcon,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// Category hierarchy – Galaxus-style with drill-down subcategories
+// Master Category List — Galaxus-standard order (14 categories)
+// This is the SINGLE SOURCE OF TRUTH for all navigation across the site.
 // ---------------------------------------------------------------------------
 
 export interface SubCategory {
@@ -37,26 +36,12 @@ export interface Category {
   productCount: number;
 }
 
-/** Top-level sidebar groups – used for the Gesamtsortiment view */
-export interface SidebarGroup {
-  label: string;
-  icon: LucideIcon;
-  categorySlugs: string[];
-}
-
-export const SIDEBAR_GROUPS: SidebarGroup[] = [
-  { label: "IT & Multimedia", icon: Monitor, categorySlugs: ["smartphones", "laptops", "kopfhoerer", "tv-audio", "foto"] },
-  { label: "Haushalt", icon: Home, categorySlugs: ["haushalt"] },
-  { label: "Sport", icon: Dumbbell, categorySlugs: ["sport"] },
-  { label: "Mode", icon: Shirt, categorySlugs: ["mode", "schuhe"] },
-  { label: "Parfum", icon: Droplets, categorySlugs: ["parfum", "beauty"] },
-  { label: "Gaming & Spielzeug", icon: Gamepad2, categorySlugs: ["gaming"] },
-  { label: "Baby & Kind", icon: Baby, categorySlugs: ["baby"] },
-  { label: "Uhren & Schmuck", icon: Watch, categorySlugs: ["uhren"] },
-  { label: "Bücher & Medien", icon: BookOpen, categorySlugs: ["buecher"] },
-];
-
+/**
+ * Master list — exact order used everywhere:
+ * Sidebar, Mobile Menu, Footer, Breadcrumbs.
+ */
 export const CATEGORIES: Category[] = [
+  // 1. Smartphones
   {
     slug: "smartphones",
     name: "Smartphones",
@@ -71,6 +56,7 @@ export const CATEGORIES: Category[] = [
       { slug: "smartphones-cases", name: "Hüllen & Schutzfolien", productCount: 324 },
     ],
   },
+  // 2. Laptops & Computer
   {
     slug: "laptops",
     name: "Laptops & Computer",
@@ -86,6 +72,7 @@ export const CATEGORIES: Category[] = [
       { slug: "laptops-accessories", name: "Zubehör", productCount: 329 },
     ],
   },
+  // 3. Kopfhörer & Audio
   {
     slug: "kopfhoerer",
     name: "Kopfhörer & Audio",
@@ -100,6 +87,7 @@ export const CATEGORIES: Category[] = [
       { slug: "kopfhoerer-lautsprecher", name: "Lautsprecher", productCount: 97 },
     ],
   },
+  // 4. Schuhe
   {
     slug: "schuhe",
     name: "Schuhe",
@@ -115,6 +103,7 @@ export const CATEGORIES: Category[] = [
       { slug: "schuhe-adidas", name: "Adidas", productCount: 298 },
     ],
   },
+  // 5. Gaming & Entertainment
   {
     slug: "gaming",
     name: "Gaming & Entertainment",
@@ -131,6 +120,7 @@ export const CATEGORIES: Category[] = [
       { slug: "gaming-zubehoer", name: "Controller & Zubehör", productCount: 142 },
     ],
   },
+  // 6. Haushalt & Küche
   {
     slug: "haushalt",
     name: "Haushalt & Küche",
@@ -146,6 +136,7 @@ export const CATEGORIES: Category[] = [
       { slug: "haushalt-waschen", name: "Waschen & Trocknen", productCount: 145 },
     ],
   },
+  // 7. Mode & Bekleidung
   {
     slug: "mode",
     name: "Mode & Bekleidung",
@@ -160,31 +151,23 @@ export const CATEGORIES: Category[] = [
       { slug: "mode-taschen", name: "Taschen & Accessoires", productCount: 366 },
     ],
   },
-  {
-    slug: "beauty",
-    name: "Beauty & Pflege",
-    icon: Sparkles,
-    description: "Pflege, Make-up und Wellness",
-    productCount: 1545,
-    subcategories: [
-      { slug: "beauty-pflege", name: "Hautpflege", productCount: 567 },
-      { slug: "beauty-makeup", name: "Make-up", productCount: 432 },
-      { slug: "beauty-haarpflege", name: "Haarpflege", productCount: 345 },
-      { slug: "beauty-wellness", name: "Wellness & Spa", productCount: 200 },
-    ],
-  },
+  // 8. Parfum & Düfte (includes Beauty & Pflege sub-categories)
   {
     slug: "parfum",
     name: "Parfum & Düfte",
-    icon: Sparkles,
-    description: "Herren- und Damendüfte der Top-Marken zum besten Preis",
-    productCount: 890,
+    icon: Droplets,
+    description: "Herren- und Damendüfte, Beauty und Pflege",
+    productCount: 2435,
     subcategories: [
       { slug: "parfum-herren", name: "Herrendüfte", productCount: 345 },
       { slug: "parfum-damen", name: "Damendüfte", productCount: 456 },
       { slug: "parfum-unisex", name: "Unisex-Düfte", productCount: 89 },
+      { slug: "parfum-pflege", name: "Hautpflege", productCount: 567 },
+      { slug: "parfum-makeup", name: "Make-up", productCount: 432 },
+      { slug: "parfum-haarpflege", name: "Haarpflege", productCount: 345 },
     ],
   },
+  // 9. Uhren & Schmuck
   {
     slug: "uhren",
     name: "Uhren & Schmuck",
@@ -198,6 +181,7 @@ export const CATEGORIES: Category[] = [
       { slug: "uhren-schmuck", name: "Schmuck", productCount: 330 },
     ],
   },
+  // 10. TV & Audio
   {
     slug: "tv-audio",
     name: "TV & Audio",
@@ -213,6 +197,7 @@ export const CATEGORIES: Category[] = [
       { slug: "tv-beamer", name: "Beamer", productCount: 100 },
     ],
   },
+  // 11. Foto & Video
   {
     slug: "foto",
     name: "Foto & Video",
@@ -227,6 +212,7 @@ export const CATEGORIES: Category[] = [
       { slug: "foto-objektive", name: "Objektive", productCount: 243 },
     ],
   },
+  // 12. Sport & Outdoor
   {
     slug: "sport",
     name: "Sport & Outdoor",
@@ -242,6 +228,7 @@ export const CATEGORIES: Category[] = [
       { slug: "sport-wearables", name: "Fitness Tracker", productCount: 167 },
     ],
   },
+  // 13. Baby & Kind
   {
     slug: "baby",
     name: "Baby & Kind",
@@ -256,6 +243,7 @@ export const CATEGORIES: Category[] = [
       { slug: "baby-pflege", name: "Babypflege", productCount: 210 },
     ],
   },
+  // 14. Bücher & Medien
   {
     slug: "buecher",
     name: "Bücher & Medien",
@@ -274,6 +262,8 @@ export const CATEGORIES: Category[] = [
 ];
 
 export function getCategoryBySlug(slug: string): Category | undefined {
+  // Also match legacy "beauty" slug to "parfum"
+  if (slug === "beauty") return CATEGORIES.find((c) => c.slug === "parfum");
   return CATEGORIES.find((c) => c.slug === slug);
 }
 
@@ -312,7 +302,7 @@ export function parseCategorySlugs(slugs: string[]): {
     return { parentCategory: undefined, activeSubCategory: undefined, breadcrumbs };
   }
 
-  breadcrumbs.push({ label: parentCategory.name, href: `/category/${parentSlug}` });
+  breadcrumbs.push({ label: parentCategory.name, href: `/category/${parentCategory.slug}` });
 
   if (slugs.length < 2) {
     return { parentCategory, activeSubCategory: undefined, breadcrumbs };
@@ -325,14 +315,9 @@ export function parseCategorySlugs(slugs: string[]): {
   if (activeSubCategory) {
     breadcrumbs.push({
       label: activeSubCategory.name,
-      href: `/category/${parentSlug}/${subSlug}`,
+      href: `/category/${parentCategory.slug}/${subSlug}`,
     });
   }
 
   return { parentCategory, activeSubCategory, breadcrumbs };
-}
-
-/** Find the SidebarGroup that contains a given category slug */
-export function getSidebarGroupForCategory(slug: string): SidebarGroup | undefined {
-  return SIDEBAR_GROUPS.find((g) => g.categorySlugs.includes(slug));
 }
