@@ -1,8 +1,18 @@
 "use client";
 
+import { useCallback } from "react";
 import Link from "next/link";
 import { TrendingDown, Heart, Pin, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
+
+const FALLBACK_IMG = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop";
+
+/** Returns true if the image URL looks like a valid product photo */
+export function hasValidImage(url: string | undefined | null): boolean {
+  if (!url) return false;
+  if (url.includes("picsum.photos")) return false;
+  return true;
+}
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 import { getCategoryBySlug } from "@/lib/categories";
 
@@ -55,10 +65,11 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-white p-2 sm:h-28 sm:w-28">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={product.imageUrl}
+              src={product.imageUrl || FALLBACK_IMG}
               alt={product.title}
               width={100}
               height={100}
+              onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
               className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform group-hover:scale-105"
               loading="lazy"
             />
@@ -125,12 +136,13 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={product.imageUrl}
+              src={product.imageUrl || FALLBACK_IMG}
               alt={product.title}
               width={200}
               height={200}
               className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform group-hover:scale-105"
               loading="lazy"
+              onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
             />
           </div>
         </div>

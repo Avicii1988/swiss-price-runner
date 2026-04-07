@@ -15,7 +15,7 @@ import {
   Sparkles,
   Monitor,
 } from "lucide-react";
-import { ProductCard } from "@/components/product-card";
+import { ProductCard, hasValidImage } from "@/components/product-card";
 import { ProductDetailModal } from "@/components/product-detail-modal";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { VisualSearchModal } from "@/components/visual-search-modal";
@@ -84,52 +84,56 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
     [],
   );
 
+  // Only products with valid images for the main page
+  const withImages = useMemo(
+    () => allProducts.filter((p) => hasValidImage(p.product.imageUrl)),
+    [allProducts],
+  );
+
   // ── Diversified Hot Deals: at least 50% non-tech ───────────
   const hotDeals = useMemo(() => {
-    const lifestyle = allProducts.filter((p) =>
+    const lifestyle = withImages.filter((p) =>
       ["parfum", "beauty", "mode", "schuhe"].includes(p.product.category),
     );
-    const tech = allProducts.filter((p) =>
+    const tech = withImages.filter((p) =>
       !["parfum", "beauty", "mode", "schuhe"].includes(p.product.category),
     );
-    // Sort both by price drop, pick 3 lifestyle + 3 tech
     const topLifestyle = [...lifestyle]
       .sort((a, b) => b.priceDrop30d - a.priceDrop30d)
       .slice(0, 3);
     const topTech = [...tech]
       .sort((a, b) => b.priceDrop30d - a.priceDrop30d)
       .slice(0, 3);
-    // Interleave: lifestyle first
     const mixed: MockProductWithHistory[] = [];
     for (let i = 0; i < 3; i++) {
       if (topLifestyle[i]) mixed.push(topLifestyle[i]);
       if (topTech[i]) mixed.push(topTech[i]);
     }
     return mixed;
-  }, [allProducts]);
+  }, [withImages]);
 
-  // ── Category-specific product groups ───────────────────────
+  // ── Category-specific product groups (images only) ─────────
   const beautyProducts = useMemo(
     () =>
-      allProducts
+      withImages
         .filter((p) => ["beauty", "parfum"].includes(p.product.category) &&
           ["La Mer", "Dyson", "Lancôme", "Chanel"].some((b) => p.product.brand.includes(b)))
         .slice(0, 4),
-    [allProducts],
+    [withImages],
   );
 
   const perfumeProducts = useMemo(
     () =>
-      allProducts
+      withImages
         .filter((p) => p.product.category === "parfum")
         .sort((a, b) => b.priceDrop30d - a.priceDrop30d)
         .slice(0, 4),
-    [allProducts],
+    [withImages],
   );
 
   const shoeProducts = useMemo(
     () =>
-      allProducts
+      withImages
         .filter(
           (p) =>
             ["schuhe", "mode"].includes(p.product.category) &&
@@ -138,17 +142,17 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
             ),
         )
         .slice(0, 4),
-    [allProducts],
+    [withImages],
   );
 
   const appleProducts = useMemo(
-    () => allProducts.filter((p) => p.product.brand === "Apple").slice(0, 4),
-    [allProducts],
+    () => withImages.filter((p) => p.product.brand === "Apple").slice(0, 4),
+    [withImages],
   );
 
   const techProducts = useMemo(
     () =>
-      allProducts
+      withImages
         .filter((p) =>
           ["smartphones", "laptops", "kopfhoerer", "gaming", "tv-audio"].includes(
             p.product.category,
@@ -156,7 +160,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
         )
         .sort((a, b) => b.priceDrop30d - a.priceDrop30d)
         .slice(0, 4),
-    [allProducts],
+    [withImages],
   );
 
   const tagesangebot = featured[0];

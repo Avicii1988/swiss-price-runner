@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { SubCategory } from "@/lib/categories";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
-import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
+import { ProductCard, ProductCardSkeleton, hasValidImage } from "@/components/product-card";
 import { ProductDetailModal } from "@/components/product-detail-modal";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -94,6 +94,12 @@ export default function CategoryClient({
         items.sort((a, b) => b.priceDrop30d - a.priceDrop30d);
         break;
     }
+    // Products with images always come first
+    items.sort((a, b) => {
+      const aImg = hasValidImage(a.product.imageUrl) ? 0 : 1;
+      const bImg = hasValidImage(b.product.imageUrl) ? 0 : 1;
+      return aImg - bImg;
+    });
     return items;
   }, [products, selectedBrands, priceMin, priceMax, sort]);
 

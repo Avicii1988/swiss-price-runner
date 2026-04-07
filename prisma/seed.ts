@@ -33,21 +33,21 @@ type SeedProduct = MockProduct;
 // Product images — verified working URLs from brand CDNs and Unsplash
 const IMAGES: Record<string, string> = {
   // ── Smartphones ────────────────────────────────────────────────────────
-  "00194253715085": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=400&hei=400&fmt=p-jpg",
+  "00194253715085": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=400&fit=crop",
   "00889842640885": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&h=400&fit=crop",
   "00840080520049": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=400&fit=crop",
   "00690000000001": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop",
-  "00194253000100": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-black?wid=400&hei=400&fmt=p-jpg",
+  "00194253000100": "https://images.unsplash.com/photo-1699839482388-a941d4681b59?w=400&h=400&fit=crop",
   "00889842000200": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop",
   // ── Laptops & Computer ─────────────────────────────────────────────────
-  "00194253392828": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mba13-midnight-select-202402?wid=400&hei=400&fmt=p-jpg",
+  "00194253392828": "https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?w=400&h=400&fit=crop",
   "00196188000301": "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&h=400&fit=crop",
   "00889842000400": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=400&fit=crop",
   "00195553000501": "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?w=400&h=400&fit=crop",
   "00194253000600": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop",
   // ── Kopfhörer & Audio ──────────────────────────────────────────────────
   "00027242923379": "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=400&h=400&fit=crop",
-  "00885909961009": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MQD83?wid=400&hei=400&fmt=p-jpg",
+  "00885909961009": "https://images.unsplash.com/photo-1588423771073-b8903fde1c94?w=400&h=400&fit=crop",
   "00810028588103": "https://images.unsplash.com/photo-1590658268037-6bf12f032f55?w=400&h=400&fit=crop",
   "00054651000701": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop",
   "00054651000702": "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=400&h=400&fit=crop",
