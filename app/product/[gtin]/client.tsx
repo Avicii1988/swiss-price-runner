@@ -266,7 +266,7 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                         <div className="flex items-center gap-2">
                           <ShippingTooltip breakdown={s.breakdown} sourceId={s.sourceId} />
                           <span className="text-lg font-bold text-gray-900">{s.breakdown.totalChf.toFixed(0)}.–</span>
-                          <button className="ml-2 flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700">
+                          <button className="ml-auto flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 sm:ml-2">
                             <ExternalLink className="h-4 w-4" /> Zum Shop
                           </button>
                         </div>
