@@ -78,41 +78,38 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
   const showDropdown = searchFocused && query.length >= 2;
 
-  const SearchResults = () => (
-    <>
-      {showDropdown && suggestions.length > 0 && (
-        <div
-          className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {suggestions.map((item) => (
-            <Link key={item.product.gtin} href={`/product/${item.product.gtin}`}
-              onClick={() => { setSearchFocused(false); onQueryChange(""); }}
-              className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-gray-50">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.product.imageUrl} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-lg bg-gray-50 object-contain" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-gray-900">{item.product.title}</p>
-                <p className="text-[11px] text-gray-400">{item.product.brand}</p>
-              </div>
-              <span className="shrink-0 text-sm font-bold text-gray-900">CHF {item.bestPrice.totalChf.toFixed(2)}</span>
-            </Link>
-          ))}
-          <div className="border-t border-gray-100 px-4 py-2.5">
-            <button onClick={() => setSearchFocused(false)} className="flex items-center gap-1 text-xs font-medium text-blue-600">
-              Alle {suggestions.length} Ergebnisse anzeigen <ArrowRight className="h-3 w-3" />
-            </button>
-          </div>
+  const searchResultsDropdown = showDropdown ? (
+    suggestions.length > 0 ? (
+      <div
+        className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+        onMouseDown={(e) => e.preventDefault()}
+      >
+        {suggestions.map((item) => (
+          <Link key={item.product.gtin} href={`/product/${item.product.gtin}`}
+            onClick={() => { setSearchFocused(false); onQueryChange(""); }}
+            className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-gray-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={item.product.imageUrl} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-lg bg-gray-50 object-contain" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-gray-900">{item.product.title}</p>
+              <p className="text-[11px] text-gray-400">{item.product.brand}</p>
+            </div>
+            <span className="shrink-0 text-sm font-bold text-gray-900">CHF {item.bestPrice.totalChf.toFixed(2)}</span>
+          </Link>
+        ))}
+        <div className="border-t border-gray-100 px-4 py-2.5">
+          <button onClick={() => setSearchFocused(false)} className="flex items-center gap-1 text-xs font-medium text-blue-600">
+            Alle {suggestions.length} Ergebnisse anzeigen <ArrowRight className="h-3 w-3" />
+          </button>
         </div>
-      )}
-      {showDropdown && suggestions.length === 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl"
-          onMouseDown={(e) => e.preventDefault()}>
-          <p className="text-sm text-gray-500">Keine Ergebnisse für &ldquo;{query}&rdquo;</p>
-        </div>
-      )}
-    </>
-  );
+      </div>
+    ) : (
+      <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl"
+        onMouseDown={(e) => e.preventDefault()}>
+        <p className="text-sm text-gray-500">Keine Ergebnisse für &ldquo;{query}&rdquo;</p>
+      </div>
+    )
+  ) : null;
 
   return (
     <>
@@ -139,7 +136,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                   </span>
                 </button>
               </div>
-              <SearchResults />
+              {searchResultsDropdown}
             </div>
             <div className="flex-1" />
             {/* Right: Pin + Heart + Lang + Auth */}
@@ -206,7 +203,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                   <Camera className="h-4 w-4" />
                 </button>
               </div>
-              <SearchResults />
+              {searchResultsDropdown}
             </div>
           </div>
           <div className="border-b border-gray-200" />
