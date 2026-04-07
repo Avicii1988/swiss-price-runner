@@ -18,6 +18,8 @@ import { PriceAlertModal } from "@/components/price-alert-modal";
 import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
+import { TrustBrandsBar } from "@/components/trust-brands-bar";
+import { AiFeatureCallout } from "@/components/ai-feature-callout";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -61,6 +63,10 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
         allProducts={allProducts}
         showVision={() => setShowVisionModal(true)}
       />
+
+      {/* Trust & Brands + AI callout */}
+      <TrustBrandsBar />
+      <AiFeatureCallout />
 
       {/* ═══ MAIN ═══ */}
       <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
@@ -198,12 +204,12 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
       </div>
 
       {/* CTA — single instance */}
-      <section className="bg-gray-900 px-4 py-10 sm:px-6">
+      <section className="bg-slate-900 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-xl text-center">
           <h2 className="text-lg font-bold text-white">Preisalarm einrichten</h2>
-          <p className="mt-2 text-sm text-gray-400">Wir benachrichtigen dich, sobald dein Wunschpreis erreicht wird.</p>
+          <p className="mt-2 text-sm text-slate-400">Wir benachrichtigen dich per E-Mail, sobald dein Wunschpreis erreicht wird.</p>
           <button onClick={() => { if (!isLoggedIn) { setShowAuthModal(true); return; } if (featured.length > 0) handleAlert(featured[0]); }}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-700">
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#D81E05] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#b91a04]">
             <Bell className="h-4 w-4" /> Jetzt Alarm einrichten
           </button>
         </div>

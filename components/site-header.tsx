@@ -7,20 +7,8 @@ import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRi
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
+import { SIDEBAR_GROUPS, CATEGORIES } from "@/lib/categories";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
-
-const MENU_ITEMS = [
-  { label: "IT + Multimedia", slugs: ["smartphones", "laptops", "kopfhoerer", "foto", "tv-audio"], subs: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto & Video"] },
-  { label: "Haushalt", slugs: ["haushalt"], subs: ["Staubsauger", "Kaffeemaschinen", "Küchengeräte"] },
-  { label: "Sport", slugs: ["sport"], subs: ["Fitness", "Velo", "Wandern"] },
-  { label: "Mode", slugs: ["mode", "schuhe"], subs: ["Sneakers", "Laufschuhe", "Jacken", "Jeans"] },
-  { label: "Parfum", slugs: ["parfum"], subs: ["Herrendüfte", "Damendüfte", "Unisex"] },
-  { label: "Gaming + Spielzeug", slugs: ["gaming"], subs: ["PlayStation", "Xbox", "Nintendo"] },
-  { label: "Baby + Eltern", slugs: ["baby"], subs: [] },
-  { label: "Beauty + Pflege", slugs: ["beauty"], subs: ["Hautpflege", "Haarpflege", "Make-up"] },
-  { label: "Uhren + Schmuck", slugs: ["uhren"], subs: [] },
-  { label: "Bücher + Medien", slugs: ["buecher"], subs: [] },
-];
 
 interface SiteHeaderProps {
   query: string;
@@ -217,47 +205,62 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
         </div>
       </header>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — synced with web sidebar SIDEBAR_GROUPS */}
       {mobileMenuOpen && (
         <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: `calc(9px + ${hideTopRow ? 0 : 44}px + 42px + 1px)` }}>
-          {/* Menu logo — centered */}
-          <div className="flex items-center justify-center gap-2 border-b border-gray-100 py-4">
-            <svg width="24" height="24" viewBox="0 0 36 36" fill="none"><path d="M18 3C12.5 3 8 7.5 8 13V21C8 21 7 22 6 23V24H30V23C29 22 28 21 28 21V13C28 7.5 23.5 3 18 3Z" fill="#E30613"/><path d="M14.5 26C14.5 28 16 30 18 30C20 30 21.5 28 21.5 26H14.5Z" fill="#E30613"/><rect x="16" y="9" width="4" height="10" rx="0.8" fill="white"/><rect x="13" y="12" width="10" height="4" rx="0.8" fill="white"/></svg>
-            <span className="text-base font-black">Preis<span className="text-[#E30613]">Alarm</span></span>
+          {/* Menu header */}
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Gesamtsortiment</p>
+            <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400"><X className="h-4 w-4" /></button>
           </div>
           <nav>
-            {MENU_ITEMS.map((item) => (
-              <div key={item.label}>
-                {item.subs.length > 0 ? (
-                  <button
-                    onClick={() => setExpandedMenu(expandedMenu === item.label ? null : item.label)}
-                    className="flex w-full items-center justify-between border-b border-gray-100 px-5 py-4 text-[16px] text-gray-800"
-                  >
-                    <span>{item.label}</span>
-                    <ChevronDown className={`h-5 w-5 text-gray-400 transition ${expandedMenu === item.label ? "rotate-180" : ""}`} />
-                  </button>
-                ) : (
-                  <Link
-                    href={`/category/${item.slugs[0]}`}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex w-full items-center justify-between border-b border-gray-100 px-5 py-4 text-[16px] text-gray-800"
-                  >
-                    <span>{item.label}</span>
-                    <ChevronRight className="h-5 w-5 text-gray-400" />
-                  </Link>
-                )}
-                {expandedMenu === item.label && (
-                  <div className="border-b border-gray-100 bg-gray-50 py-1">
-                    <Link href={`/category/${item.slugs[0]}`} onClick={() => setMobileMenuOpen(false)}
-                      className="block w-full px-8 py-3 text-left text-sm font-medium text-blue-600">Alle in {item.label}</Link>
-                    {item.slugs.map((slug) => (
-                      <Link key={slug} href={`/category/${slug}`} onClick={() => setMobileMenuOpen(false)}
-                        className="block w-full px-8 py-3 text-left text-[15px] text-gray-600 hover:text-gray-900 capitalize">{slug.replace(/-/g, " ")}</Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            {SIDEBAR_GROUPS.map((group) => {
+              const Icon = group.icon;
+              const cats = CATEGORIES.filter((c) => group.categorySlugs.includes(c.slug));
+              const isExpanded = expandedMenu === group.label;
+
+              return (
+                <div key={group.label}>
+                  {cats.length === 1 ? (
+                    /* Single category — direct link */
+                    <Link
+                      href={`/category/${cats[0].slug}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex w-full items-center gap-3 border-b border-gray-50 px-5 py-3.5 text-[15px] text-slate-800"
+                    >
+                      <Icon className="h-[18px] w-[18px] text-gray-400" strokeWidth={1.75} />
+                      <span>{group.label}</span>
+                      <ChevronRight className="ml-auto h-4 w-4 text-gray-300" />
+                    </Link>
+                  ) : (
+                    /* Multi-category group — accordion */
+                    <button
+                      onClick={() => setExpandedMenu(isExpanded ? null : group.label)}
+                      className="flex w-full items-center gap-3 border-b border-gray-50 px-5 py-3.5 text-[15px] text-slate-800"
+                    >
+                      <Icon className={`h-[18px] w-[18px] transition ${isExpanded ? "text-[#D81E05]" : "text-gray-400"}`} strokeWidth={1.75} />
+                      <span className={isExpanded ? "font-medium" : ""}>{group.label}</span>
+                      <ChevronDown className={`ml-auto h-4 w-4 text-gray-300 transition ${isExpanded ? "rotate-180" : ""}`} />
+                    </button>
+                  )}
+                  {isExpanded && (
+                    <div className="border-b border-gray-100 bg-gray-50/80 py-1">
+                      {cats.map((cat) => (
+                        <Link
+                          key={cat.slug}
+                          href={`/category/${cat.slug}`}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center justify-between px-12 py-2.5 text-[14px] text-gray-600 transition hover:text-slate-900"
+                        >
+                          <span>{cat.name}</span>
+                          <span className="text-[10px] text-gray-400">{cat.productCount}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </nav>
         </div>
       )}

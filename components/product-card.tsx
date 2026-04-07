@@ -107,14 +107,20 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           <Pin className={`h-3 w-3 ${pinned ? "fill-current" : ""}`} />
         </button>
         <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert?.(item); }}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:text-amber-500" title="Preisalarm">
-          <Bell className="h-3 w-3" />
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:text-[#D81E05] group-hover:[&>svg]:bell-animate" title="Preisalarm">
+          <Bell className="h-3 w-3 transition-transform group-hover:animate-[bell-ring_0.6s_ease-in-out]" />
         </button>
       </div>
 
+      {/* CHF Swiss badge — top left */}
+      <span className="absolute left-2 top-2 z-[5] flex items-center gap-0.5 rounded bg-white/90 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 shadow-sm backdrop-blur-sm">
+        <svg viewBox="0 0 12 12" className="h-2.5 w-2.5"><rect width="12" height="12" rx="1" fill="#D81E05"/><path d="M5 3h2v6H5z" fill="#fff"/><path d="M3 5h6v2H3z" fill="#fff"/></svg>
+        CHF
+      </span>
+
       {/* Discount badge */}
       {discount >= 3 && (
-        <span className="absolute left-2 top-2 z-10 rounded bg-[#E30613] px-2 py-0.5 text-[11px] font-bold text-white">
+        <span className="absolute right-2 top-12 z-10 rounded bg-[#D81E05] px-2 py-0.5 text-[11px] font-bold text-white">
           -{discount}%
         </span>
       )}
@@ -142,24 +148,24 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
 
           {/* Price — "XXX.–" format */}
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-lg font-bold text-gray-900 sm:text-xl">{bestPrice.totalChf.toFixed(0)}.–</span>
+            <span className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">{bestPrice.totalChf.toFixed(0)}.–</span>
             {discount >= 3 && (
               <span className="text-xs text-gray-400 line-through">statt {Math.round(avgChf30d)}.–</span>
             )}
           </div>
 
           {/* Brand bold + title */}
-          <p className="mt-0.5 line-clamp-2 text-sm text-gray-900">
+          <p className="mt-0.5 line-clamp-2 text-sm text-slate-800">
             <span className="font-bold">{product.brand}</span>{" "}
             {product.title.replace(product.brand, "").trim()}
           </p>
 
           {/* Source info */}
-          <p className="mt-1.5 text-[10px] text-gray-400">
+          <p className="mt-auto pt-2 text-[10px] text-gray-400">
             {bestSource} · {product.sources.length} Angebote
             {priceDrop30d > 0 && (
-              <span className="ml-1 inline-flex items-center gap-0.5 font-semibold text-green-600">
-                <TrendingDown className="h-2.5 w-2.5" /> {priceDrop30d.toFixed(0)}
+              <span className="ml-1 inline-flex items-center gap-0.5 font-semibold text-emerald-600">
+                <TrendingDown className="h-2.5 w-2.5" /> CHF {priceDrop30d.toFixed(0)}
               </span>
             )}
           </p>
