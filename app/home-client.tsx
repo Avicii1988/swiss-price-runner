@@ -7,8 +7,6 @@ import {
   Bell,
   ArrowRight,
   Flame,
-  TrendingDown,
-  Percent,
   Apple,
   Footprints,
   Droplets,
@@ -22,7 +20,6 @@ import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { TrustBrandsBar } from "@/components/trust-brands-bar";
-import { LiveSearchGrid } from "@/components/live-search-grid";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -117,19 +114,18 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
     () =>
       withImages
         .filter((p) => ["beauty", "parfum"].includes(p.product.category) &&
-          ["La Mer", "Dyson", "Lancôme", "Chanel"].some((b) => p.product.brand.includes(b)))
+          ["La Mer", "Dyson", "Lancôme", "Chanel", "Dior", "YSL"].some((b) => p.product.brand.includes(b)))
         .slice(0, 4),
     [withImages],
   );
 
-  const perfumeProducts = useMemo(
-    () =>
-      withImages
-        .filter((p) => p.product.category === "parfum")
-        .sort((a, b) => b.priceDrop30d - a.priceDrop30d)
-        .slice(0, 4),
-    [withImages],
-  );
+  // Exklusive Düfte — pick the 4 perfumes NOT already shown in Beauty
+  const perfumeProducts = useMemo(() => {
+    const beautyGtins = new Set(beautyProducts.map((p) => p.product.gtin));
+    return withImages
+      .filter((p) => p.product.category === "parfum" && !beautyGtins.has(p.product.gtin))
+      .slice(0, 4);
+  }, [withImages, beautyProducts]);
 
   const shoeProducts = useMemo(
     () =>
@@ -227,13 +223,13 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
             )}
 
             {/* ═══ 1. Premium Beauty & Skincare ═══ */}
-            <section className="mb-10">
-              <SectionHeader
-                icon={<Sparkles className="h-5 w-5 text-pink-500" />}
-                title="Premium Beauty & Skincare"
-                href="/category/parfum"
-              />
-              {beautyProducts.length > 0 ? (
+            {beautyProducts.length > 0 && (
+              <section className="mb-10">
+                <SectionHeader
+                  icon={<Sparkles className="h-5 w-5 text-pink-500" />}
+                  title="Premium Beauty & Skincare"
+                  href="/category/parfum"
+                />
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
                   {beautyProducts.map((item) => (
                     <ProductCard
@@ -244,22 +240,17 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                     />
                   ))}
                 </div>
-              ) : (
-                <LiveSearchGrid
-                  query="Premium Skincare Schweiz La Mer Clinique"
-                  layout="grid"
-                />
-              )}
-            </section>
+              </section>
+            )}
 
             {/* ═══ 2. Exklusive Düfte ═══ */}
-            <section className="mb-10">
-              <SectionHeader
-                icon={<Droplets className="h-5 w-5 text-violet-500" />}
-                title="Exklusive Düfte"
-                href="/category/parfum"
-              />
-              {perfumeProducts.length > 0 ? (
+            {perfumeProducts.length > 0 && (
+              <section className="mb-10">
+                <SectionHeader
+                  icon={<Droplets className="h-5 w-5 text-violet-500" />}
+                  title="Exklusive Düfte"
+                  href="/category/parfum"
+                />
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
                   {perfumeProducts.map((item) => (
                     <ProductCard
@@ -270,13 +261,8 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
                     />
                   ))}
                 </div>
-              ) : (
-                <LiveSearchGrid
-                  query="Luxus Parfum Schweiz Dior Chanel"
-                  layout="grid"
-                />
-              )}
-            </section>
+              </section>
+            )}
 
             {/* ═══ 3. Trend Schuhe & Sneaker ═══ */}
             {shoeProducts.length > 0 && (
