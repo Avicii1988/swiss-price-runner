@@ -22,6 +22,10 @@ export const metadata: Metadata = {
     "Preisalarm",
     "Zoll",
   ],
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
