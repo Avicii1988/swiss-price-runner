@@ -81,9 +81,13 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   const SearchResults = () => (
     <>
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+        <div
+          className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+          onMouseDown={(e) => e.preventDefault()}
+        >
           {suggestions.map((item) => (
-            <Link key={item.product.gtin} href={`/product/${item.product.gtin}`} onClick={() => { setSearchFocused(false); onQueryChange(""); }}
+            <Link key={item.product.gtin} href={`/product/${item.product.gtin}`}
+              onClick={() => { setSearchFocused(false); onQueryChange(""); }}
               className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-gray-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={item.product.imageUrl} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-lg bg-gray-50 object-contain" />
@@ -102,7 +106,8 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
         </div>
       )}
       {showDropdown && suggestions.length === 0 && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl"
+          onMouseDown={(e) => e.preventDefault()}>
           <p className="text-sm text-gray-500">Keine Ergebnisse für &ldquo;{query}&rdquo;</p>
         </div>
       )}

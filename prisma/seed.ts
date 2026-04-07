@@ -33,7 +33,7 @@ type SeedProduct = MockProduct;
 // Product images — verified working URLs from brand CDNs and Unsplash
 const IMAGES: Record<string, string> = {
   // ── Smartphones ────────────────────────────────────────────────────────
-  "00194253715085": "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&h=400&fit=crop",
+  "00194253715085": "https://images.unsplash.com/photo-1678685888221-cda773a3dcdb?w=400&h=400&fit=crop",
   "00889842640885": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400&h=400&fit=crop",
   "00840080520049": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400&h=400&fit=crop",
   "00690000000001": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop",
