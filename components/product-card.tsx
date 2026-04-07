@@ -52,14 +52,14 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
 
         <Link href={`/product/${product.gtin}`} className="flex flex-1 items-center gap-4 sm:gap-5">
           {/* Image — fixed size, centered */}
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-[#f5f5f5] p-2 sm:h-28 sm:w-28">
+          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-white p-2 sm:h-28 sm:w-28">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={product.imageUrl}
               alt={product.title}
               width={100}
               height={100}
-              className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
+              className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform group-hover:scale-105"
               loading="lazy"
             />
           </div>
@@ -120,8 +120,8 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
       )}
 
       <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col p-3 sm:p-4">
-        {/* Image — uniform square, light bg, centered */}
-        <div className="aspect-square overflow-hidden rounded-lg bg-[#f5f5f5] p-4">
+        {/* Image — clean white bg, centered, mix-blend for seamless look */}
+        <div className="aspect-square overflow-hidden rounded-lg bg-white p-4">
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -129,7 +129,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
               alt={product.title}
               width={200}
               height={200}
-              className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
+              className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform group-hover:scale-105"
               loading="lazy"
             />
           </div>

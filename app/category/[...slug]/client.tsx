@@ -20,6 +20,7 @@ import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { FilterBar } from "@/components/filter-bar";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { LiveSearchGrid } from "@/components/live-search-grid";
 
 interface SerializedCategory {
   slug: string;
@@ -330,6 +331,19 @@ export default function CategoryClient({
                 {Array.from({ length: 6 }).map((_, i) => (
                   <ProductCardSkeleton key={i} layout={viewMode} />
                 ))}
+              </div>
+            )}
+
+            {/* Live Search Results from SearchApi */}
+            {pageTitle && (
+              <div className="mt-8 border-t border-gray-100 pt-6">
+                <h2 className="mb-4 text-base font-bold text-slate-900">
+                  Live-Preise für «{pageTitle}»
+                </h2>
+                <LiveSearchGrid
+                  query={`${pageTitle} Schweiz kaufen`}
+                  layout={viewMode}
+                />
               </div>
             )}
           </main>
