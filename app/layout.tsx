@@ -111,7 +111,7 @@ export default function RootLayout({
                   <div className="mt-3 flex flex-col gap-2 text-xs text-gray-500">
                     <span className="flex items-center gap-1.5">
                       <svg viewBox="0 0 12 12" className="h-3 w-3 shrink-0"><rect width="12" height="12" rx="1" fill="#D81E05"/><path d="M5 3h2v6H5z" fill="#fff"/><path d="M3 5h6v2H3z" fill="#fff"/></svg>
-                      Swiss-hosted (Supabase Zürich)
+                      Hosting in der Schweiz
                     </span>
                     <span>SSL-verschlüsselt</span>
                     <span>nDSG-konform</span>
@@ -128,7 +128,7 @@ export default function RootLayout({
                   entstehen keine Mehrkosten. Alle Preise werden in Echtzeit berechnet und enthalten
                   Schweizer MwSt. (8.1%), Zollgebühren und Lieferkosten. Wir empfehlen nur Produkte, die
                   wir selbst einem Preisvergleich unterzogen haben. Als Amazon-Partner verdienen wir an
-                  qualifizierten Verkäufen. · Betreiber: Jan Feusi, Falknisstrasse 47, 7304 Maienfeld, Schweiz.
+                  qualifizierten Verkäufen.
                 </p>
               </div>
 

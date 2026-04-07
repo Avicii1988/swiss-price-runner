@@ -112,15 +112,9 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
         </button>
       </div>
 
-      {/* CHF Swiss badge — top left */}
-      <span className="absolute left-2 top-2 z-[5] flex items-center gap-0.5 rounded bg-white/90 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 shadow-sm backdrop-blur-sm">
-        <svg viewBox="0 0 12 12" className="h-2.5 w-2.5"><rect width="12" height="12" rx="1" fill="#D81E05"/><path d="M5 3h2v6H5z" fill="#fff"/><path d="M3 5h6v2H3z" fill="#fff"/></svg>
-        CHF
-      </span>
-
       {/* Discount badge */}
       {discount >= 3 && (
-        <span className="absolute right-2 top-12 z-10 rounded bg-[#D81E05] px-2 py-0.5 text-[11px] font-bold text-white">
+        <span className="absolute left-2 top-2 z-10 rounded bg-[#D81E05] px-2 py-0.5 text-[11px] font-bold text-white">
           -{discount}%
         </span>
       )}

@@ -19,7 +19,6 @@ import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { TrustBrandsBar } from "@/components/trust-brands-bar";
-import { AiFeatureCallout } from "@/components/ai-feature-callout";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -64,9 +63,8 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
         showVision={() => setShowVisionModal(true)}
       />
 
-      {/* Trust & Brands + AI callout */}
+      {/* Trust & Brands */}
       <TrustBrandsBar />
-      <AiFeatureCallout />
 
       {/* ═══ MAIN ═══ */}
       <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">

@@ -127,8 +127,11 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                 <Search className="ml-5 h-5 w-5 shrink-0 text-gray-400" />
                 <input type="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
                   placeholder="Wonach suchst du?" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-[16px] outline-none placeholder:text-gray-400" />
-                <button onClick={() => showVision?.()} className="mr-2 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100">
+                <button onClick={() => showVision?.()} className="group/cam relative mr-2 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                   <Camera className="h-5 w-5" />
+                  <span className="pointer-events-none absolute -bottom-12 left-1/2 z-50 w-64 -translate-x-1/2 rounded-lg bg-white px-3 py-2 text-xs leading-relaxed text-slate-700 opacity-0 shadow-lg ring-1 ring-gray-200 transition group-hover/cam:opacity-100">
+                    <strong className="text-slate-800">KI-Bildsuche</strong> — Lade ein Foto hoch und finde das günstigste Angebot in der Schweiz.
+                  </span>
                 </button>
               </div>
               <SearchResults />
@@ -194,7 +197,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                 <Search className="ml-3 h-4 w-4 text-gray-400" />
                 <input type="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
                   placeholder="Wonach suchst du?" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base outline-none placeholder:text-gray-400" />
-                <button onClick={() => showVision?.()} className="mr-1 flex h-7 w-7 items-center justify-center rounded-full text-gray-400">
+                <button onClick={() => showVision?.()} className="mr-1 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:text-gray-600" title="KI-Bildsuche — Lade ein Foto hoch und finde das günstigste Angebot in der Schweiz.">
                   <Camera className="h-4 w-4" />
                 </button>
               </div>

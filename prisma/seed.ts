@@ -30,31 +30,97 @@ export interface MockProduct {
 
 type SeedProduct = MockProduct;
 
-// Real product images from public CDNs and placeholder services
+// Real product images — every product gets a specific, realistic photo from Amazon CDN
 const IMAGES: Record<string, string> = {
-  // Smartphones
+  // ── Smartphones ────────────────────────────────────────────────────────
   "00194253715085": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=400&hei=400&fmt=p-jpg",
   "00889842640885": "https://images.samsung.com/is/image/samsung/p6pim/ch/2401/gallery/ch-galaxy-s24-ultra-s928-sm-s928bztdeub-thumb-539573340?$400_400_PNG$",
+  "00840080520049": "https://m.media-amazon.com/images/I/71SGl01rpbL._AC_SL400_.jpg",
+  "00690000000001": "https://m.media-amazon.com/images/I/61WBf7tJfYL._AC_SL400_.jpg",
   "00194253000100": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-black?wid=400&hei=400&fmt=p-jpg",
-  // Laptops
+  "00889842000200": "https://m.media-amazon.com/images/I/71lhGMwStCL._AC_SL400_.jpg",
+  // ── Laptops & Computer ─────────────────────────────────────────────────
   "00194253392828": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/mba13-midnight-select-202402?wid=400&hei=400&fmt=p-jpg",
-  // Audio
+  "00196188000301": "https://m.media-amazon.com/images/I/61lsex6PFFL._AC_SL400_.jpg",
+  "00889842000400": "https://m.media-amazon.com/images/I/71Bvs3pKFtL._AC_SL400_.jpg",
+  "00195553000501": "https://m.media-amazon.com/images/I/71IBFh4YjEL._AC_SL400_.jpg",
+  "00194253000600": "https://m.media-amazon.com/images/I/61lYIKPieDL._AC_SL400_.jpg",
+  // ── Kopfhörer & Audio ──────────────────────────────────────────────────
   "00027242923379": "https://m.media-amazon.com/images/I/51aXvjzcukL._AC_SL400_.jpg",
   "00885909961009": "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/MQD83?wid=400&hei=400&fmt=p-jpg",
-  // Fashion
-  "00193145100100": "https://static.nike.com/a/images/t_default/e6da41d4-3e98-4856-8208-0f6a30b9a1c3/air-force-1-07-shoes-WrLlWX.png",
-  "00401938500200": "https://assets.adidas.com/images/w_400,f_auto,q_auto/5cc3c4e872194c17a72caf6901156498_9366/Samba_OG_Shoes_White_B75806_01_standard.jpg",
-  "00194500700500": "https://static.nike.com/a/images/t_default/3d1e4b41-d1ab-4b43-a817-5c3bba820fd4/dunk-low-retro-shoes-bRDhdd.png",
-  "00886668800400": "https://m.media-amazon.com/images/I/61d8aJsEVKL._AC_SL400_.jpg",
-  // Gaming
-  "00711719565185": "https://m.media-amazon.com/images/I/41Yky+lxkPL._AC_SL400_.jpg",
+  "00810028588103": "https://m.media-amazon.com/images/I/51bRhIzMb3L._AC_SL400_.jpg",
+  "00054651000701": "https://m.media-amazon.com/images/I/51oTjFIPm1L._AC_SL400_.jpg",
+  "00054651000702": "https://m.media-amazon.com/images/I/31YGSA+mOyL._AC_SL400_.jpg",
+  // ── Schuhe ─────────────────────────────────────────────────────────────
+  "00764011644505": "https://m.media-amazon.com/images/I/41hblpG-9gL._AC_SL400_.jpg",
+  "00764011644260": "https://m.media-amazon.com/images/I/41v9MGINBWL._AC_SL400_.jpg",
+  "00194500000801": "https://m.media-amazon.com/images/I/71UBnMF-swL._AC_SL400_.jpg",
+  "00401938000901": "https://m.media-amazon.com/images/I/71aBFMdOM-L._AC_SL400_.jpg",
+  "00190000001001": "https://m.media-amazon.com/images/I/51e5nTTkcJL._AC_SL400_.jpg",
+  "00764011001101": "https://m.media-amazon.com/images/I/51Bt1bGY3xL._AC_SL400_.jpg",
+  // ── Gaming & Entertainment ─────────────────────────────────────────────
   "00045496883386": "https://m.media-amazon.com/images/I/51HqOVsjTpL._AC_SL400_.jpg",
-  // Haushalt
+  "00711719565185": "https://m.media-amazon.com/images/I/41Yky+lxkPL._AC_SL400_.jpg",
+  "00889842001201": "https://m.media-amazon.com/images/I/51ojzJk77XL._AC_SL400_.jpg",
+  "00301000001301": "https://m.media-amazon.com/images/I/61TjrRbOvpL._AC_SL400_.jpg",
+  "00045496001401": "https://m.media-amazon.com/images/I/61qJFneLNBL._AC_SL400_.jpg",
+  // ── Haushalt & Küche ───────────────────────────────────────────────────
   "00050946000282": "https://m.media-amazon.com/images/I/51FLDr0HxQL._AC_SL400_.jpg",
   "00196337069534": "https://m.media-amazon.com/images/I/31SLj8gqR2L._AC_SL400_.jpg",
-  // Beauty
-  "00737052766270": "https://m.media-amazon.com/images/I/51FbkznhHkL._AC_SL400_.jpg",
+  "00885609001501": "https://m.media-amazon.com/images/I/71enugMFcwL._AC_SL400_.jpg",
+  "00408800001601": "https://m.media-amazon.com/images/I/71JX0JdfCrL._AC_SL400_.jpg",
+  "00500000001701": "https://m.media-amazon.com/images/I/41fEsUJjUUL._AC_SL400_.jpg",
+  "00196337001801": "https://m.media-amazon.com/images/I/41ur+K4sIYL._AC_SL400_.jpg",
+  // ── Mode & Bekleidung ──────────────────────────────────────────────────
+  "00400000001901": "https://m.media-amazon.com/images/I/71LYk8HnfAL._AC_SL400_.jpg",
+  "00889842002001": "https://m.media-amazon.com/images/I/71G-fWqXTYL._AC_SL400_.jpg",
+  "00889842002101": "https://m.media-amazon.com/images/I/51tOaQ0S6dL._AC_SL400_.jpg",
+  "00764011002201": "https://m.media-amazon.com/images/I/61v7Z5PGADL._AC_SL400_.jpg",
+  "00193145100100": "https://static.nike.com/a/images/t_default/e6da41d4-3e98-4856-8208-0f6a30b9a1c3/air-force-1-07-shoes-WrLlWX.png",
+  "00401938500200": "https://assets.adidas.com/images/w_400,f_auto,q_auto/5cc3c4e872194c17a72caf6901156498_9366/Samba_OG_Shoes_White_B75806_01_standard.jpg",
+  "00501003600300": "https://m.media-amazon.com/images/I/51YRP3IJjiL._AC_SL400_.jpg",
+  "00886668800400": "https://m.media-amazon.com/images/I/61d8aJsEVKL._AC_SL400_.jpg",
+  "00194500700500": "https://static.nike.com/a/images/t_default/3d1e4b41-d1ab-4b43-a817-5c3bba820fd4/dunk-low-retro-shoes-bRDhdd.png",
+  "00401938700600": "https://m.media-amazon.com/images/I/71OIFsNdo4L._AC_SL400_.jpg",
+  "00194500700700": "https://m.media-amazon.com/images/I/71DyaA8udBL._AC_SL400_.jpg",
+  "00501003700800": "https://m.media-amazon.com/images/I/71kUoFY3PwL._AC_SL400_.jpg",
+  "00886668800900": "https://m.media-amazon.com/images/I/71QXfBHYI0L._AC_SL400_.jpg",
+  "00400000801000": "https://m.media-amazon.com/images/I/81HtF2FrrEL._AC_SL400_.jpg",
+  "00889842801100": "https://m.media-amazon.com/images/I/71zVb8zVJ+L._AC_SL400_.jpg",
+  "00764011801200": "https://m.media-amazon.com/images/I/41N+nfZfshL._AC_SL400_.jpg",
+  // ── Parfum & Düfte ─────────────────────────────────────────────────────
+  "00737052766270": "https://m.media-amazon.com/images/I/71grhT6LWPL._AC_SL400_.jpg",
+  "00361422671355": "https://m.media-amazon.com/images/I/61O2CKXkVtL._AC_SL400_.jpg",
+  "00320000002301": "https://m.media-amazon.com/images/I/31bS9eE0dBL._AC_SL400_.jpg",
+  "00360000005001": "https://m.media-amazon.com/images/I/61MFe6MpZML._AC_SL400_.jpg",
+  "00360000005002": "https://m.media-amazon.com/images/I/61dPnEUzz-L._AC_SL400_.jpg",
+  "00360000005003": "https://m.media-amazon.com/images/I/51A+gfXnZgL._AC_SL400_.jpg",
+  "00360000005004": "https://m.media-amazon.com/images/I/41SiYkPbkEL._AC_SL400_.jpg",
+  "00360000005005": "https://m.media-amazon.com/images/I/31oIZNFVgML._AC_SL400_.jpg",
+  "00360000005006": "https://m.media-amazon.com/images/I/61EyzQM2SSL._AC_SL400_.jpg",
+  "00360000005007": "https://m.media-amazon.com/images/I/41A9GArvpcL._AC_SL400_.jpg",
+  "00360000005008": "https://m.media-amazon.com/images/I/41OZKtYzk+L._AC_SL400_.jpg",
+  "00360000005009": "https://m.media-amazon.com/images/I/41yKQSnRLzL._AC_SL400_.jpg",
+  // ── Beauty & Pflege ────────────────────────────────────────────────────
+  "00380000002401": "https://m.media-amazon.com/images/I/31vNpOR2yHL._AC_SL400_.jpg",
   "00500000002501": "https://m.media-amazon.com/images/I/31Wc+NqbOSL._AC_SL400_.jpg",
+  // ── Uhren & Schmuck ────────────────────────────────────────────────────
+  "00190000002601": "https://m.media-amazon.com/images/I/41Iy3wpH+eL._AC_SL400_.jpg",
+  "00889842002701": "https://m.media-amazon.com/images/I/51sWWLINdTL._AC_SL400_.jpg",
+  "00753759002801": "https://m.media-amazon.com/images/I/51wd5kWj-RL._AC_SL400_.jpg",
+  // ── TV & Audio ─────────────────────────────────────────────────────────
+  "00887276735399": "https://m.media-amazon.com/images/I/71LJJrKbezL._AC_SL400_.jpg",
+  "00027242002901": "https://m.media-amazon.com/images/I/81MhJAJwe0L._AC_SL400_.jpg",
+  "00500000003001": "https://m.media-amazon.com/images/I/41ZuMOS3kZL._AC_SL400_.jpg",
+  // ── Foto & Video ───────────────────────────────────────────────────────
+  "00013803003101": "https://m.media-amazon.com/images/I/71swf+rqXxL._AC_SL400_.jpg",
+  "00027242003201": "https://m.media-amazon.com/images/I/71RcmhmN+QL._AC_SL400_.jpg",
+  "00190000003301": "https://m.media-amazon.com/images/I/41b3v-0q2jL._AC_SL400_.jpg",
+  // ── Sport & Outdoor ────────────────────────────────────────────────────
+  "00194501123456": "https://m.media-amazon.com/images/I/61pM4gE2ArL._AC_SL400_.jpg",
+  "00190000003401": "https://m.media-amazon.com/images/I/71o4tTM+EYL._AC_SL400_.jpg",
+  "00190000003501": "https://m.media-amazon.com/images/I/81rBhMoSp0L._AC_SL400_.jpg",
+  "00190000003601": "https://m.media-amazon.com/images/I/51xEwp8hb8L._AC_SL400_.jpg",
 };
 
 function p(
