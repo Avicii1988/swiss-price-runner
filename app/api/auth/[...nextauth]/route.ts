@@ -8,10 +8,18 @@ const handler = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     }),
   ],
+  secret: process.env.NEXTAUTH_SECRET,
   pages: {
-    signIn: "/", // redirect to home, modal handles UI
+    signIn: "/",
+    error: "/",
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Always redirect to our own site
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
     async session({ session, token }) {
       if (session.user && token.sub) {
         (session.user as { id?: string }).id = token.sub;
