@@ -15,6 +15,8 @@ interface FilterBarProps {
   onRatingChange: (r: number | null) => void;
   selectedColors: string[];
   onColorsChange: (colors: string[]) => void;
+  dealsOnly?: boolean;
+  onDealsOnlyChange?: (v: boolean) => void;
   activeFilterCount: number;
   onClearAll: () => void;
 }
@@ -48,6 +50,8 @@ export function FilterBar({
   selectedColors,
   onColorsChange,
   activeFilterCount,
+  dealsOnly = false,
+  onDealsOnlyChange,
   onClearAll,
 }: FilterBarProps) {
   return (
@@ -140,7 +144,7 @@ export function FilterBar({
         </GalaxusDropdown>
       </div>
 
-      {/* Row 2: Farbe + active filter chips */}
+      {/* Row 2: Farbe, Angebote + reset */}
       <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <GalaxusDropdown
           label="Farbe"
@@ -176,6 +180,24 @@ export function FilterBar({
                 </button>
               );
             })}
+          </div>
+        </GalaxusDropdown>
+
+        {/* Angebote toggle */}
+        <GalaxusDropdown
+          label="Angebote"
+          active={dealsOnly}
+        >
+          <div className="p-3">
+            <label className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-sm transition hover:bg-gray-50 dark:hover:bg-gray-800">
+              <input
+                type="checkbox"
+                checked={dealsOnly}
+                onChange={(e) => onDealsOnlyChange?.(e.target.checked)}
+                className="accent-[#D81E05]"
+              />
+              Nur reduzierte Produkte
+            </label>
           </div>
         </GalaxusDropdown>
 
@@ -234,7 +256,7 @@ function GalaxusDropdown({
         <span className="flex items-center gap-2">
           {label}
           {badge ? (
-            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-900 px-1.5 text-[10px] font-bold text-white dark:bg-white dark:text-slate-900">
+            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#D81E05] px-1.5 text-[10px] font-bold text-white">
               {badge}
             </span>
           ) : null}

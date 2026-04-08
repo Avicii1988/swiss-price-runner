@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User, Settings } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User, Sun, Moon } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -32,6 +32,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   const lastScrollY = useRef(0);
   const { user, isLoggedIn, setShowAuthModal } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
 
   const toggleDarkMode = useCallback(() => {
     const next = !darkMode;
@@ -79,16 +80,22 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
   const showDropdown = searchFocused && query.length >= 2;
 
+  const goToProduct = useCallback((gtin: string) => {
+    setSearchFocused(false);
+    onQueryChange("");
+    router.push(`/product/${gtin}`);
+  }, [router, onQueryChange]);
+
   const searchResultsDropdown = showDropdown ? (
     suggestions.length > 0 ? (
       <div
-        className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
+        className="absolute left-0 right-0 top-full z-[60] mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
         onMouseDown={(e) => e.preventDefault()}
       >
         {suggestions.map((item) => (
-          <Link key={item.product.gtin} href={`/product/${item.product.gtin}`}
-            onClick={() => { setSearchFocused(false); onQueryChange(""); }}
-            className="flex items-center gap-3 px-4 py-2.5 transition hover:bg-gray-50">
+          <button key={item.product.gtin}
+            onClick={() => goToProduct(item.product.gtin)}
+            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-gray-50">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={item.product.imageUrl} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-lg bg-gray-50 object-contain" />
             <div className="min-w-0 flex-1">
@@ -96,16 +103,16 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               <p className="text-[11px] text-gray-400">{item.product.brand}</p>
             </div>
             <span className="shrink-0 text-sm font-bold text-gray-900">CHF {item.bestPrice.totalChf.toFixed(2)}</span>
-          </Link>
+          </button>
         ))}
         <div className="border-t border-gray-100 px-4 py-2.5">
-          <button onClick={() => setSearchFocused(false)} className="flex items-center gap-1 text-xs font-medium text-blue-600">
+          <button onClick={() => setSearchFocused(false)} className="flex items-center gap-1 text-xs font-medium text-[#0076bd]">
             Alle {suggestions.length} Ergebnisse anzeigen <ArrowRight className="h-3 w-3" />
           </button>
         </div>
       </div>
     ) : (
-      <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl"
+      <div className="absolute left-0 right-0 top-full z-[60] mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl"
         onMouseDown={(e) => e.preventDefault()}>
         <p className="text-sm text-gray-500">Keine Ergebnisse für &ldquo;{query}&rdquo;</p>
       </div>
@@ -142,8 +149,8 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             <div className="flex-1" />
             {/* Right: Pin + Heart + Lang + Auth */}
             <div className="flex shrink-0 items-center gap-0.5">
-              <button onClick={toggleDarkMode} className={`flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-gray-100 ${darkMode ? "text-yellow-400" : "text-gray-500"}`} title={darkMode ? "Light Mode" : "Dark Mode"}>
-                <Settings className="h-5 w-5" />
+              <button onClick={toggleDarkMode} className="flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-gray-100" title={darkMode ? "Light Mode" : "Dark Mode"}>
+                {darkMode ? <Sun className="h-5 w-5 text-yellow-400" /> : <Moon className="h-5 w-5 text-gray-500" />}
               </button>
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link href="/account" className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
