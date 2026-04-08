@@ -83,19 +83,21 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   const goToProduct = useCallback((gtin: string) => {
     setSearchFocused(false);
     onQueryChange("");
-    router.push(`/product/${gtin}`);
-  }, [router, onQueryChange]);
+    // Use window.location for guaranteed navigation
+    window.location.href = `/product/${gtin}`;
+  }, [onQueryChange]);
 
   const searchResultsDropdown = showDropdown ? (
     suggestions.length > 0 ? (
-      <div
-        className="absolute left-0 right-0 top-full z-[60] mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl"
-        onMouseDown={(e) => e.preventDefault()}
-      >
+      <div className="absolute left-0 right-0 top-full z-[60] mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
         {suggestions.map((item) => (
-          <button key={item.product.gtin}
-            onClick={() => goToProduct(item.product.gtin)}
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-gray-50">
+          <div
+            key={item.product.gtin}
+            role="button"
+            tabIndex={0}
+            onMouseDown={() => goToProduct(item.product.gtin)}
+            className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left transition hover:bg-gray-50"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={item.product.imageUrl} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-lg bg-gray-50 object-contain" />
             <div className="min-w-0 flex-1">
@@ -103,17 +105,16 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               <p className="text-[11px] text-gray-400">{item.product.brand}</p>
             </div>
             <span className="shrink-0 text-sm font-bold text-gray-900">CHF {item.bestPrice.totalChf.toFixed(2)}</span>
-          </button>
+          </div>
         ))}
         <div className="border-t border-gray-100 px-4 py-2.5">
-          <button onClick={() => setSearchFocused(false)} className="flex items-center gap-1 text-xs font-medium text-[#0076bd]">
+          <div role="button" onMouseDown={() => setSearchFocused(false)} className="flex cursor-pointer items-center gap-1 text-xs font-medium text-[#0076bd]">
             Alle {suggestions.length} Ergebnisse anzeigen <ArrowRight className="h-3 w-3" />
-          </button>
+          </div>
         </div>
       </div>
     ) : (
-      <div className="absolute left-0 right-0 top-full z-[60] mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl"
-        onMouseDown={(e) => e.preventDefault()}>
+      <div className="absolute left-0 right-0 top-full z-[60] mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl">
         <p className="text-sm text-gray-500">Keine Ergebnisse für &ldquo;{query}&rdquo;</p>
       </div>
     )
