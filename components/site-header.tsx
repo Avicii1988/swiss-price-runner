@@ -178,6 +178,9 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           <div className={`flex items-center justify-between px-4 transition-all duration-300 sm:px-6 ${hideTopRow ? "h-0 overflow-hidden opacity-0" : "h-11 opacity-100"}`}>
             <PreisAlarmLogo size="md" />
             <div className="flex items-center gap-0.5">
+              <button onClick={toggleDarkMode} className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-gray-100" title={darkMode ? "Light Mode" : "Dark Mode"}>
+                {darkMode ? <Sun className="h-5 w-5 text-yellow-400" /> : <Moon className="h-5 w-5 text-gray-500" />}
+              </button>
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
                 <Pin className="h-5 w-5" />
