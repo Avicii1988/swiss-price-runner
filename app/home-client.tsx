@@ -20,7 +20,6 @@ import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { TrustBrandsBar } from "@/components/trust-brands-bar";
-import { NewsTrends } from "@/components/news-trends";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -59,6 +58,30 @@ function SectionHeader({
     </div>
   );
 }
+
+const BLOG_ARTICLES = [
+  {
+    slug: "top-5-spring-scents-2026",
+    title: "Top 5 Frühlingsdüfte 2026",
+    excerpt: "Die angesagtesten Parfums für die warme Jahreszeit — von Dior bis Chanel.",
+    image: "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=600&h=340&fit=crop",
+    category: "Beauty",
+  },
+  {
+    slug: "on-running-guide-schweiz",
+    title: "On Running: Der Schweizer Guide",
+    excerpt: "Welcher On-Schuh passt zu deinem Laufstil? Modelle im Vergleich.",
+    image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600&h=340&fit=crop",
+    category: "Sport",
+  },
+  {
+    slug: "apple-iphone-2026-geruechte",
+    title: "iPhone 2026: Was wir wissen",
+    excerpt: "Alle Gerüchte, Leaks und Preiseinschätzungen für die Schweiz.",
+    image: "https://images.unsplash.com/photo-1678685888221-cda773a3dcdb?w=600&h=340&fit=crop",
+    category: "Tech",
+  },
+];
 
 export default function HomeClient({ allProducts, featured }: HomeClientProps) {
   const [query, setQuery] = useState("");
@@ -159,8 +182,6 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
         .slice(0, 4),
     [withImages],
   );
-
-  const tagesangebot = featured[0];
 
   return (
     <div className="min-h-screen bg-white">
@@ -329,83 +350,49 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
             )}
           </main>
 
-          {/* RIGHT SIDEBAR — Tagesangebot */}
-          {tagesangebot && (
-            <aside className="hidden w-72 shrink-0 pl-8 xl:block">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-gray-900">
-                  Tagesangebot
-                </h2>
-                <span className="rounded border border-gray-300 px-2 py-0.5 text-xs font-bold text-gray-600">
-                  {new Date().getDate()}{" "}
-                  {
-                    [
-                      "JAN","FEB","MÄR","APR","MAI","JUN",
-                      "JUL","AUG","SEP","OKT","NOV","DEZ",
-                    ][new Date().getMonth()]
-                  }
-                </span>
+          {/* RIGHT SIDEBAR — News & Trends */}
+          <aside className="hidden w-72 shrink-0 border-l border-gray-100 pl-8 xl:block">
+            <div className="sticky top-20">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+                News &amp; Trends
+              </p>
+
+              <div className="mt-4 space-y-5">
+                {BLOG_ARTICLES.map((article, i) => (
+                  <Link key={article.slug} href="/impressum" className="group block">
+                    <div className="aspect-video overflow-hidden rounded-lg">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={article.image}
+                        alt={article.title}
+                        width={288}
+                        height={162}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    </div>
+                    <span className="mt-2 block text-[10px] font-semibold uppercase tracking-wider text-[#0076bd]">
+                      {article.category}
+                    </span>
+                    <h3 className="mt-0.5 text-sm font-bold text-slate-900 group-hover:text-[#0076bd]">
+                      {article.title}
+                    </h3>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
+                      {article.excerpt}
+                    </p>
+                    {i < BLOG_ARTICLES.length - 1 && (
+                      <div className="mt-5 border-b border-gray-100" />
+                    )}
+                  </Link>
+                ))}
               </div>
-              <Link
-                href={`/product/${tagesangebot.product.gtin}`}
-                className="group mt-3 block"
-              >
-                <div className="flex items-center justify-center rounded-xl bg-white p-6">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={tagesangebot.product.imageUrl}
-                    alt={tagesangebot.product.title}
-                    width={200}
-                    height={200}
-                    className="h-44 w-44 object-contain mix-blend-multiply transition-transform group-hover:scale-105"
-                  />
-                </div>
-                <div className="mt-3">
-                  <p className="text-[11px] text-gray-500">
-                    <strong className="text-gray-900">noch 36</strong> von 150
-                    Stück
-                  </p>
-                  <div className="stock-bar mt-1">
-                    <div
-                      className="stock-bar-fill"
-                      style={{ width: "24%" }}
-                    />
-                  </div>
-                </div>
-                <p className="mt-3 text-xs text-[#0076bd]">
-                  {tagesangebot.product.category}
-                </p>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-xl font-bold">
-                    {tagesangebot.bestPrice.totalChf.toFixed(0)}.–
-                  </span>
-                  <span className="text-sm text-gray-400 line-through">
-                    {Math.round(tagesangebot.avgChf30d)}.–
-                  </span>
-                </div>
-                <h3 className="mt-1 text-sm font-bold">
-                  {tagesangebot.product.brand}
-                </h3>
-                <p className="line-clamp-2 text-xs text-gray-500">
-                  {tagesangebot.product.title}
-                </p>
-              </Link>
-              <Link
-                href="/"
-                className="mt-4 flex items-center gap-1 text-sm font-medium text-[#0076bd] hover:text-[#005a94]"
-              >
-                Alle Angebote anzeigen <ArrowRight className="h-4 w-4" />
-              </Link>
-            </aside>
-          )}
+            </div>
+          </aside>
         </div>
       </div>
 
       {/* Beliebte Marken */}
       <TrustBrandsBar />
-
-      {/* News & Trends Magazine */}
-      <NewsTrends />
 
       {/* CTA */}
       <section className="bg-slate-900 px-4 py-12 sm:px-6">
