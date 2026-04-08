@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { X, Mail, Lock, User as UserIcon, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { createClient } from "@/lib/supabase/client";
 
 export function AuthModal() {
   const { showAuthModal, setShowAuthModal, login, signup } = useAuth();
@@ -34,7 +34,23 @@ export function AuthModal() {
     setGoogleLoading(true);
     setError("");
     try {
-      await signIn("google", { callbackUrl: "/" });
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+        setGoogleLoading(false);
+      }
+      // If no error, the browser will redirect to Google → Supabase → /auth/callback
     } catch {
       setError("Google Login fehlgeschlagen. Bitte versuche es erneut.");
       setGoogleLoading(false);
@@ -61,7 +77,7 @@ export function AuthModal() {
           </p>
         </div>
 
-        {/* Google Login */}
+        {/* Google Login via Supabase Auth */}
         <div className="mt-4">
           <button
             onClick={handleGoogleLogin}
