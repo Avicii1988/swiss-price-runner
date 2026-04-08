@@ -8,6 +8,7 @@ import { LanguageSwitcher, type LangCode } from "@/components/language-switcher"
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
 import { CATEGORIES } from "@/lib/categories";
+import { useLang } from "@/lib/i18n-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface SiteHeaderProps {
@@ -19,7 +20,7 @@ interface SiteHeaderProps {
 }
 
 export function SiteHeader({ query, onQueryChange, allProducts = [], onCategorySelect, showVision }: SiteHeaderProps) {
-  const [lang, setLang] = useState<LangCode>("de");
+  const { lang, setLang, t } = useLang();
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
@@ -128,7 +129,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               <div className="flex items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg">
                 <Search className="ml-5 h-5 w-5 shrink-0 text-gray-400" />
                 <input type="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
-                  placeholder="Wonach suchst du?" className="min-w-0 flex-1 bg-transparent px-3 py-3 text-[16px] outline-none placeholder:text-gray-400" />
+                  placeholder={t("searchPlaceholder")} className="min-w-0 flex-1 bg-transparent px-3 py-3 text-[16px] outline-none placeholder:text-gray-400" />
                 <button onClick={() => showVision?.()} className="group/cam relative mr-2 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                   <Camera className="h-5 w-5" />
                   <span className="pointer-events-none absolute -bottom-14 left-1/2 z-50 w-72 -translate-x-1/2 rounded-lg bg-white px-3 py-2.5 text-xs leading-relaxed text-slate-700 opacity-0 shadow-lg ring-1 ring-gray-200 transition group-hover/cam:opacity-100">
@@ -156,7 +157,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                   <User className="h-5 w-5 fill-current" />
                 </Link>
               ) : (
-                <button onClick={() => setShowAuthModal(true)} className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">Anmelden</button>
+                <button onClick={() => setShowAuthModal(true)} className="ml-1 rounded-full bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-800">{t("login")}</button>
               )}
             </div>
           </div>
@@ -192,13 +193,13 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           <div className="flex items-center gap-3 px-4 pb-2 sm:px-6">
             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-gray-700">
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              Menü
+              {t("menu")}
             </button>
             <div ref={searchRef} className="search-shine relative flex-1">
               <div className="flex items-center rounded-full border border-gray-300 bg-white focus-within:border-transparent">
                 <Search className="ml-3 h-4 w-4 text-gray-400" />
                 <input type="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
-                  placeholder="Wonach suchst du?" className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base outline-none placeholder:text-gray-400" />
+                  placeholder={t("searchPlaceholder")} className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base outline-none placeholder:text-gray-400" />
                 <button onClick={() => showVision?.()} className="mr-1 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:text-gray-600" title="KI-Bildsuche — Lade ein Foto hoch und finde das günstigste Angebot in der Schweiz. Powered by OpenAI Vision.">
                   <Camera className="h-4 w-4" />
                 </button>

@@ -33,14 +33,14 @@ export function LanguageSwitcher({ current, onChange }: LanguageSwitcherProps) {
       {open && (
         <>
           <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-[101] mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl">
+          <div className="absolute right-0 top-full z-[101] mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl dark:border-gray-700 dark:bg-[#1a1a1a]">
             <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Sprache</p>
             {LANGUAGES.map((lang) => (
               <button
                 key={lang.code}
                 onClick={() => { onChange(lang.code); setOpen(false); }}
-                className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition hover:bg-gray-50 ${
-                  current === lang.code ? "font-semibold text-gray-900" : "text-gray-600"
+                className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                  current === lang.code ? "font-semibold text-gray-900 dark:text-white" : "text-gray-600 dark:text-gray-400"
                 }`}
               >
                 <span className="text-base">{lang.flag}</span>

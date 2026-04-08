@@ -21,6 +21,7 @@ import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { TrustBrandsBar } from "@/components/trust-brands-bar";
 import { useAuth } from "@/lib/auth/auth-context";
+import { useLang } from "@/lib/i18n-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface HomeClientProps {
@@ -84,6 +85,7 @@ const BLOG_ARTICLES = [
 ];
 
 export default function HomeClient({ allProducts, featured }: HomeClientProps) {
+  const { t } = useLang();
   const [query, setQuery] = useState("");
   const [selectedProduct, setSelectedProduct] =
     useState<MockProductWithHistory | null>(null);
@@ -229,7 +231,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
               <section className="mb-10">
                 <SectionHeader
                   icon={<Flame className="h-5 w-5 text-orange-500" />}
-                  title="Top Deals des Tages"
+                  title={t("hotDeals")}
                 />
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
                   {hotDeals.slice(0, 6).map((item) => (
@@ -249,7 +251,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
               <section className="mb-10">
                 <SectionHeader
                   icon={<Sparkles className="h-5 w-5 text-pink-500" />}
-                  title="Premium Beauty & Skincare"
+                  title={t("beautySection")}
                   href="/category/parfum"
                 />
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
@@ -270,7 +272,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
               <section className="mb-10">
                 <SectionHeader
                   icon={<Droplets className="h-5 w-5 text-violet-500" />}
-                  title="Exklusive Düfte"
+                  title={t("perfumeSection")}
                   href="/category/parfum"
                 />
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
@@ -291,7 +293,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
               <section className="mb-10">
                 <SectionHeader
                   icon={<Footprints className="h-5 w-5 text-orange-500" />}
-                  title="Trend Schuhe & Sneaker"
+                  title={t("shoesSection")}
                   href="/category/schuhe"
                 />
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
@@ -312,7 +314,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
               <section className="mb-10">
                 <SectionHeader
                   icon={<Apple className="h-5 w-5 text-gray-700" />}
-                  title="Apple-Welt"
+                  title={t("appleSection")}
                   href="/category/smartphones"
                 />
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
@@ -333,7 +335,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
               <section className="mb-10">
                 <SectionHeader
                   icon={<Monitor className="h-5 w-5 text-slate-600" />}
-                  title="Tech & Gadgets"
+                  title={t("techSection")}
                   href="/category/laptops"
                 />
                 <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
@@ -354,7 +356,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
           <aside className="hidden w-72 shrink-0 border-l border-gray-100 pl-8 xl:block">
             <div className="sticky top-[120px] max-h-[calc(100vh-140px)] overflow-y-auto">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
-                News &amp; Trends
+                {t("newsTrends")}
               </p>
 
               <div className="mt-4 space-y-5">
@@ -398,11 +400,10 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
       <section className="bg-slate-900 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-xl text-center">
           <h2 className="text-lg font-bold text-white">
-            Preisalarm einrichten
+            {t("ctaTitle")}
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            Wir benachrichtigen dich per E-Mail, sobald dein Wunschpreis
-            erreicht wird.
+            {t("ctaSubtitle")}
           </p>
           <button
             onClick={() => {
@@ -414,7 +415,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
             }}
             className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#D81E05] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#b91a04]"
           >
-            <Bell className="h-4 w-4" /> Jetzt Alarm einrichten
+            <Bell className="h-4 w-4" /> {t("ctaButton")}
           </button>
         </div>
       </section>
