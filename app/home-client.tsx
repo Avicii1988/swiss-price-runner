@@ -20,6 +20,7 @@ import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { TrustBrandsBar } from "@/components/trust-brands-bar";
+import { NewsTrends } from "@/components/news-trends";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -402,6 +403,9 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
 
       {/* Beliebte Marken */}
       <TrustBrandsBar />
+
+      {/* News & Trends Magazine */}
+      <NewsTrends />
 
       {/* CTA */}
       <section className="bg-slate-900 px-4 py-12 sm:px-6">
