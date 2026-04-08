@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,9 +73,59 @@ const MOCK_USERS: Record<string, { password: string; name: string }> = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/** Build our User object from a Supabase auth user */
+function fromSupabaseUser(su: SupabaseUser): User {
+  const name =
+    su.user_metadata?.full_name ??
+    su.user_metadata?.name ??
+    su.email?.split("@")[0] ??
+    "User";
+  return {
+    id: su.id,
+    email: su.email ?? "",
+    name,
+    avatarInitials: name
+      .split(" ")
+      .map((n: string) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2),
+    favorites: [],
+    pinned: [],
+    savedSearches: [],
+    alerts: [],
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // ── Supabase session listener ──────────────────────────────
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Check existing session on mount
+    supabase.auth.getUser().then(({ data: { user: su } }) => {
+      if (su) {
+        setUser(fromSupabaseUser(su));
+      }
+    });
+
+    // Listen for auth state changes (login, logout, token refresh)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(fromSupabaseUser(session.user));
+        setShowAuthModal(false);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const login = useCallback((email: string, password: string): boolean => {
     const entry = MOCK_USERS[email];
@@ -111,7 +163,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
-  const logout = useCallback(() => setUser(null), []);
+  const logout = useCallback(() => {
+    setUser(null);
+    const supabase = createClient();
+    supabase.auth.signOut();
+  }, []);
 
   const toggleFavorite = useCallback((gtin: string) => {
     setUser((prev) => {
