@@ -170,7 +170,7 @@ export default function CategoryClient({
         <div className="flex gap-6 lg:gap-8">
           {/* LEFT SIDEBAR — drill-down navigation */}
           <aside className="hidden w-[180px] shrink-0 lg:block">
-            <div className="sticky top-20">
+            <div className="sticky top-[120px]">
               <CategorySidebar
                 activeCategorySlug={activeCategorySlug}
                 activeSubSlug={activeSubSlug}
@@ -355,7 +355,7 @@ export default function CategoryClient({
           {/* RIGHT SIDEBAR — Tagesangebot */}
           {tagesangebot && (
             <aside className="hidden w-72 shrink-0 pl-8 xl:block">
-              <div className="sticky top-20">
+              <div className="sticky top-[120px]">
                 <div className="flex items-center justify-between">
                   <h2 className="flex items-center gap-1.5 text-base font-bold text-gray-900">
                     <Flame className="h-4 w-4 text-orange-500" />

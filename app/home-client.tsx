@@ -217,7 +217,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
         <div className="flex gap-6 lg:gap-8">
           {/* LEFT SIDEBAR */}
           <aside className="hidden w-[180px] shrink-0 lg:block">
-            <div className="sticky top-20">
+            <div className="sticky top-[120px]">
               <CategorySidebar />
             </div>
           </aside>
@@ -352,14 +352,14 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
 
           {/* RIGHT SIDEBAR — News & Trends */}
           <aside className="hidden w-72 shrink-0 border-l border-gray-100 pl-8 xl:block">
-            <div className="sticky top-20">
+            <div className="sticky top-[120px] max-h-[calc(100vh-140px)] overflow-y-auto">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
                 News &amp; Trends
               </p>
 
               <div className="mt-4 space-y-5">
                 {BLOG_ARTICLES.map((article, i) => (
-                  <Link key={article.slug} href="/impressum" className="group block">
+                  <Link key={article.slug} href={`/blog/${article.slug}`} className="group block">
                     <div className="aspect-video overflow-hidden rounded-lg">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
