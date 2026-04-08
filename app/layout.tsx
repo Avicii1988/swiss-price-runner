@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { NextAuthProvider } from "@/components/session-provider";
 import { AuthModal } from "@/components/auth-modal";
@@ -126,6 +127,7 @@ export default function RootLayout({
               </div>
             </div>
           </footer>
+          <Analytics />
         </AuthProvider>
         </NextAuthProvider>
       </body>
