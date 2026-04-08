@@ -106,7 +106,7 @@ export default function PriceAlertEmail({
             <Text style={ctaSubtext}>
               Oder{" "}
               <Link
-                href={`https://swisspricerunner.ch/product/${productGtin}`}
+                href={`https://preisalarm.ch/product/${productGtin}`}
                 style={linkStyle}
               >
                 alle Preise vergleichen
@@ -136,21 +136,21 @@ export default function PriceAlertEmail({
               </Link>{" "}
               ·{" "}
               <Link
-                href="https://swisspricerunner.ch/impressum"
+                href="https://preisalarm.ch/impressum"
                 style={unsubscribeLink}
               >
                 Impressum
               </Link>{" "}
               ·{" "}
               <Link
-                href="https://swisspricerunner.ch/privacy"
+                href="https://preisalarm.ch/privacy"
                 style={unsubscribeLink}
               >
                 Datenschutz
               </Link>
             </Text>
             <Text style={footerBrand}>
-              PreisAlarm · Falknisstrasse 47 · 7304 Maienfeld · Schweiz
+              PreisAlarm.ch · Preisvergleich Schweiz
             </Text>
           </Section>
         </Container>

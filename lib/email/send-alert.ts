@@ -23,7 +23,7 @@ interface SendAlertParams {
 }
 
 export async function sendPriceAlertEmail(params: SendAlertParams) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "alerts@swisspricerunner.ch";
+  const from = process.env.RESEND_FROM_EMAIL ?? "alerts@preisalarm.ch";
 
   const { data, error } = await getResend().emails.send({
     from: `PreisAlarm <${from}>`,
@@ -37,7 +37,7 @@ export async function sendPriceAlertEmail(params: SendAlertParams) {
       targetPriceChf: formatChf(params.targetPriceChf),
       bestSource: params.bestSource,
       shopUrl: params.shopUrl,
-      unsubscribeUrl: `https://swisspricerunner.ch/api/alerts/unsubscribe?id=${params.alertId}`,
+      unsubscribeUrl: `https://preisalarm.ch/api/alerts/unsubscribe?id=${params.alertId}`,
     }),
   });
 

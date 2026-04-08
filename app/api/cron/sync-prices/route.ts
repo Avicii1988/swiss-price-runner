@@ -7,16 +7,16 @@ import { SEED_PRODUCTS } from "@/prisma/seed";
 /**
  * POST /api/cron/sync-prices
  *
- * Daily sync endpoint (Vercel Cron at 06:00 UTC).
+ * Runs every 6 hours (Vercel Cron: 0 *​/6 * * *).
  * Authenticates via Bearer CRON_SECRET.
  *
  * Flow:
  *  1. Health check — verify DB is reachable.
  *  2. Seed products if the Product table is empty.
- *  3. Fetch latest prices from integration sources.
+ *  3. Fetch latest prices from seed data + SearchApi (live Swiss prices).
  *  4. Calculate Swiss landed cost (EUR→CHF + taxes + customs).
  *  5. Write Price snapshots to DB.
- *  6. Evaluate active alerts and send emails in batches.
+ *  6. Evaluate active alerts and send emails via Resend in batches.
  */
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -101,6 +101,40 @@ export async function POST(request: Request) {
             timestamp: new Date(),
           },
         });
+      }
+
+      // Also try live price from SearchApi
+      if (process.env.SEARCHAPI_API_KEY) {
+        try {
+          const searchUrl = new URL("https://www.searchapi.io/api/v1/search");
+          searchUrl.searchParams.set("engine", "google_shopping");
+          searchUrl.searchParams.set("q", product.title);
+          searchUrl.searchParams.set("location", "Switzerland");
+          searchUrl.searchParams.set("hl", "de");
+          searchUrl.searchParams.set("gl", "ch");
+          searchUrl.searchParams.set("num", "1");
+          searchUrl.searchParams.set("api_key", process.env.SEARCHAPI_API_KEY);
+
+          const searchRes = await fetch(searchUrl.toString());
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            const topResult = searchData.shopping_results?.[0];
+            if (topResult?.extracted_price) {
+              await db.price.create({
+                data: {
+                  productId: product.id,
+                  amountChf: topResult.extracted_price,
+                  amountEur: topResult.extracted_price / exchangeRate,
+                  sourceId: "searchapi_live",
+                  url: topResult.link ?? null,
+                  timestamp: new Date(),
+                },
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[sync-prices] SearchApi fetch failed for", product.gtin, e);
+        }
       }
 
       synced++;
