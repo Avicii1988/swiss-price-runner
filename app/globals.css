@@ -105,10 +105,18 @@
   html.dark .bg-slate-900 .text-white,
   html.dark [class*="bg-slate-900"] > * { color: #0c0c0c; }
 
-  /* Product detail price boxes */
+  /* Product detail */
   html.dark .bg-gray-50 input,
   html.dark .bg-gray-50 select { background-color: transparent; }
   html.dark .bg-\[\#fefce8\] { background-color: #1a1a0a; }
+  html.dark .bg-amber-50 { background-color: #1a1a0a; }
+  html.dark .bg-\[\#fafafa\] { background-color: #0c0c0c; }
+  html.dark .bg-\[\#f9fafb\] { background-color: #141414; }
+
+  /* Product cards — ensure no white boxes remain */
+  html.dark .bg-white.rounded-xl,
+  html.dark .rounded-xl.bg-white { background-color: #141414; }
+  html.dark .border-gray-100.bg-white { background-color: #141414; }
 
   /* Select dropdowns */
   html.dark select {
