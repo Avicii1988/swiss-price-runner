@@ -40,9 +40,6 @@ export function TrustBrandsBar() {
 }
 
 const BRANDS: BrandDef[] = [
-  { name: "Sephora", viewBox: "0 0 100 24", size: "16", weight: "700", fill: "#555", spacing: "3.5" },
-  { name: "Douglas", viewBox: "0 0 95 24", size: "18", weight: "700", fill: "#555", spacing: "1" },
-  { name: "MediaMarkt", viewBox: "0 0 135 24", size: "17", weight: "800", fill: "#555", spacing: "0" },
   { name: "Apple", viewBox: "0 0 70 24", size: "20", weight: "600", fill: "#555", spacing: "-0.5" },
   { name: "Dyson", viewBox: "0 0 70 24", size: "19", weight: "600", fill: "#555", spacing: "0" },
   { name: "Nike", viewBox: "0 0 55 24", size: "20", weight: "800", fill: "#555", spacing: "0.5" },
