@@ -38,6 +38,7 @@ interface PageProps {
   activeSubSlug?: string;
   breadcrumbs: { label: string; href: string }[];
   dynamicCategories?: { slug: string; name: string; productCount: number }[];
+  feedCategoryName?: string;
 }
 
 type SortOption = "popular" | "price_asc" | "price_desc" | "drop";
@@ -50,6 +51,7 @@ export default function CategoryClient({
   activeSubSlug,
   breadcrumbs,
   dynamicCategories,
+  feedCategoryName,
 }: PageProps) {
   const [selectedProduct, setSelectedProduct] =
     useState<MockProductWithHistory | null>(null);
@@ -134,7 +136,7 @@ export default function CategoryClient({
   const activeCategorySlug = slugs[0] ?? undefined;
   const pageTitle = activeSubSlug
     ? parentCategory?.subcategories.find((s) => s.slug === activeSubSlug)?.name
-    : parentCategory?.name ?? "Alle Produkte";
+    : parentCategory?.name ?? feedCategoryName ?? "Alle Produkte";
   const pageDescription = parentCategory?.description;
 
   // Tagesangebot — first item with biggest price drop

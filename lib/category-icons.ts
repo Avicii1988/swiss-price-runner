@@ -55,3 +55,19 @@ export function prettifySlug(slug: string): string {
     .replace(/-/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** Decode common HTML entities in product titles from XML feeds */
+export function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, "/")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}

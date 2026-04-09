@@ -4,6 +4,7 @@ import { SEED_PRODUCTS } from "@/prisma/seed";
 import type { MockProduct } from "@/prisma/seed";
 import { EXCHANGE_RATE, generatePriceHistory } from "@/lib/integrations/mock-service";
 import type { MockPricePoint, MockProductWithHistory } from "@/lib/integrations/mock-service";
+import { decodeHtmlEntities, prettifySlug } from "@/lib/category-icons";
 
 const SOURCE_NAMES: Record<string, string> = {
   amazon_de: "Amazon.de",
@@ -26,9 +27,16 @@ export async function getDynamicCategories(): Promise<
       orderBy: { _count: { category: "desc" } },
     });
 
+    // Try to get proper names from Category table
+    const dbCats = await db.category.findMany({
+      select: { slug: true, name: true },
+    }).catch(() => [] as { slug: string; name: string }[]);
+
+    const catNameMap = new Map(dbCats.map((c) => [c.slug, c.name]));
+
     return result.map((r) => ({
       slug: r.category,
-      name: r.category, // will be overridden by Category table name if available
+      name: catNameMap.get(r.category) || prettifySlug(r.category),
       productCount: r._count.category,
     }));
   } catch {
@@ -158,10 +166,10 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
 
   const product: MockProduct = {
     gtin: p.gtin,
-    title: p.title,
-    brand: p.brand,
+    title: decodeHtmlEntities(p.title),
+    brand: decodeHtmlEntities(p.brand),
     category: p.category,
-    categoryName: p.categoryName ?? undefined,
+    categoryName: p.categoryName ? decodeHtmlEntities(p.categoryName) : undefined,
     imageUrl: p.imageUrl ?? seed?.imageUrl ?? "",
     featured: seed?.featured ?? false,
     shopName: p.shopName ?? undefined,

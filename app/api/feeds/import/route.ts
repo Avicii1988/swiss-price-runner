@@ -171,8 +171,8 @@ export async function POST(req: NextRequest) {
           select: { id: true },
           create: {
             gtin,
-            title: item.title.slice(0, 500),
-            brand: (item.brand || shopName).slice(0, 200),
+            title: decodeHtml(item.title).slice(0, 500),
+            brand: decodeHtml(item.brand || shopName).slice(0, 200),
             category: categorySlug.slice(0, 50),
             categoryName: item.productType ? item.productType.slice(0, 200) : null,
             imageUrl: item.imageLink || null,
@@ -182,8 +182,8 @@ export async function POST(req: NextRequest) {
             isActive: true,
           },
           update: {
-            title: item.title.slice(0, 500),
-            brand: item.brand ? item.brand.slice(0, 200) : undefined,
+            title: decodeHtml(item.title).slice(0, 500),
+            brand: item.brand ? decodeHtml(item.brand).slice(0, 200) : undefined,
             imageUrl: item.imageLink || undefined,
             categoryName: item.productType ? item.productType.slice(0, 200) : undefined,
             shopName,
@@ -353,6 +353,16 @@ function tag(xml: string, name: string): string {
 }
 
 // ── Utils ────────────────────────────────────────────────────
+
+/** Decode HTML entities from XML feeds */
+function decodeHtml(s: string): string {
+  return s
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&#x27;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
 
 function parsePrice(s: string): number | null {
   if (!s) return null;
