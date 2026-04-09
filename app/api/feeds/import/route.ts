@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 9;
 
 const RequestSchema = z.object({
   feedUrl: z.string().url().optional(),
@@ -211,8 +211,7 @@ export async function POST(req: NextRequest) {
 
         imported++;
 
-        if (imported % 50 === 0) {
-          await new Promise((r) => setTimeout(r, 100));
+        if (imported % 25 === 0) {
           log(`Progress: ${imported}/${items.length}`);
         }
       } catch (e: unknown) {
