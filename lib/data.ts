@@ -12,6 +12,31 @@ const SOURCE_NAMES: Record<string, string> = {
 };
 
 /**
+ * Load dynamic categories from DB — only categories with at least 1 product.
+ */
+export async function getDynamicCategories(): Promise<
+  { slug: string; name: string; productCount: number }[]
+> {
+  try {
+    // Get all categories that have products
+    const result = await db.product.groupBy({
+      by: ["category"],
+      where: { isActive: true },
+      _count: { category: true },
+      orderBy: { _count: { category: "desc" } },
+    });
+
+    return result.map((r) => ({
+      slug: r.category,
+      name: r.category, // will be overridden by Category table name if available
+      productCount: r._count.category,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Fetch all products from Supabase with latest prices.
  * Falls back to seed data if DB is empty or unreachable.
  */
@@ -25,6 +50,7 @@ export async function getProducts(): Promise<MockProductWithHistory[]> {
         prices: {
           orderBy: { timestamp: "desc" },
           take: 10,
+          select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
         },
       },
     });
@@ -51,6 +77,7 @@ export async function getProductByGtin(gtin: string): Promise<MockProductWithHis
         prices: {
           orderBy: { timestamp: "desc" },
           take: 30,
+          select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
         },
       },
     });
@@ -100,29 +127,32 @@ type DbProduct = {
   title: string;
   brand: string;
   category: string;
+  categoryName?: string | null;
   imageUrl: string | null;
-  prices: { amountChf: unknown; amountEur: unknown; sourceId: string; timestamp: Date }[];
+  shopName?: string | null;
+  sourceType?: string | null;
+  affiliateUrl?: string | null;
+  prices: { amountChf: unknown; amountEur: unknown; sourceId: string; url?: string | null; timestamp: Date }[];
 };
 
 function buildFromDb(p: DbProduct): MockProductWithHistory {
-  // Group latest price per source
-  const sourceMap = new Map<string, { chf: number; eur: number }>();
+  const sourceMap = new Map<string, { chf: number; eur: number; url: string }>();
   for (const price of p.prices) {
     if (!sourceMap.has(price.sourceId)) {
       sourceMap.set(price.sourceId, {
         chf: Number(price.amountChf),
         eur: Number(price.amountEur),
+        url: price.url || "#",
       });
     }
   }
 
-  // Find matching seed for source names + featured flag
   const seed = SEED_PRODUCTS.find((s) => s.gtin === p.gtin);
 
-  const sources = Array.from(sourceMap.entries()).map(([sid, { eur }]) => ({
+  const sources = Array.from(sourceMap.entries()).map(([sid, { eur, url }]) => ({
     sourceId: sid,
-    sourceName: SOURCE_NAMES[sid] ?? sid,
-    url: "#",
+    sourceName: p.shopName || SOURCE_NAMES[sid] || sid,
+    url,
     currentPriceEur: eur,
   }));
 
@@ -131,8 +161,12 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     title: p.title,
     brand: p.brand,
     category: p.category,
+    categoryName: p.categoryName ?? undefined,
     imageUrl: p.imageUrl ?? seed?.imageUrl ?? "",
     featured: seed?.featured ?? false,
+    shopName: p.shopName ?? undefined,
+    sourceType: p.sourceType ?? undefined,
+    affiliateUrl: p.affiliateUrl ?? undefined,
     sources: sources.length > 0 ? sources : seed?.sources ?? [],
   };
 

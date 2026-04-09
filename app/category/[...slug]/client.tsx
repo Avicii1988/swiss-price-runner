@@ -37,6 +37,7 @@ interface PageProps {
   parentCategory?: SerializedCategory;
   activeSubSlug?: string;
   breadcrumbs: { label: string; href: string }[];
+  dynamicCategories?: { slug: string; name: string; productCount: number }[];
 }
 
 type SortOption = "popular" | "price_asc" | "price_desc" | "drop";
@@ -48,6 +49,7 @@ export default function CategoryClient({
   parentCategory,
   activeSubSlug,
   breadcrumbs,
+  dynamicCategories,
 }: PageProps) {
   const [selectedProduct, setSelectedProduct] =
     useState<MockProductWithHistory | null>(null);
@@ -177,6 +179,7 @@ export default function CategoryClient({
               <CategorySidebar
                 activeCategorySlug={activeCategorySlug}
                 activeSubSlug={activeSubSlug}
+                dynamicCategories={dynamicCategories}
               />
             </div>
           </aside>

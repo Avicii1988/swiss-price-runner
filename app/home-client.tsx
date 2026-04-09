@@ -28,6 +28,7 @@ interface HomeClientProps {
   allProducts: MockProductWithHistory[];
   featured: MockProductWithHistory[];
   categories: string[];
+  dynamicCategories?: { slug: string; name: string; productCount: number }[];
 }
 
 // Section header component
@@ -84,7 +85,7 @@ const BLOG_ARTICLES = [
   },
 ];
 
-export default function HomeClient({ allProducts, featured }: HomeClientProps) {
+export default function HomeClient({ allProducts, featured, dynamicCategories }: HomeClientProps) {
   const { t } = useLang();
   const [query, setQuery] = useState("");
   const [selectedProduct, setSelectedProduct] =
@@ -220,7 +221,7 @@ export default function HomeClient({ allProducts, featured }: HomeClientProps) {
           {/* LEFT SIDEBAR */}
           <aside className="hidden w-[180px] shrink-0 lg:block">
             <div className="sticky top-[120px]">
-              <CategorySidebar />
+              <CategorySidebar dynamicCategories={dynamicCategories} />
             </div>
           </aside>
 
