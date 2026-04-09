@@ -103,9 +103,12 @@ export async function POST(request: Request) {
         });
       }
 
-      // Also try live price from SearchApi
+      // Also try live price from SearchApi (with rate-limit delay)
       if (process.env.SEARCHAPI_API_KEY) {
         try {
+          // 500ms delay between SearchApi calls to avoid rate limits
+          await new Promise((r) => setTimeout(r, 500));
+
           const searchUrl = new URL("https://www.searchapi.io/api/v1/search");
           searchUrl.searchParams.set("engine", "google_shopping");
           searchUrl.searchParams.set("q", product.title);
