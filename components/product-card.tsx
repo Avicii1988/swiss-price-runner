@@ -166,15 +166,25 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
             {product.title.replace(product.brand, "").trim()}
           </p>
 
-          {/* Source info */}
-          <p className="mt-auto pt-2 text-[10px] text-gray-400">
-            {bestSource} · {product.sources.length} Angebote
-            {priceDrop30d > 0 && (
-              <span className="ml-1 inline-flex items-center gap-0.5 font-semibold text-emerald-600">
-                <TrendingDown className="h-2.5 w-2.5" /> CHF {priceDrop30d.toFixed(0)}
-              </span>
+          {/* Source info + shop branding */}
+          <div className="mt-auto pt-2">
+            {product.shopName && (
+              <p className="mb-0.5 text-[10px] font-medium text-[#0076bd]">
+                {product.sourceType === "adtraction_feed" && (
+                  <span className="mr-1 rounded bg-[#0076bd]/10 px-1 py-px text-[8px] font-bold uppercase text-[#0076bd]">Partner</span>
+                )}
+                {product.shopName}
+              </p>
             )}
-          </p>
+            <p className="text-[10px] text-gray-400">
+              {bestSource} · {product.sources.length} Angebote
+              {priceDrop30d > 0 && (
+                <span className="ml-1 inline-flex items-center gap-0.5 font-semibold text-emerald-600">
+                  <TrendingDown className="h-2.5 w-2.5" /> CHF {priceDrop30d.toFixed(0)}
+                </span>
+              )}
+            </p>
+          </div>
         </div>
       </Link>
     </div>

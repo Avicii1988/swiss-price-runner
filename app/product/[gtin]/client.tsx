@@ -66,6 +66,9 @@ export function ProductDetailClient({ item, allProducts }: Props) {
   const cat = getCategoryBySlug(product.category);
   const sidebarNav = SIDEBAR_NAV[product.category];
 
+  // Best source URL for affiliate link
+  const bestSourceUrl = product.affiliateUrl || product.sources.find((s) => s.sourceName === bestSource)?.url || "#";
+
   const sourceBreakdowns = product.sources.map((s) => ({
     ...s,
     breakdown: calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE }),
@@ -205,9 +208,10 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 py-3 text-sm font-semibold text-white transition hover:bg-red-700">
                     <Bell className="h-4 w-4" /> Preisalarm setzen
                   </button>
-                  <button className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                  <a href={bestSourceUrl || "#"} target="_blank" rel="sponsored nofollow noopener"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
                     <ExternalLink className="h-4 w-4" /> Zum besten Shop
-                  </button>
+                  </a>
                 </div>
 
                 {/* Merken + Favorit — independent states */}
@@ -266,9 +270,14 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                         <div className="flex items-center gap-2">
                           <ShippingTooltip breakdown={s.breakdown} sourceId={s.sourceId} />
                           <span className="text-lg font-bold text-gray-900">{s.breakdown.totalChf.toFixed(0)}.–</span>
-                          <button className="ml-auto flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 sm:ml-2">
+                          <a
+                            href={s.url || "#"}
+                            target="_blank"
+                            rel="sponsored nofollow noopener"
+                            className="ml-auto flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 sm:ml-2"
+                          >
                             <ExternalLink className="h-4 w-4" /> Zum Shop
-                          </button>
+                          </a>
                         </div>
                       </div>
                     ))}

@@ -15,6 +15,10 @@ model Product {
   brand         String
   category      String
   imageUrl      String?
+  shopName      String?
+  sourceType    String                       @default("seed")
+  affiliateUrl  String?
+  isActive      Boolean                      @default(true)
   embedding     String?                      @db.Text
   embedding_vec Unsupported("vector(1536)")?
   createdAt     DateTime                     @default(now())
@@ -26,6 +30,8 @@ model Product {
   @@index([brand])
   @@index([category])
   @@index([gtin])
+  @@index([sourceType])
+  @@index([isActive])
 }
 
 model Price {

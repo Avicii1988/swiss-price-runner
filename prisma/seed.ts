@@ -25,6 +25,9 @@ export interface MockProduct {
   category: string;
   imageUrl: string;
   featured: boolean;
+  shopName?: string;
+  sourceType?: string;
+  affiliateUrl?: string;
   sources: MockSource[];
 }
 
