@@ -82,3 +82,18 @@ model UserAlert {
   @@index([isActive, isNotified])
   @@unique([email, productId])
 }
+
+model ImportLog {
+  id         String   @id @default(cuid())
+  feedId     String   @default("xxl_parfum")
+  currentSkip Int     @default(0)
+  totalItems  Int     @default(0)
+  imported    Int     @default(0)
+  errors      Int     @default(0)
+  status      String  @default("running")
+  message     String?
+  createdAt   DateTime @default(now())
+
+  @@index([feedId])
+  @@index([createdAt])
+}

@@ -203,6 +203,20 @@ export async function POST(request: Request) {
       }
     }
 
+    // ── 7. Trigger one feed import batch ─────────────────────────
+    let feedImport = null;
+    try {
+      const feedUrl = new URL("/api/cron/import-feed", request.url);
+      const feedRes = await fetch(feedUrl.toString(), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` },
+      });
+      feedImport = await feedRes.json().catch(() => null);
+      console.log("[sync-prices] Feed import batch:", feedImport?.status, feedImport?.progress?.percentDone + "%");
+    } catch (e) {
+      console.warn("[sync-prices] Feed import skipped:", e);
+    }
+
     const durationMs = Date.now() - startMs;
     console.log(`[sync-prices] Done in ${durationMs}ms — synced=${synced} emails=${emailsSent}`);
 
@@ -213,6 +227,7 @@ export async function POST(request: Request) {
       emailsSent,
       emailsFailed,
       exchangeRate,
+      feedImport: feedImport?.progress ?? null,
       durationMs,
       timestamp: new Date().toISOString(),
     });
