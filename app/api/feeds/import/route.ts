@@ -9,7 +9,8 @@ const RequestSchema = z.object({
   feedUrl: z.string().url().optional(),
   shopName: z.string().min(1).max(100).default("XXL Parfum"),
   defaultCategory: z.string().min(1).max(50).default("parfum"),
-  limit: z.coerce.number().int().min(0).max(10000).default(0),
+  skip: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(0).max(10000).default(0), // 0 = all (after skip)
 });
 
 const DEFAULT_FEED =
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { shopName, defaultCategory, limit } = parsed.data;
+  const { shopName, defaultCategory, skip, limit } = parsed.data;
   const feedUrl = parsed.data.feedUrl || DEFAULT_FEED;
   const startMs = Date.now();
   const debugLog: string[] = [];
@@ -111,8 +112,9 @@ export async function POST(req: NextRequest) {
     log(`Sample item[0] productType: "${sample.productType}"`);
     log(`Sample item[0] imageLink: "${sample.imageLink.slice(0, 80)}"`);
 
-    const items = limit > 0 ? allItems.slice(0, limit) : allItems;
-    log(`Processing ${items.length} of ${allItems.length} items`);
+    const afterSkip = skip > 0 ? allItems.slice(skip) : allItems;
+    const items = limit > 0 ? afterSkip.slice(0, limit) : afterSkip;
+    log(`Total=${allItems.length}, skip=${skip}, limit=${limit || "all"}, processing=${items.length}`);
 
     // ── 4. Categories ────────────────────────────────────────
     const categorySet = new Set<string>();
@@ -232,7 +234,9 @@ export async function POST(req: NextRequest) {
       feedUrl: feedUrl.slice(0, 100),
       shopName,
       totalInFeed: allItems.length,
+      skip,
       processed: items.length,
+      nextSkip: skip + items.length,
       imported,
       skipped,
       errors,

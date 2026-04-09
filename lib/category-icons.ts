@@ -49,11 +49,24 @@ export function getCategoryIcon(slug: string): LucideIcon {
   return ICON_MAP[slug] ?? Package;
 }
 
-/** Prettify a slug into a display name */
+/** Prettify a slug or raw category name into a clean display name */
 export function prettifySlug(slug: string): string {
   return slug
+    .replace(/-gt-/g, " > ")    // fix -gt- artifacts
+    .replace(/-amp-/g, " & ")   // fix -amp- artifacts
     .replace(/-/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Clean a category name from the DB (may contain artifacts) */
+export function cleanCategoryName(name: string): string {
+  return decodeHtmlEntities(name)
+    .replace(/-gt-/gi, " > ")
+    .replace(/-amp-/gi, " & ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** Decode common HTML entities in product titles from XML feeds */

@@ -4,7 +4,7 @@ import { SEED_PRODUCTS } from "@/prisma/seed";
 import type { MockProduct } from "@/prisma/seed";
 import { EXCHANGE_RATE, generatePriceHistory } from "@/lib/integrations/mock-service";
 import type { MockPricePoint, MockProductWithHistory } from "@/lib/integrations/mock-service";
-import { decodeHtmlEntities, prettifySlug } from "@/lib/category-icons";
+import { decodeHtmlEntities, prettifySlug, cleanCategoryName } from "@/lib/category-icons";
 
 const SOURCE_NAMES: Record<string, string> = {
   amazon_de: "Amazon.de",
@@ -34,11 +34,11 @@ export async function getDynamicCategories(): Promise<
 
     const catNameMap = new Map(dbCats.map((c) => [c.slug, c.name]));
 
-    return result.map((r) => ({
-      slug: r.category,
-      name: catNameMap.get(r.category) || prettifySlug(r.category),
-      productCount: r._count.category,
-    }));
+    return result.map((r) => {
+      const rawName = catNameMap.get(r.category);
+      const name = rawName ? cleanCategoryName(rawName) : prettifySlug(r.category);
+      return { slug: r.category, name, productCount: r._count.category };
+    });
   } catch {
     return [];
   }
