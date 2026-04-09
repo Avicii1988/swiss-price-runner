@@ -73,9 +73,20 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   const suggestions = useMemo(() => {
     if (!query.trim() || query.length < 2) return [];
     const q = query.toLowerCase();
-    return allProducts.filter((p) =>
-      p.product.title.toLowerCase().includes(q) || p.product.brand.toLowerCase().includes(q),
-    ).slice(0, 5);
+    // Search title, brand, category, and categoryName
+    const matches = allProducts.filter((p) =>
+      p.product.title.toLowerCase().includes(q) ||
+      p.product.brand.toLowerCase().includes(q) ||
+      p.product.category.toLowerCase().includes(q) ||
+      (p.product.categoryName?.toLowerCase().includes(q) ?? false),
+    );
+    // Adtraction feed products first, then by relevance
+    matches.sort((a, b) => {
+      const aFeed = a.product.sourceType === "adtraction_feed" ? 0 : 1;
+      const bFeed = b.product.sourceType === "adtraction_feed" ? 0 : 1;
+      return aFeed - bFeed;
+    });
+    return matches.slice(0, 8);
   }, [query, allProducts]);
 
   const showDropdown = searchFocused && query.length >= 2;

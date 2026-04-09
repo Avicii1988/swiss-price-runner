@@ -14,6 +14,7 @@ model Product {
   title         String
   brand         String
   category      String
+  categoryName  String?
   imageUrl      String?
   shopName      String?
   sourceType    String                       @default("seed")
@@ -29,9 +30,22 @@ model Product {
 
   @@index([brand])
   @@index([category])
+  @@index([categoryName])
   @@index([gtin])
   @@index([sourceType])
   @@index([isActive])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  parentId  String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([parentId])
+  @@index([slug])
 }
 
 model Price {

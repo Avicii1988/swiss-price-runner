@@ -94,8 +94,11 @@ export default function CategoryClient({
         items.sort((a, b) => b.priceDrop30d - a.priceDrop30d);
         break;
     }
-    // Products with images always come first
+    // Adtraction feed products first, then products with images
     items.sort((a, b) => {
+      const aFeed = a.product.sourceType === "adtraction_feed" ? 0 : 1;
+      const bFeed = b.product.sourceType === "adtraction_feed" ? 0 : 1;
+      if (aFeed !== bFeed) return aFeed - bFeed;
       const aImg = hasValidImage(a.product.imageUrl) ? 0 : 1;
       const bImg = hasValidImage(b.product.imageUrl) ? 0 : 1;
       return aImg - bImg;

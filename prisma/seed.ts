@@ -23,6 +23,7 @@ export interface MockProduct {
   title: string;
   brand: string;
   category: string;
+  categoryName?: string;
   imageUrl: string;
   featured: boolean;
   shopName?: string;
