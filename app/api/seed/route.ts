@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     for (const seed of SEED_PRODUCTS) {
       const product = await db.product.upsert({
         where: { gtin: seed.gtin },
+        select: { id: true },
         create: {
           gtin: seed.gtin,
           title: seed.title,

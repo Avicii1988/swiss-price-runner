@@ -18,10 +18,13 @@ const SOURCE_NAMES: Record<string, string> = {
 export async function getProducts(): Promise<MockProductWithHistory[]> {
   try {
     const dbProducts = await db.product.findMany({
-      include: {
+      select: {
+        id: true, gtin: true, title: true, brand: true, category: true,
+        categoryName: true, imageUrl: true, shopName: true, sourceType: true,
+        affiliateUrl: true, isActive: true, createdAt: true, updatedAt: true,
         prices: {
           orderBy: { timestamp: "desc" },
-          take: 10, // latest prices per source
+          take: 10,
         },
       },
     });
@@ -41,7 +44,10 @@ export async function getProductByGtin(gtin: string): Promise<MockProductWithHis
   try {
     const p = await db.product.findUnique({
       where: { gtin },
-      include: {
+      select: {
+        id: true, gtin: true, title: true, brand: true, category: true,
+        categoryName: true, imageUrl: true, shopName: true, sourceType: true,
+        affiliateUrl: true, isActive: true, createdAt: true, updatedAt: true,
         prices: {
           orderBy: { timestamp: "desc" },
           take: 30,

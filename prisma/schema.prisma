@@ -9,21 +9,23 @@ datasource db {
 }
 
 model Product {
-  id            String                       @id @default(cuid())
-  gtin          String                       @unique
+  id            String    @id @default(cuid())
+  gtin          String    @unique
   title         String
   brand         String
   category      String
   categoryName  String?
   imageUrl      String?
   shopName      String?
-  sourceType    String                       @default("seed")
+  sourceType    String    @default("seed")
   affiliateUrl  String?
-  isActive      Boolean                      @default(true)
-  embedding     String?                      @db.Text
-  embedding_vec Unsupported("vector(1536)")?
-  createdAt     DateTime                     @default(now())
-  updatedAt     DateTime                     @updatedAt
+  isActive      Boolean   @default(true)
+  embedding     String?   @db.Text
+  /// The vector column exists in DB but is managed via raw SQL only.
+  /// Prisma cannot serialize pgvector types, so we exclude it from the model.
+  // embedding_vec — excluded, use raw SQL: SELECT embedding_vec FROM "Product"
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   prices Price[]
   alerts UserAlert[]

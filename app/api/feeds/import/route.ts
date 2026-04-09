@@ -165,9 +165,10 @@ export async function POST(req: NextRequest) {
 
         if (idx < 3) log(`Upserting item[${idx}]: gtin="${gtin}", price=${priceChf}, cat="${categorySlug}", brand="${item.brand}"`);
 
-        // Upsert product
+        // Upsert product — select only id to avoid reading vector column
         const product = await db.product.upsert({
           where: { gtin },
+          select: { id: true },
           create: {
             gtin,
             title: item.title.slice(0, 500),
