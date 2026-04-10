@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
-const BATCH_SIZE = 40;
+const BATCH_SIZE = 80;
 const FEED_ID = "xxl_parfum";
 const SAFETY_TIMEOUT_MS = 7500;
 const DEFAULT_FEED =
@@ -35,14 +35,20 @@ async function handleRequest(req: NextRequest) {
   const elapsed = () => Date.now() - startMs;
 
   try {
-    // ── 1. Get skip from ImportLog ───────────────────────────
-    const lastLog = await db.importLog.findFirst({
-      where: { feedId: FEED_ID, status: { in: ["completed", "cycle_complete"] } },
-      orderBy: { createdAt: "desc" },
-      select: { currentSkip: true, totalItems: true },
-    });
+    // ── 1. Get skip: prefer query param (parallel mode), else from DB ──
+    const skipParam = req.nextUrl.searchParams.get("skip");
+    let skip: number;
 
-    const skip = lastLog?.currentSkip ?? 0;
+    if (skipParam !== null && !isNaN(Number(skipParam))) {
+      skip = Math.max(0, Math.floor(Number(skipParam)));
+    } else {
+      const lastLog = await db.importLog.findFirst({
+        where: { feedId: FEED_ID, status: { in: ["completed", "cycle_complete"] } },
+        orderBy: { createdAt: "desc" },
+        select: { currentSkip: true, totalItems: true },
+      });
+      skip = lastLog?.currentSkip ?? 0;
+    }
 
     // ── 2. Get feed items (cached or fresh) ──────────────────
     let items: FeedItem[];
@@ -102,64 +108,117 @@ async function handleRequest(req: NextRequest) {
       });
     }
 
-    // ── 4. Import products with safety timeout ───────────────
+    // ── 4. Import products with batched transaction ─────────
     let imported = 0;
     let errors = 0;
     let stoppedEarly = false;
 
+    // Prepare all upsert operations first
+    interface UpsertOp {
+      gtin: string;
+      title: string;
+      brand: string;
+      catSlug: string;
+      catName: string;
+      imageUrl: string | null;
+      affiliateLink: string;
+      priceChf: number;
+    }
+    const ops: UpsertOp[] = [];
+    let loggedFirst = false;
+
     for (const item of batch) {
-      // Safety: stop before Vercel kills us
       if (elapsed() > SAFETY_TIMEOUT_MS) {
         stoppedEarly = true;
         break;
       }
 
-      try {
-        const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${skip + imported}`)}`;
-        const priceChf = parsePrice(item.price);
+      const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${skip + ops.length}`)}`;
+      const rawPrice = item.price;
+      const priceChf = parseSwissPrice(rawPrice);
+      const affiliateLink = cleanUrl(item.link);
+      if (!priceChf || !item.title || !affiliateLink) continue;
 
-        const affiliateLink = cleanUrl(item.link);
-        if (!priceChf || !item.title || !affiliateLink) continue;
-
-        const { slug: catSlug, name: catName } = mapCategory(item.productType);
-        const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
-
-        await db.product.upsert({
-          where: { gtin },
-          select: { id: true },
-          create: {
-            gtin,
-            title: decodeHtml(item.title).slice(0, 500),
-            brand: decodeHtml(item.brand || "XXL Parfum").slice(0, 200),
-            category: catSlug,
-            categoryName: catName,
-            imageUrl,
-            shopName: "XXL Parfum",
-            sourceType: "adtraction_feed",
-            affiliateUrl: affiliateLink,
-            isActive: true,
-          },
-          update: {
-            title: decodeHtml(item.title).slice(0, 500),
-            brand: item.brand ? decodeHtml(item.brand).slice(0, 200) : undefined,
-            category: catSlug,
-            categoryName: catName,
-            imageUrl: imageUrl || undefined,
-            shopName: "XXL Parfum",
-            affiliateUrl: affiliateLink,
-            isActive: true,
-            updatedAt: new Date(),
-          },
-        });
-
-        imported++;
-      } catch {
-        errors++;
+      // Debug: log first product of the very first batch
+      if (skip === 0 && !loggedFirst) {
+        console.log(`[Import Debug] Raw: "${rawPrice}" -> Parsed: ${priceChf} | GTIN: ${gtin} | Title: ${decodeHtml(item.title).slice(0, 60)}`);
+        loggedFirst = true;
       }
+
+      const { slug: catSlug, name: catName } = mapCategory(item.productType);
+      const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
+
+      ops.push({
+        gtin,
+        title: decodeHtml(item.title).slice(0, 500),
+        brand: decodeHtml(item.brand || "XXL Parfum").slice(0, 200),
+        catSlug, catName, imageUrl, affiliateLink, priceChf,
+      });
+    }
+
+    // Execute all product upserts in a single transaction
+    if (ops.length > 0) {
+      const productResults = await db.$transaction(
+        ops.map((op) =>
+          db.product.upsert({
+            where: { gtin: op.gtin },
+            select: { id: true },
+            create: {
+              gtin: op.gtin,
+              title: op.title,
+              brand: op.brand,
+              category: op.catSlug,
+              categoryName: op.catName,
+              imageUrl: op.imageUrl,
+              shopName: "XXL Parfum",
+              sourceType: "adtraction_feed",
+              affiliateUrl: op.affiliateLink,
+              isActive: true,
+              price: op.priceChf,
+            },
+            update: {
+              title: op.title,
+              brand: op.brand,
+              category: op.catSlug,
+              categoryName: op.catName,
+              imageUrl: op.imageUrl || undefined,
+              affiliateUrl: op.affiliateLink,
+              isActive: true,
+              price: op.priceChf,
+              updatedAt: new Date(),
+            },
+          })
+        ),
+      );
+
+      // Write Price records: delete today's stale entries, then bulk create
+      const productIds = productResults.map((p) => p.id);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      await db.price.deleteMany({
+        where: {
+          productId: { in: productIds },
+          sourceId: "adtraction_xxl_parfum",
+          timestamp: { gte: today },
+        },
+      });
+
+      await db.price.createMany({
+        data: productResults.map((product, i) => ({
+          productId: product.id,
+          amountChf: ops[i].priceChf,
+          amountEur: 0,
+          sourceId: "adtraction_xxl_parfum",
+          url: ops[i].affiliateLink,
+        })),
+      });
+
+      imported = productResults.length;
     }
 
     // ── 5. Save progress ─────────────────────────────────────
-    const actualProcessed = imported + errors;
+    const actualProcessed = stoppedEarly ? imported : batch.length;
     const nextSkip = skip + actualProcessed;
     const isComplete = nextSkip >= totalInFeed;
     const savedSkip = isComplete ? 0 : nextSkip;
@@ -177,7 +236,7 @@ async function handleRequest(req: NextRequest) {
     return NextResponse.json({
       ok: true, skip, imported, errors, total: totalInFeed,
       nextSkip: savedSkip, percent: isComplete ? 100 : percent,
-      isComplete, batchNum, totalBatches,
+      isComplete, batchNum, totalBatches, batchSize: BATCH_SIZE,
       message: isComplete ? "Import komplett!" : `Batch ${batchNum}/${totalBatches}`,
       durationMs: elapsed(),
     });
@@ -285,9 +344,11 @@ function tag(xml: string, name: string): string {
 
 // ── Utils ────────────────────────────────────────────────────
 
-function parsePrice(s: string): number | null {
-  if (!s) return null;
-  const n = parseFloat(s.replace(/[^0-9.,]/g, "").replace(",", "."));
+/** Parse Swiss price strings: "89.90 CHF", "75,00", "100", "CHF 120.50" → number */
+function parseSwissPrice(val: string): number | null {
+  if (!val) return null;
+  const cleaned = val.replace(/[^0-9.,]/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
   return isNaN(n) || n <= 0 ? null : Math.round(n * 100) / 100;
 }
 

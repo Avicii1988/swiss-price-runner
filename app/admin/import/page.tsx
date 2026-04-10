@@ -14,6 +14,7 @@ interface BatchResult {
   isComplete: boolean;
   batchNum?: number;
   totalBatches?: number;
+  batchSize?: number;
   message: string;
   durationMs: number;
 }
@@ -36,6 +37,8 @@ function ImportDashboard() {
   const searchParams = useSearchParams();
   const secret = searchParams.get("secret") || "";
 
+  const PARALLEL_WORKERS = 4;
+
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [running, setRunning] = useState(false);
   const [percent, setPercent] = useState(0);
@@ -47,8 +50,16 @@ function ImportDashboard() {
   const [isComplete, setIsComplete] = useState(false);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [lastDuration, setLastDuration] = useState(0);
+  const [speed, setSpeed] = useState(0); // products per second
+  const [activeWorkers, setActiveWorkers] = useState(0);
   const stopRef = useRef(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+
+  // Speed tracking refs (avoid stale closures)
+  const speedWindowRef = useRef<{ ts: number; count: number }[]>([]);
+  const nextSkipRef = useRef(0);
+  const batchSizeRef = useRef(80);
+  const totalRef = useRef(0);
 
   // Check auth on mount
   useEffect(() => {
@@ -61,7 +72,7 @@ function ImportDashboard() {
 
   const addLog = useCallback((message: string, ok: boolean) => {
     const time = new Date().toLocaleTimeString("de-CH");
-    setLog((prev) => [...prev.slice(-100), { time, message, ok }]);
+    setLog((prev) => [...prev.slice(-150), { time, message, ok }]);
   }, []);
 
   // Auto-scroll log
@@ -69,75 +80,152 @@ function ImportDashboard() {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [log]);
 
-  const runImport = useCallback(async () => {
-    setRunning(true);
-    setIsComplete(false);
-    stopRef.current = false;
-    let consecutiveErrors = 0;
+  const updateSpeed = useCallback((importedCount: number) => {
+    const now = Date.now();
+    speedWindowRef.current.push({ ts: now, count: importedCount });
+    // Keep only last 30 seconds
+    speedWindowRef.current = speedWindowRef.current.filter((e) => now - e.ts < 30_000);
+    const window = speedWindowRef.current;
+    if (window.length >= 2) {
+      const elapsed = (window[window.length - 1].ts - window[0].ts) / 1000;
+      const totalInWindow = window.reduce((s, e) => s + e.count, 0);
+      if (elapsed > 0) setSpeed(Math.round((totalInWindow / elapsed) * 10) / 10);
+    }
+  }, []);
+
+  // Single worker: grabs next skip, fetches, repeats until done/stopped
+  const worker = useCallback(async (workerId: number, consecutiveErrorsRef: { count: number }) => {
+    setActiveWorkers((prev) => prev + 1);
 
     while (!stopRef.current) {
+      // Grab next batch
+      const mySkip = nextSkipRef.current;
+      if (totalRef.current > 0 && mySkip >= totalRef.current) break;
+      nextSkipRef.current = mySkip + batchSizeRef.current;
+
       try {
         const res = await fetch(
-          `/api/cron/import-feed?secret=${encodeURIComponent(secret)}`,
+          `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&skip=${mySkip}`,
         );
         const data: BatchResult = await res.json();
 
         if (data.ok) {
-          consecutiveErrors = 0;
-          setPercent(data.percent);
+          consecutiveErrorsRef.count = 0;
+          if (data.batchSize) batchSizeRef.current = data.batchSize;
+          if (data.total) totalRef.current = data.total;
+
           setTotal(data.total);
           setTotalImported((prev) => prev + data.imported);
           setTotalErrors((prev) => prev + data.errors);
-          setBatchNum(data.batchNum ?? 0);
           setTotalBatches(data.totalBatches ?? 0);
           setLastDuration(data.durationMs);
+          updateSpeed(data.imported);
+
+          // Update percent based on nextSkipRef (highest batch dispatched)
+          const processedUpTo = Math.min(nextSkipRef.current, data.total);
+          const pct = Math.min(100, Math.round((processedUpTo / data.total) * 100));
+          setPercent(pct);
+          setBatchNum(Math.ceil(processedUpTo / batchSizeRef.current));
 
           addLog(
-            `✅ ${data.message} — ${data.imported} importiert (${(data.durationMs / 1000).toFixed(1)}s)`,
+            `[W${workerId}] ✅ skip=${mySkip} — ${data.imported} importiert (${(data.durationMs / 1000).toFixed(1)}s)`,
             true,
           );
 
-          if (data.isComplete) {
-            setIsComplete(true);
-            setPercent(100);
-            addLog("🎉 Import komplett! Alle Produkte importiert.", true);
+          if (data.isComplete || nextSkipRef.current >= data.total) {
             break;
           }
         } else {
-          consecutiveErrors++;
-          addLog(`❌ ${data.message}`, false);
+          consecutiveErrorsRef.count++;
+          addLog(`[W${workerId}] ❌ ${data.message}`, false);
 
-          if (consecutiveErrors >= 5) {
-            addLog("⛔ 5 Fehler in Folge — Import gestoppt.", false);
+          if (consecutiveErrorsRef.count >= 5) {
+            addLog(`[W${workerId}] ⛔ Zu viele Fehler — Worker gestoppt.`, false);
             break;
           }
-
-          // Wait 3 seconds before retry
-          await new Promise((r) => setTimeout(r, 3000));
-          continue;
         }
       } catch (err) {
-        consecutiveErrors++;
+        consecutiveErrorsRef.count++;
         addLog(
-          `❌ Netzwerk-Fehler: ${err instanceof Error ? err.message : "Timeout"}`,
+          `[W${workerId}] ❌ Netzwerk: ${err instanceof Error ? err.message : "Timeout"}`,
           false,
         );
-
-        if (consecutiveErrors >= 5) {
-          addLog("⛔ 5 Fehler in Folge — Import gestoppt.", false);
+        if (consecutiveErrorsRef.count >= 5) {
+          addLog(`[W${workerId}] ⛔ Zu viele Fehler — Worker gestoppt.`, false);
           break;
         }
+      }
+    }
 
-        await new Promise((r) => setTimeout(r, 3000));
-        continue;
+    setActiveWorkers((prev) => prev - 1);
+  }, [secret, addLog, updateSpeed]);
+
+  const runImport = useCallback(async () => {
+    setRunning(true);
+    setIsComplete(false);
+    stopRef.current = false;
+    speedWindowRef.current = [];
+    setSpeed(0);
+    setActiveWorkers(0);
+
+    // First request to get total + initial skip (without parallel)
+    try {
+      const initRes = await fetch(
+        `/api/cron/import-feed?secret=${encodeURIComponent(secret)}`,
+      );
+      const initData: BatchResult = await initRes.json();
+
+      if (!initData.ok) {
+        addLog(`❌ Init fehlgeschlagen: ${initData.message}`, false);
+        setRunning(false);
+        return;
       }
 
-      // Wait 2 seconds between successful batches
-      await new Promise((r) => setTimeout(r, 2000));
+      if (initData.batchSize) batchSizeRef.current = initData.batchSize;
+      totalRef.current = initData.total;
+      setTotal(initData.total);
+      setTotalImported(initData.imported);
+      setTotalErrors(initData.errors);
+      setBatchNum(initData.batchNum ?? 0);
+      setTotalBatches(initData.totalBatches ?? 0);
+      setPercent(initData.percent);
+      updateSpeed(initData.imported);
+
+      addLog(`✅ Init: ${initData.total} Produkte, Batch=${batchSizeRef.current}, ${PARALLEL_WORKERS} Worker`, true);
+
+      if (initData.isComplete) {
+        setIsComplete(true);
+        setPercent(100);
+        addLog("🎉 Import bereits komplett!", true);
+        setRunning(false);
+        return;
+      }
+
+      // Set next skip based on init response
+      nextSkipRef.current = initData.nextSkip;
+    } catch (err) {
+      addLog(`❌ Init-Fehler: ${err instanceof Error ? err.message : "Timeout"}`, false);
+      setRunning(false);
+      return;
+    }
+
+    // Launch parallel workers
+    const errRef = { count: 0 };
+    const workers = Array.from({ length: PARALLEL_WORKERS }, (_, i) =>
+      worker(i + 1, errRef)
+    );
+
+    await Promise.all(workers);
+
+    // Check completion
+    if (nextSkipRef.current >= totalRef.current && totalRef.current > 0) {
+      setIsComplete(true);
+      setPercent(100);
+      addLog("🎉 Import komplett! Alle Produkte importiert.", true);
     }
 
     setRunning(false);
-  }, [secret, addLog]);
+  }, [secret, addLog, updateSpeed, worker]);
 
   const stopImport = () => {
     stopRef.current = true;
@@ -206,6 +294,18 @@ function ImportDashboard() {
             <div style={styles.statLabel}>Letzte Batch</div>
             <div style={styles.statValue}>
               {lastDuration ? `${(lastDuration / 1000).toFixed(1)}s` : "—"}
+            </div>
+          </div>
+          <div style={{ ...styles.stat, ...(speed > 0 ? styles.statHighlight : {}) }}>
+            <div style={styles.statLabel}>Geschwindigkeit</div>
+            <div style={styles.statValue}>
+              {speed > 0 ? `${speed} P/s` : "—"}
+            </div>
+          </div>
+          <div style={styles.stat}>
+            <div style={styles.statLabel}>Worker aktiv</div>
+            <div style={styles.statValue}>
+              {running ? `${activeWorkers}/${PARALLEL_WORKERS}` : "—"}
             </div>
           </div>
         </div>
@@ -292,7 +392,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "1fr 1fr 1fr",
     gap: 10,
     marginBottom: 20,
   },
@@ -309,6 +409,10 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 4,
   },
   statValue: { fontSize: 20, fontWeight: 700 },
+  statHighlight: {
+    background: "#1a2e1a",
+    border: "1px solid #22c55e33",
+  },
   controls: { marginBottom: 20 },
   btnStart: {
     width: "100%",

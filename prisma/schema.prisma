@@ -20,6 +20,7 @@ model Product {
   sourceType    String    @default("seed")
   affiliateUrl  String?
   isActive      Boolean   @default(true)
+  price         Decimal?  @db.Decimal(10, 2)
   embedding     String?   @db.Text
   /// The vector column exists in DB but is managed via raw SQL only.
   /// Prisma cannot serialize pgvector types, so we exclude it from the model.
