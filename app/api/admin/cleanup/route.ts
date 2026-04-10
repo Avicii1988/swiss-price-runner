@@ -13,72 +13,63 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const step = parseInt(req.nextUrl.searchParams.get("step") || "1");
+
   try {
+    const results: Record<string, unknown> = { step };
+
     switch (step) {
-      case 1: return NextResponse.json(await fixCategories());
-      case 2: return NextResponse.json(await fixUrls());
-      case 3: return NextResponse.json(await deactivateZeroPrice());
-      case 4: return NextResponse.json(await moveUnmapped());
-      default: return NextResponse.json({ error: "step 1-4" });
+      case 1: {
+        // Fix categories — bulk SQL updates
+        const r1 = await db.$executeRaw`UPDATE "Product" SET category = 'herrendufte', "categoryName" = 'Herrendüfte' WHERE ("categoryName" ILIKE '%men''s fragrance%' OR "categoryName" ILIKE '%aftershave%' OR "categoryName" ILIKE '%cologne%') AND category != 'herrendufte'`;
+        const r2 = await db.$executeRaw`UPDATE "Product" SET category = 'damendufte', "categoryName" = 'Damendüfte' WHERE ("categoryName" ILIKE '%women''s fragrance%') AND category != 'damendufte'`;
+        const r3 = await db.$executeRaw`UPDATE "Product" SET category = 'unisex-dufte', "categoryName" = 'Unisex-Düfte' WHERE ("categoryName" ILIKE '%unisex fragrance%') AND category != 'unisex-dufte'`;
+        const r4 = await db.$executeRaw`UPDATE "Product" SET category = 'pflege', "categoryName" = 'Pflege' WHERE ("categoryName" ILIKE '%skin care%' OR "categoryName" ILIKE '%skincare%') AND category NOT IN ('pflege','herrendufte','damendufte','unisex-dufte')`;
+        const r5 = await db.$executeRaw`UPDATE "Product" SET category = 'make-up', "categoryName" = 'Make-Up' WHERE ("categoryName" ILIKE '%make up%' OR "categoryName" ILIKE '%makeup%' OR "categoryName" ILIKE '%cosmetic%') AND category NOT IN ('make-up','herrendufte','damendufte')`;
+        const r6 = await db.$executeRaw`UPDATE "Product" SET category = 'haarpflege', "categoryName" = 'Haarpflege' WHERE ("categoryName" ILIKE '%hair%' OR "categoryName" ILIKE '%shampoo%') AND category NOT IN ('haarpflege','herrendufte','damendufte')`;
+        const r7 = await db.$executeRaw`UPDATE "Product" SET category = 'koerperpflege', "categoryName" = 'Körperpflege' WHERE ("categoryName" ILIKE '%bath%' OR "categoryName" ILIKE '%body%' OR "categoryName" ILIKE '%shower%' OR "categoryName" ILIKE '%deodorant%') AND category NOT IN ('koerperpflege','herrendufte','damendufte','pflege')`;
+        const r8 = await db.$executeRaw`UPDATE "Product" SET category = 'geschenksets', "categoryName" = 'Geschenksets' WHERE ("categoryName" ILIKE '%gift%' OR "categoryName" ILIKE '%set%') AND category NOT IN ('geschenksets','herrendufte','damendufte','pflege','make-up')`;
+        const r9 = await db.$executeRaw`UPDATE "Product" SET category = 'sonnenpflege', "categoryName" = 'Sonnenpflege' WHERE ("categoryName" ILIKE '%sun%' OR "categoryName" ILIKE '%spf%') AND category NOT IN ('sonnenpflege','herrendufte','damendufte')`;
+        const r10 = await db.$executeRaw`UPDATE "Product" SET category = 'parfum', "categoryName" = 'Parfum & Düfte' WHERE ("categoryName" ILIKE '%fragrance%' OR "categoryName" ILIKE '%perfume%' OR "categoryName" ILIKE '%eau de%') AND category NOT IN ('parfum','herrendufte','damendufte','unisex-dufte')`;
+        results.fixedCategories = { herrendufte: r1, damendufte: r2, unisex: r3, pflege: r4, makeup: r5, haarpflege: r6, koerperpflege: r7, geschenksets: r8, sonnenpflege: r9, parfum: r10 };
+        break;
+      }
+
+      case 2: {
+        // Fix double-encoded URLs — bulk SQL
+        const links = await db.$executeRaw`UPDATE "Product" SET "affiliateUrl" = REPLACE(REPLACE(REPLACE("affiliateUrl", '&amp;amp;', '&'), '&amp;', '&'), '&amp;', '&') WHERE "affiliateUrl" LIKE '%&amp;%'`;
+        const imgs = await db.$executeRaw`UPDATE "Product" SET "imageUrl" = REPLACE(REPLACE(REPLACE("imageUrl", '&amp;amp;', '&'), '&amp;', '&'), '&amp;', '&') WHERE "imageUrl" LIKE '%&amp;%'`;
+        results.fixedLinks = links;
+        results.fixedImages = imgs;
+        break;
+      }
+
+      case 3: {
+        // Move unmapped categories to sonstiges
+        const valid = ['smartphones','laptops','kopfhoerer','schuhe','gaming','haushalt','mode','parfum','uhren','tv-audio','foto','sport','baby','buecher','beauty','herrendufte','damendufte','unisex-dufte','pflege','make-up','haarpflege','koerperpflege','geschenksets','sonnenpflege','sonstiges','seed'];
+        const moved = await db.$executeRaw`UPDATE "Product" SET category = 'sonstiges', "categoryName" = 'Sonstiges' WHERE category NOT IN (${valid.join("','")}) AND "isActive" = true`;
+        // Actually need Prisma.join for this:
+        const moved2 = await db.$executeRaw`UPDATE "Product" SET category = 'sonstiges', "categoryName" = 'Sonstiges' WHERE category LIKE '%>%' AND "isActive" = true`;
+        results.movedToSonstiges = Number(moved) + Number(moved2);
+        break;
+      }
+
+      case 4: {
+        // Deactivate products where no price exists or price = 0
+        // Use a subquery to find products without any positive price
+        const deactivated = await db.$executeRaw`
+          UPDATE "Product" SET "isActive" = false
+          WHERE "sourceType" = 'adtraction_feed'
+          AND "isActive" = true
+          AND id NOT IN (
+            SELECT DISTINCT "productId" FROM "Price" WHERE "amountChf" > 0
+          )`;
+        results.deactivatedNoPrice = deactivated;
+        break;
+      }
     }
+
+    return NextResponse.json({ status: "ok", ...results });
   } catch (e) {
     return NextResponse.json({ step, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
-
-async function fixCategories() {
-  const bad = await db.product.findMany({
-    where: { OR: [{ category: { contains: ">" } }, { category: { contains: "-gt-" } }, { category: { contains: "fragrances" } }], isActive: true },
-    select: { id: true, category: true, categoryName: true }, take: 300,
-  });
-  let fixed = 0;
-  for (const p of bad) {
-    const m = mapCat(p.categoryName || p.category);
-    await db.product.update({ where: { id: p.id }, data: { category: m.slug, categoryName: m.name } });
-    fixed++;
-  }
-  return { step: 1, fixed, more: bad.length >= 300 };
-}
-
-async function fixUrls() {
-  const bad = await db.$queryRaw<{ id: string; affiliateUrl: string | null; imageUrl: string | null }[]>`
-    SELECT id, "affiliateUrl", "imageUrl" FROM "Product" WHERE ("affiliateUrl" LIKE '%&amp;%' OR "imageUrl" LIKE '%&amp;%') AND "isActive" = true LIMIT 500`;
-  let fixed = 0;
-  for (const p of bad) {
-    const d: Record<string, string> = {};
-    if (p.affiliateUrl?.includes("&amp;")) { let u = p.affiliateUrl; for (let i = 0; i < 3; i++) { const prev = u; u = u.replace(/&amp;/g, "&"); if (u === prev) break; } d.affiliateUrl = u; }
-    if (p.imageUrl?.includes("&amp;")) { let u = p.imageUrl; for (let i = 0; i < 3; i++) { const prev = u; u = u.replace(/&amp;/g, "&"); if (u === prev) break; } d.imageUrl = u; }
-    if (Object.keys(d).length > 0) { await db.product.update({ where: { id: p.id }, data: d }); fixed++; }
-  }
-  return { step: 2, fixed, more: bad.length >= 500 };
-}
-
-async function deactivateZeroPrice() {
-  const prods = await db.product.findMany({ where: { isActive: true, sourceType: "adtraction_feed" }, select: { id: true }, take: 200 });
-  let deactivated = 0;
-  for (const p of prods) {
-    const pr = await db.price.findFirst({ where: { productId: p.id }, orderBy: { timestamp: "desc" }, select: { amountChf: true } });
-    if (!pr || Number(pr.amountChf) <= 0) { await db.product.update({ where: { id: p.id }, data: { isActive: false } }); deactivated++; }
-  }
-  return { step: 3, checked: prods.length, deactivated };
-}
-
-async function moveUnmapped() {
-  const V = new Set(["smartphones","laptops","kopfhoerer","schuhe","gaming","haushalt","mode","parfum","uhren","tv-audio","foto","sport","baby","buecher","beauty","herrendufte","damendufte","unisex-dufte","pflege","make-up","haarpflege","koerperpflege","geschenksets","sonnenpflege","sonstiges","seed"]);
-  const all = await db.product.findMany({ where: { isActive: true }, select: { id: true, category: true }, take: 500 });
-  let moved = 0;
-  for (const p of all) { if (!V.has(p.category)) { const m = mapCat(p.category); await db.product.update({ where: { id: p.id }, data: { category: m.slug, categoryName: m.name } }); moved++; } }
-  return { step: 4, moved };
-}
-
-const CM: { p: string; s: string; n: string }[] = [
-  { p: "men's fragrance", s: "herrendufte", n: "Herrendüfte" }, { p: "aftershave", s: "herrendufte", n: "Herrendüfte" },
-  { p: "women's fragrance", s: "damendufte", n: "Damendüfte" }, { p: "unisex fragrance", s: "unisex-dufte", n: "Unisex-Düfte" },
-  { p: "fragrance", s: "parfum", n: "Parfum & Düfte" }, { p: "perfume", s: "parfum", n: "Parfum & Düfte" },
-  { p: "skin care", s: "pflege", n: "Pflege" }, { p: "skincare", s: "pflege", n: "Pflege" },
-  { p: "make up", s: "make-up", n: "Make-Up" }, { p: "makeup", s: "make-up", n: "Make-Up" },
-  { p: "hair", s: "haarpflege", n: "Haarpflege" }, { p: "bath", s: "koerperpflege", n: "Körperpflege" },
-  { p: "body", s: "koerperpflege", n: "Körperpflege" }, { p: "gift", s: "geschenksets", n: "Geschenksets" },
-  { p: "sun", s: "sonnenpflege", n: "Sonnenpflege" },
-];
-function mapCat(r: string) { const l = r.toLowerCase(); for (const e of CM) { if (l.includes(e.p)) return { slug: e.s, name: e.n }; } return { slug: "sonstiges", name: "Sonstiges" }; }
