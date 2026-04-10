@@ -47,6 +47,16 @@ const SIDEBAR_NAV: Record<string, { parent: string; siblings: string[] }> = {
   parfum: { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex"] },
   beauty: { parent: "Beauty + Pflege", siblings: ["Hautpflege", "Haarpflege", "Make-up"] },
   uhren: { parent: "Uhren + Schmuck", siblings: ["Smartwatches", "Sportuhren"] },
+  // Feed categories
+  herrendufte: { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex-Düfte"] },
+  damendufte: { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex-Düfte"] },
+  "unisex-dufte": { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex-Düfte"] },
+  pflege: { parent: "Beauty & Pflege", siblings: ["Pflege", "Haarpflege", "Make-Up"] },
+  "make-up": { parent: "Beauty & Pflege", siblings: ["Pflege", "Haarpflege", "Make-Up"] },
+  haarpflege: { parent: "Beauty & Pflege", siblings: ["Pflege", "Haarpflege", "Make-Up"] },
+  koerperpflege: { parent: "Beauty & Pflege", siblings: ["Körperpflege", "Pflege", "Haarpflege"] },
+  geschenksets: { parent: "Parfum & Düfte", siblings: ["Geschenksets", "Herrendüfte", "Damendüfte"] },
+  sonnenpflege: { parent: "Beauty & Pflege", siblings: ["Sonnenpflege", "Pflege", "Haarpflege"] },
 };
 
 interface Props {
@@ -64,19 +74,25 @@ export function ProductDetailClient({ item, allProducts }: Props) {
   const faved = isFavorite(product.gtin);
   const pinned = isPinned(product.gtin);
   const cat = getCategoryBySlug(product.category);
-  const sidebarNav = SIDEBAR_NAV[product.category];
+  const sidebarNav = SIDEBAR_NAV[product.category] ?? null;
+  const hasSources = product.sources.length > 0;
 
   // Best source URL for affiliate link
   const bestSourceUrl = product.affiliateUrl || product.sources.find((s) => s.sourceName === bestSource)?.url || "#";
 
+  // Safe price calculation — only if sources exist
   const sourceBreakdowns = product.sources.map((s) => ({
     ...s,
     breakdown: calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE }),
     isBest: s.sourceName === bestSource,
+    url: s.url || product.affiliateUrl || "#",
   }));
 
-  const discount = avgChf30d > 0 && bestPrice.totalChf < avgChf30d
+  const discount = avgChf30d > 0 && bestPrice.totalChf > 0 && bestPrice.totalChf < avgChf30d
     ? Math.round(((avgChf30d - bestPrice.totalChf) / avgChf30d) * 100) : 0;
+
+  // Category display name
+  const categoryDisplayName = cat?.name ?? product.categoryName ?? product.category;
 
   return (
     <div className="min-h-screen bg-white pb-24 sm:pb-0">
@@ -176,14 +192,16 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                       <TrendingDown className="h-3.5 w-3.5" /> CHF {Math.abs(priceDrop30d).toFixed(0)} in 30d
                     </span>
                   )}
-                  {(() => {
+                  {hasSources && (() => {
                     const bestSid = sourceBreakdowns.reduce((a, b) => a.breakdown.totalChf < b.breakdown.totalChf ? a : b);
                     const isImport = bestSid.sourceId === "amazon_de" || bestSid.sourceId === "zalando_de";
                     const isSwiss = bestSid.sourceId === "galaxus_ch";
+                    const isFeed = bestSid.sourceId.startsWith("adtraction");
                     return (
                       <>
                         {isImport && <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700"><Plane className="h-3 w-3" /> Import-Vorteil</span>}
                         {isSwiss && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700"><ShieldCheck className="h-3 w-3" /> CH Garantie</span>}
+                        {isFeed && product.shopName && <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">Partner: {product.shopName}</span>}
                       </>
                     );
                   })()}
@@ -252,6 +270,7 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                 </div>
 
                 {/* Price Comparison Table */}
+                {sourceBreakdowns.length > 0 ? (
                 <div className="mt-6 border-t border-gray-200 pt-5">
                   <h2 className="text-sm font-bold text-gray-900">Preisvergleich – alle Quellen</h2>
                   <div className="mt-3 space-y-2">
@@ -283,6 +302,26 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                     ))}
                   </div>
                 </div>
+                ) : product.affiliateUrl ? (
+                <div className="mt-6 border-t border-gray-200 pt-5">
+                  <h2 className="text-sm font-bold text-gray-900">Angebot von {product.shopName || "Partner"}</h2>
+                  <div className="mt-3 rounded-lg border-2 border-green-200 bg-green-50 px-4 py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {product.shopName || "Partner-Shop"}
+                          <span className="ml-2 rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Partner</span>
+                        </p>
+                        {bestPrice.totalChf > 0 && <p className="mt-1 text-2xl font-bold text-gray-900">{bestPrice.totalChf.toFixed(2)} CHF</p>}
+                      </div>
+                      <a href={product.affiliateUrl} target="_blank" rel="sponsored nofollow noopener"
+                        className="flex items-center gap-1.5 rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700">
+                        <ExternalLink className="h-4 w-4" /> Zum Shop
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                ) : null}
 
                 {/* Price History Chart */}
                 <div className="mt-6 border-t border-gray-200 pt-5">

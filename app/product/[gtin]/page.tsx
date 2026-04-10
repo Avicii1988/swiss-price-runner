@@ -45,6 +45,24 @@ export async function generateMetadata({ params }: { params: { gtin: string } })
 function buildJsonLd(item: NonNullable<Awaited<ReturnType<typeof getProductByGtin>>>) {
   const { product, bestPrice } = item;
 
+  if (product.sources.length === 0) {
+    // Feed product with no source breakdown — simple offer
+    return {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: product.title,
+      brand: { "@type": "Brand", name: product.brand },
+      image: product.imageUrl || undefined,
+      description: `${product.title} – Preisvergleich Schweiz inkl. Zoll und MwSt.`,
+      offers: bestPrice.totalChf > 0 ? {
+        "@type": "Offer",
+        priceCurrency: "CHF",
+        price: bestPrice.totalChf.toFixed(2),
+        availability: "https://schema.org/InStock",
+      } : undefined,
+    };
+  }
+
   const offers = product.sources.map((source) => {
     const bd = calculateSwissPrice({
       amountEur: source.currentPriceEur,
@@ -52,7 +70,7 @@ function buildJsonLd(item: NonNullable<Awaited<ReturnType<typeof getProductByGti
     });
     return {
       "@type": "Offer",
-      url: source.url,
+      url: source.url || product.affiliateUrl || undefined,
       priceCurrency: "CHF",
       price: bd.totalChf.toFixed(2),
       seller: { "@type": "Organization", name: source.sourceName },
@@ -61,23 +79,22 @@ function buildJsonLd(item: NonNullable<Awaited<ReturnType<typeof getProductByGti
     };
   });
 
+  const prices = product.sources.map((s) =>
+    calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE }).totalChf,
+  );
+
   return {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.title,
     brand: { "@type": "Brand", name: product.brand },
     gtin13: product.gtin.replace(/^0+/, "").slice(0, 13),
-    image: product.imageUrl,
+    image: product.imageUrl || undefined,
     description: `${product.title} – Preisvergleich Schweiz inkl. Zoll und MwSt.`,
     offers: {
       "@type": "AggregateOffer",
       lowPrice: bestPrice.totalChf.toFixed(2),
-      highPrice: Math.max(
-        ...product.sources.map((s) => {
-          const bd = calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE });
-          return bd.totalChf;
-        }),
-      ).toFixed(2),
+      highPrice: Math.max(...prices).toFixed(2),
       priceCurrency: "CHF",
       offerCount: product.sources.length,
       offers,
