@@ -196,6 +196,7 @@ type DbProduct = {
 
 function buildFromDb(p: DbProduct): MockProductWithHistory {
   const isFeedProduct = p.sourceType === "adtraction_feed";
+  const affiliateUrl = p.affiliateUrl || "#";
 
   const sourceMap = new Map<string, { chf: number; eur: number; url: string }>();
   for (const price of p.prices) {
@@ -203,7 +204,7 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
       sourceMap.set(price.sourceId, {
         chf: Number(price.amountChf),
         eur: Number(price.amountEur),
-        url: price.url || "#",
+        url: price.url && price.url !== "#" ? price.url : affiliateUrl,
       });
     }
   }
@@ -228,12 +229,12 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     currentPriceEur: isFeedProduct && bestChf > 0 ? effectiveEur : eur,
   }));
 
-  // If feed product has a price but no Price records yet, create a virtual source
-  if (sources.length === 0 && isFeedProduct && bestChf > 0) {
+  // Feed product without Price records: always create a virtual source
+  if (sources.length === 0 && isFeedProduct) {
     sources.push({
       sourceId: "adtraction_xxl_parfum",
       sourceName: p.shopName || "XXL Parfum",
-      url: p.affiliateUrl || "#",
+      url: affiliateUrl,
       currentPriceEur: effectiveEur,
     });
   }
