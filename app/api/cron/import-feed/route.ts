@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
-const BATCH_SIZE = 60;
+const BATCH_SIZE = 80;
 const FEED_ID = "xxl_parfum";
 const SAFETY_TIMEOUT_MS = 7500;
 const DEFAULT_FEED =

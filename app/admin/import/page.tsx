@@ -37,7 +37,7 @@ function ImportDashboard() {
   const searchParams = useSearchParams();
   const secret = searchParams.get("secret") || "";
 
-  const PARALLEL_WORKERS = 3;
+  const PARALLEL_WORKERS = 4;
 
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [running, setRunning] = useState(false);
@@ -58,7 +58,7 @@ function ImportDashboard() {
   // Speed tracking refs (avoid stale closures)
   const speedWindowRef = useRef<{ ts: number; count: number }[]>([]);
   const nextSkipRef = useRef(0);
-  const batchSizeRef = useRef(60);
+  const batchSizeRef = useRef(80);
   const totalRef = useRef(0);
 
   // Check auth on mount
@@ -143,7 +143,6 @@ function ImportDashboard() {
             addLog(`[W${workerId}] ⛔ Zu viele Fehler — Worker gestoppt.`, false);
             break;
           }
-          await new Promise((r) => setTimeout(r, 2000));
         }
       } catch (err) {
         consecutiveErrorsRef.count++;
@@ -155,7 +154,6 @@ function ImportDashboard() {
           addLog(`[W${workerId}] ⛔ Zu viele Fehler — Worker gestoppt.`, false);
           break;
         }
-        await new Promise((r) => setTimeout(r, 2000));
       }
     }
 
