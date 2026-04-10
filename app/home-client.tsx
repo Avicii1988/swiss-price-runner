@@ -108,9 +108,9 @@ export default function HomeClient({ allProducts, featured, dynamicCategories }:
     [],
   );
 
-  // Only products with valid images for the main page
+  // Only products with valid images AND non-zero price for the main page
   const withImages = useMemo(
-    () => allProducts.filter((p) => hasValidImage(p.product.imageUrl)),
+    () => allProducts.filter((p) => hasValidImage(p.product.imageUrl) && p.bestPrice.totalChf > 0),
     [allProducts],
   );
 

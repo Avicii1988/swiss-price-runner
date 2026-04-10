@@ -94,7 +94,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
 
           {/* Price — right aligned */}
           <div className="shrink-0 text-right">
-            <span className="text-lg font-bold text-gray-900">{bestPrice.totalChf.toFixed(0)}.–</span>
+            <span className="text-lg font-bold text-gray-900">{bestPrice.totalChf > 0 ? `${bestPrice.totalChf.toFixed(0)}.–` : "Preis auf Anfrage"}</span>
             {discount >= 3 && (
               <p className="text-xs text-gray-400 line-through">statt {Math.round(avgChf30d)}.–</p>
             )}
@@ -154,7 +154,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
 
           {/* Price — "XXX.–" format */}
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">{bestPrice.totalChf.toFixed(0)}.–</span>
+            <span className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">{bestPrice.totalChf > 0 ? `${bestPrice.totalChf.toFixed(0)}.–` : "Preis auf Anfrage"}</span>
             {discount >= 3 && (
               <span className="text-xs text-gray-400 line-through">statt {Math.round(avgChf30d)}.–</span>
             )}

@@ -118,9 +118,11 @@ async function handleRequest(req: NextRequest) {
         const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${skip + imported}`)}`;
         const priceChf = parsePrice(item.price);
 
-        if (!priceChf || !item.title || !item.link) continue;
+        const affiliateLink = cleanUrl(item.link);
+        if (!priceChf || !item.title || !affiliateLink) continue;
 
         const { slug: catSlug, name: catName } = mapCategory(item.productType);
+        const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
 
         await db.product.upsert({
           where: { gtin },
@@ -131,10 +133,10 @@ async function handleRequest(req: NextRequest) {
             brand: decodeHtml(item.brand || "XXL Parfum").slice(0, 200),
             category: catSlug,
             categoryName: catName,
-            imageUrl: item.imageLink || null,
+            imageUrl,
             shopName: "XXL Parfum",
             sourceType: "adtraction_feed",
-            affiliateUrl: item.link,
+            affiliateUrl: affiliateLink,
             isActive: true,
           },
           update: {
@@ -142,9 +144,9 @@ async function handleRequest(req: NextRequest) {
             brand: item.brand ? decodeHtml(item.brand).slice(0, 200) : undefined,
             category: catSlug,
             categoryName: catName,
-            imageUrl: item.imageLink || undefined,
+            imageUrl: imageUrl || undefined,
             shopName: "XXL Parfum",
-            affiliateUrl: item.link,
+            affiliateUrl: affiliateLink,
             isActive: true,
             updatedAt: new Date(),
           },
@@ -263,7 +265,7 @@ function parseFeed(xml: string): FeedItem[] {
     const b = m[1];
     items.push({
       title: tag(b, "g:title") || tag(b, "title") || "",
-      price: tag(b, "g:price") || tag(b, "g:sale_price") || tag(b, "price") || "",
+      price: tag(b, "g:sale_price") || tag(b, "sale_price") || tag(b, "g:price") || tag(b, "price") || "",
       link: tag(b, "g:link") || tag(b, "link") || "",
       imageLink: tag(b, "g:image_link") || tag(b, "image_link") || "",
       brand: tag(b, "g:brand") || tag(b, "brand") || "",
@@ -290,9 +292,23 @@ function parsePrice(s: string): number | null {
 }
 
 function decodeHtml(s: string): string {
-  return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#39;|&apos;|&#x27;/g, "'").replace(/&nbsp;/g, " ")
-    .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c)));
+  // Run multiple passes to handle double-encoded entities like &amp;amp;
+  let prev = "";
+  let current = s;
+  for (let i = 0; i < 3 && current !== prev; i++) {
+    prev = current;
+    current = current
+      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"').replace(/&#39;|&apos;|&#x27;/g, "'")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c)));
+  }
+  return current;
+}
+
+/** Clean a URL: decode HTML entities + trim whitespace */
+function cleanUrl(s: string): string {
+  return decodeHtml(s).trim();
 }
 
 // ── Category Mapping ─────────────────────────────────────────

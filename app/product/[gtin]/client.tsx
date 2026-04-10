@@ -172,7 +172,7 @@ export function ProductDetailClient({ item, allProducts }: Props) {
 
                 {/* Price */}
                 <div className="flex items-baseline gap-3">
-                  <span className="text-4xl font-bold text-gray-900">{bestPrice.totalChf.toFixed(0)}.–</span>
+                  <span className="text-4xl font-bold text-gray-900">{bestPrice.totalChf > 0 ? `${bestPrice.totalChf.toFixed(0)}.–` : "Preis auf Anfrage"}</span>
                   {discount >= 3 && (
                     <span className="text-base text-gray-400 line-through">statt {Math.round(avgChf30d)}.–</span>
                   )}
@@ -352,7 +352,7 @@ export function ProductDetailClient({ item, allProducts }: Props) {
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-lg sm:hidden">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-lg font-bold text-gray-900">{bestPrice.totalChf.toFixed(0)}.–</p>
+            <p className="text-lg font-bold text-gray-900">{bestPrice.totalChf > 0 ? `${bestPrice.totalChf.toFixed(0)}.–` : "—"}</p>
             <p className="text-[10px] text-gray-400">{bestSource}</p>
           </div>
           <div className="flex gap-2">
