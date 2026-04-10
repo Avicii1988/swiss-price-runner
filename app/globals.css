@@ -27,8 +27,8 @@
   html.dark header { @apply bg-[#0c0c0c] border-gray-800; }
   html.dark footer { @apply bg-[#111] border-gray-800; }
 
-  /* Backgrounds */
-  html.dark .bg-white { background-color: #0c0c0c; }
+  /* Backgrounds — bg-white becomes dark card color (not page bg) */
+  html.dark .bg-white { background-color: #1a1a1a; }
   html.dark .bg-gray-50 { background-color: #141414; }
   html.dark .bg-gray-50\/40 { background-color: rgba(20,20,20,0.4); }
   html.dark .bg-gray-50\/60 { background-color: rgba(20,20,20,0.6); }
@@ -113,10 +113,14 @@
   html.dark .bg-\[\#fafafa\] { background-color: #0c0c0c; }
   html.dark .bg-\[\#f9fafb\] { background-color: #141414; }
 
-  /* Product cards — ensure no white boxes remain */
+  /* Product cards — ensure visible on dark bg */
   html.dark .bg-white.rounded-xl,
-  html.dark .rounded-xl.bg-white { background-color: #141414; }
-  html.dark .border-gray-100.bg-white { background-color: #141414; }
+  html.dark .rounded-xl.bg-white { background-color: #1a1a1a; }
+  html.dark .border-gray-100.bg-white { background-color: #1a1a1a; }
+
+  /* Filter dropdowns — must be visible, not same as page bg */
+  html.dark .rounded-md.border.bg-white { background-color: #1a1a1a; }
+  html.dark .bg-gray-50 { background-color: #1a1a1a; }
 
   /* Select dropdowns */
   html.dark select {
