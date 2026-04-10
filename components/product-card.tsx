@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { TrendingDown, Heart, Pin, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -61,17 +62,15 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
         )}
 
         <Link href={`/product/${product.gtin}`} className="flex flex-1 items-center gap-4 sm:gap-5">
-          {/* Image — fixed size, centered */}
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-white p-2 sm:h-28 sm:w-28">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+          {/* Image — fixed size, optimized */}
+          <div className="relative h-24 w-24 shrink-0 rounded-lg bg-white p-2 sm:h-28 sm:w-28">
+            <Image
               src={product.imageUrl || FALLBACK_IMG}
               alt={product.title}
-              width={100}
-              height={100}
+              fill
+              sizes="112px"
+              className="object-contain mix-blend-multiply transition-transform group-hover:scale-105"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
-              className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform group-hover:scale-105"
-              loading="lazy"
             />
           </div>
 
@@ -131,17 +130,15 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
       )}
 
       <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col p-3 sm:p-4">
-        {/* Image — clean white bg, centered, mix-blend for seamless look */}
+        {/* Image — clean white bg, centered, optimized via next/image */}
         <div className="aspect-square overflow-hidden rounded-lg bg-white p-4">
-          <div className="flex h-full w-full items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+          <div className="relative h-full w-full">
+            <Image
               src={product.imageUrl || FALLBACK_IMG}
               alt={product.title}
-              width={200}
-              height={200}
-              className="max-h-full max-w-full object-contain mix-blend-multiply transition-transform group-hover:scale-105"
-              loading="lazy"
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-contain mix-blend-multiply transition-transform group-hover:scale-105"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }}
             />
           </div>

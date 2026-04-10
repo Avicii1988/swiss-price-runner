@@ -6,7 +6,7 @@ import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import { getCategoryBySlug } from "@/lib/categories";
 import { ProductDetailClient } from "./client";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600; // ISR: regenerate every hour
 
 export async function generateStaticParams() {
   const gtins = await getAllGtinsFromDb();

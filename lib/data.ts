@@ -50,51 +50,21 @@ export async function getDynamicCategories(): Promise<
  */
 export async function getProducts(): Promise<MockProductWithHistory[]> {
   try {
+    // Lean query: no prices relation needed for list views (we use Product.price)
     const dbProducts = await db.product.findMany({
       where: { isActive: true },
       select: {
         id: true, gtin: true, title: true, brand: true, category: true,
         categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-        affiliateUrl: true, isActive: true, price: true,
-        createdAt: true, updatedAt: true,
-        prices: {
-          orderBy: { timestamp: "desc" },
-          take: 10,
-          select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
-        },
+        affiliateUrl: true, price: true,
       },
     });
 
     if (dbProducts.length > 0) {
-      return dbProducts.map((p) => buildFromDb(p));
+      return dbProducts.map((p) => buildFromDb({ ...p, prices: [] }));
     }
   } catch (err) {
-    // If price column doesn't exist yet, retry without it
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("price")) {
-      try {
-        const dbProducts = await db.product.findMany({
-          where: { isActive: true },
-          select: {
-            id: true, gtin: true, title: true, brand: true, category: true,
-            categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-            affiliateUrl: true, isActive: true,
-            createdAt: true, updatedAt: true,
-            prices: {
-              orderBy: { timestamp: "desc" },
-              take: 10,
-              select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
-            },
-          },
-        });
-        if (dbProducts.length > 0) {
-          return dbProducts.map((p) => buildFromDb(p));
-        }
-      } catch {
-        // fall through to seed
-      }
-    }
-    console.warn("[data] DB fetch failed, using seed data:", msg);
+    console.warn("[data] DB fetch failed, using seed data:", err instanceof Error ? err.message : err);
   }
 
   // Fallback to seed
@@ -108,40 +78,17 @@ export async function getProductByGtin(gtin: string): Promise<MockProductWithHis
       select: {
         id: true, gtin: true, title: true, brand: true, category: true,
         categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-        affiliateUrl: true, isActive: true, price: true,
-        createdAt: true, updatedAt: true,
+        affiliateUrl: true, price: true,
         prices: {
           orderBy: { timestamp: "desc" },
-          take: 30,
+          take: 10,
           select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
         },
       },
     });
     if (p) return buildFromDb(p);
   } catch (err) {
-    // If price column doesn't exist yet, retry without it
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("price")) {
-      try {
-        const p = await db.product.findUnique({
-          where: { gtin },
-          select: {
-            id: true, gtin: true, title: true, brand: true, category: true,
-            categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-            affiliateUrl: true, isActive: true,
-            createdAt: true, updatedAt: true,
-            prices: {
-              orderBy: { timestamp: "desc" },
-              take: 30,
-              select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
-            },
-          },
-        });
-        if (p) return buildFromDb(p);
-      } catch {
-        // fall through
-      }
-    }
+    console.warn("[data] getProductByGtin failed:", err instanceof Error ? err.message : err);
   }
 
   // Fallback to seed
@@ -191,7 +138,7 @@ type DbProduct = {
   sourceType?: string | null;
   affiliateUrl?: string | null;
   price?: unknown | null;
-  prices: { amountChf: unknown; amountEur: unknown; sourceId: string; url?: string | null; timestamp: Date }[];
+  prices: { amountChf: unknown; amountEur: unknown; sourceId: string; url?: string | null; timestamp?: Date }[];
 };
 
 function buildFromDb(p: DbProduct): MockProductWithHistory {

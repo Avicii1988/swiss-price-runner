@@ -5,10 +5,33 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
 const DEFAULT_LIMIT = 50;
-const FEED_ID = "xxl_parfum";
 const SAFETY_TIMEOUT_MS = 6500; // stop 3.5s before Vercel kills us
-const DEFAULT_FEED =
-  "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=0&sn=0&flat=0&apid=1710426239&asid=2064719298&gsh=1&pfid=1022&gt=0";
+
+// ── Feed Registry: Add new shops here ────────────────────
+interface FeedConfig {
+  id: string;
+  url: string;
+  shopName: string;
+  sourceType: string;
+}
+
+const FEEDS: Record<string, FeedConfig> = {
+  xxl_parfum: {
+    id: "xxl_parfum",
+    url: "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=0&sn=0&flat=0&apid=1710426239&asid=2064719298&gsh=1&pfid=1022&gt=0",
+    shopName: "XXL Parfum",
+    sourceType: "adtraction_feed",
+  },
+  // ── Shop #2 — uncomment and configure when ready ──
+  // shop_two: {
+  //   id: "shop_two",
+  //   url: "https://...",
+  //   shopName: "Shop Two",
+  //   sourceType: "adtraction_feed",
+  // },
+};
+
+const DEFAULT_FEED_KEY = "xxl_parfum";
 
 // ── In-memory feed cache (survives within same serverless instance) ──
 let cachedItems: FeedItem[] | null = null;
@@ -38,6 +61,8 @@ async function handleRequest(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const limitParam = params.get("limit");
   const offsetParam = params.get("offset") ?? params.get("skip"); // backward compat
+  const feedKey = params.get("feed") ?? DEFAULT_FEED_KEY;
+  const feed = FEEDS[feedKey] ?? FEEDS[DEFAULT_FEED_KEY];
   const limit = limitParam ? Math.max(1, Math.min(200, Math.floor(Number(limitParam)))) : DEFAULT_LIMIT;
 
   try {
@@ -47,7 +72,7 @@ async function handleRequest(req: NextRequest) {
       offset = Math.max(0, Math.floor(Number(offsetParam)));
     } else {
       const lastLog = await db.importLog.findFirst({
-        where: { feedId: FEED_ID, status: { in: ["completed", "cycle_complete"] } },
+        where: { feedId: feed.id, status: { in: ["completed", "cycle_complete"] } },
         orderBy: { createdAt: "desc" },
         select: { currentSkip: true },
       });
@@ -63,7 +88,7 @@ async function handleRequest(req: NextRequest) {
         return jsonResponse(false, { offset, total: 0, message: "Nicht genug Zeit für Download, bitte erneut versuchen.", durationMs: elapsed() });
       }
 
-      const feedRes = await fetch(DEFAULT_FEED, { signal: AbortSignal.timeout(4000) });
+      const feedRes = await fetch(feed.url, { signal: AbortSignal.timeout(4000) });
       if (!feedRes.ok) {
         return jsonResponse(false, { offset, total: 0, message: `Feed HTTP ${feedRes.status}`, durationMs: elapsed() });
       }
@@ -88,7 +113,7 @@ async function handleRequest(req: NextRequest) {
     const batch = items.slice(offset, offset + limit);
 
     if (batch.length === 0) {
-      await logImport(0, total, 0, 0, "cycle_complete", "Zyklus fertig.");
+      await logImport(feed.id, 0, total, 0, 0, "cycle_complete", "Zyklus fertig.");
       return jsonResponse(true, { offset, total, imported: 0, nextOffset: 0, percent: 100, isComplete: true, limit, message: "Import komplett!", durationMs: elapsed() });
     }
 
@@ -114,7 +139,7 @@ async function handleRequest(req: NextRequest) {
       const { slug: catSlug, name: catName } = mapCategory(item.productType);
       const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
       const title = decodeHtml(item.title).slice(0, 500);
-      const brand = decodeHtml(item.brand || "XXL Parfum").slice(0, 200);
+      const brand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
 
       try {
         await db.product.upsert({
@@ -123,8 +148,8 @@ async function handleRequest(req: NextRequest) {
           create: {
             gtin, title, brand,
             category: catSlug, categoryName: catName,
-            imageUrl, shopName: "XXL Parfum",
-            sourceType: "adtraction_feed",
+            imageUrl, shopName: feed.shopName,
+            sourceType: feed.sourceType,
             affiliateUrl: affiliateLink,
             isActive: true, price: priceChf,
           },
@@ -152,7 +177,7 @@ async function handleRequest(req: NextRequest) {
     const totalBatches = Math.ceil(total / limit);
     const batchNum = Math.min(totalBatches, Math.ceil(nextOffset / limit));
 
-    await logImport(savedOffset, total, imported, errors,
+    await logImport(feed.id, savedOffset, total, imported, errors,
       isComplete ? "cycle_complete" : "completed",
       stoppedEarly
         ? `Timeout nach ${imported}/${processed}. Weiter bei ${nextOffset}.`
@@ -168,7 +193,7 @@ async function handleRequest(req: NextRequest) {
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    await logImport(0, 0, 0, 0, "error", msg.slice(0, 500));
+    await logImport(feed.id, 0, 0, 0, 0, "error", msg.slice(0, 500));
     return jsonResponse(false, { offset: 0, total: 0, message: msg, durationMs: elapsed() });
   }
 }
@@ -185,9 +210,9 @@ function jsonResponse(ok: boolean, data: Record<string, any>) {
   });
 }
 
-async function logImport(skip: number, total: number, imported: number, errors: number, status: string, message: string) {
+async function logImport(feedId: string, skip: number, total: number, imported: number, errors: number, status: string, message: string) {
   await db.importLog.create({
-    data: { feedId: FEED_ID, currentSkip: skip, totalItems: total, imported, errors, status, message },
+    data: { feedId, currentSkip: skip, totalItems: total, imported, errors, status, message },
   }).catch(() => {});
 }
 

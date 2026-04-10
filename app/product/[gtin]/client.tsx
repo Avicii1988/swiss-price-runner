@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ChevronRight,
@@ -158,8 +159,16 @@ export function ProductDetailClient({ item, allProducts }: Props) {
               {/* Image */}
               <div className="lg:col-span-5">
                 <div className="sticky top-28 rounded-xl bg-gray-50 p-6 sm:p-10">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={product.imageUrl} alt={product.title} width={400} height={400} className="mx-auto h-52 w-52 object-contain sm:h-72 sm:w-72" />
+                  <div className="relative mx-auto h-52 w-52 sm:h-72 sm:w-72">
+                    <Image
+                      src={product.imageUrl || "/icon.svg"}
+                      alt={product.title}
+                      fill
+                      sizes="(max-width: 640px) 208px, 288px"
+                      className="object-contain"
+                      priority
+                    />
+                  </div>
                 </div>
               </div>
 

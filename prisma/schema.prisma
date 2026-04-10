@@ -37,6 +37,10 @@ model Product {
   @@index([gtin])
   @@index([sourceType])
   @@index([isActive])
+  @@index([price])
+  @@index([updatedAt])
+  @@index([isActive, category])
+  @@index([isActive, price])
 }
 
 model Category {
