@@ -120,9 +120,7 @@ async function handleRequest(req: NextRequest) {
 
         if (!priceChf || !item.title || !item.link) continue;
 
-        const catSlug = item.productType
-          ? slugify(extractLeaf(item.productType))
-          : "parfum";
+        const { slug: catSlug, name: catName } = mapCategory(item.productType);
 
         await db.product.upsert({
           where: { gtin },
@@ -132,7 +130,7 @@ async function handleRequest(req: NextRequest) {
             title: decodeHtml(item.title).slice(0, 500),
             brand: decodeHtml(item.brand || "XXL Parfum").slice(0, 200),
             category: catSlug,
-            categoryName: item.productType || null,
+            categoryName: catName,
             imageUrl: item.imageLink || null,
             shopName: "XXL Parfum",
             sourceType: "adtraction_feed",
@@ -142,6 +140,8 @@ async function handleRequest(req: NextRequest) {
           update: {
             title: decodeHtml(item.title).slice(0, 500),
             brand: item.brand ? decodeHtml(item.brand).slice(0, 200) : undefined,
+            category: catSlug,
+            categoryName: catName,
             imageUrl: item.imageLink || undefined,
             shopName: "XXL Parfum",
             affiliateUrl: item.link,
@@ -295,9 +295,79 @@ function decodeHtml(s: string): string {
     .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c)));
 }
 
-function extractLeaf(path: string): string {
-  const parts = path.split(">").map((p) => p.trim());
-  return parts[parts.length - 1] || path;
+// ── Category Mapping ─────────────────────────────────────────
+
+const CATEGORY_MAP: { pattern: string; slug: string; name: string }[] = [
+  // Herrendüfte
+  { pattern: "men's fragrance", slug: "herrendufte", name: "Herrendüfte" },
+  { pattern: "men's eau de", slug: "herrendufte", name: "Herrendüfte" },
+  { pattern: "aftershave", slug: "herrendufte", name: "Herrendüfte" },
+  { pattern: "cologne", slug: "herrendufte", name: "Herrendüfte" },
+  // Damendüfte
+  { pattern: "women's fragrance", slug: "damendufte", name: "Damendüfte" },
+  { pattern: "women's eau de", slug: "damendufte", name: "Damendüfte" },
+  // Unisex
+  { pattern: "unisex fragrance", slug: "unisex-dufte", name: "Unisex-Düfte" },
+  { pattern: "unisex eau de", slug: "unisex-dufte", name: "Unisex-Düfte" },
+  // Generische Düfte
+  { pattern: "fragrance", slug: "parfum", name: "Parfum & Düfte" },
+  { pattern: "perfume", slug: "parfum", name: "Parfum & Düfte" },
+  { pattern: "eau de parfum", slug: "parfum", name: "Parfum & Düfte" },
+  { pattern: "eau de toilette", slug: "parfum", name: "Parfum & Düfte" },
+  // Pflege
+  { pattern: "skin care", slug: "pflege", name: "Pflege" },
+  { pattern: "skincare", slug: "pflege", name: "Pflege" },
+  { pattern: "face care", slug: "pflege", name: "Pflege" },
+  { pattern: "body care", slug: "pflege", name: "Pflege" },
+  { pattern: "moisturi", slug: "pflege", name: "Pflege" },
+  { pattern: "serum", slug: "pflege", name: "Pflege" },
+  { pattern: "cleanser", slug: "pflege", name: "Pflege" },
+  // Make-Up
+  { pattern: "make up", slug: "make-up", name: "Make-Up" },
+  { pattern: "makeup", slug: "make-up", name: "Make-Up" },
+  { pattern: "cosmetic", slug: "make-up", name: "Make-Up" },
+  { pattern: "lipstick", slug: "make-up", name: "Make-Up" },
+  { pattern: "mascara", slug: "make-up", name: "Make-Up" },
+  { pattern: "foundation", slug: "make-up", name: "Make-Up" },
+  // Haarpflege
+  { pattern: "hair care", slug: "haarpflege", name: "Haarpflege" },
+  { pattern: "hair", slug: "haarpflege", name: "Haarpflege" },
+  { pattern: "shampoo", slug: "haarpflege", name: "Haarpflege" },
+  { pattern: "conditioner", slug: "haarpflege", name: "Haarpflege" },
+  // Körperpflege
+  { pattern: "bath", slug: "koerperpflege", name: "Körperpflege" },
+  { pattern: "shower", slug: "koerperpflege", name: "Körperpflege" },
+  { pattern: "body", slug: "koerperpflege", name: "Körperpflege" },
+  { pattern: "deodorant", slug: "koerperpflege", name: "Körperpflege" },
+  // Geschenksets
+  { pattern: "gift set", slug: "geschenksets", name: "Geschenksets" },
+  { pattern: "gift", slug: "geschenksets", name: "Geschenksets" },
+  { pattern: "set", slug: "geschenksets", name: "Geschenksets" },
+  // Sonnenpflege
+  { pattern: "sun", slug: "sonnenpflege", name: "Sonnenpflege" },
+  { pattern: "spf", slug: "sonnenpflege", name: "Sonnenpflege" },
+];
+
+function mapCategory(productType: string | undefined): { slug: string; name: string } {
+  if (!productType) return { slug: "parfum", name: "Parfum & Düfte" };
+
+  const lower = productType.toLowerCase();
+
+  // Try mapping table (first match wins — order matters)
+  for (const entry of CATEGORY_MAP) {
+    if (lower.includes(entry.pattern)) {
+      return { slug: entry.slug, name: entry.name };
+    }
+  }
+
+  // Fallback: take first segment before >
+  const firstPart = productType.split(">")[0].trim();
+  if (firstPart) {
+    const name = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
+    return { slug: slugify(firstPart), name };
+  }
+
+  return { slug: "parfum", name: "Parfum & Düfte" };
 }
 
 function slugify(s: string): string {
