@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
-const BATCH_SIZE = 40;
+const BATCH_SIZE = 60;
 const FEED_ID = "xxl_parfum";
 const SAFETY_TIMEOUT_MS = 7500;
 const DEFAULT_FEED =
@@ -35,14 +35,20 @@ async function handleRequest(req: NextRequest) {
   const elapsed = () => Date.now() - startMs;
 
   try {
-    // ── 1. Get skip from ImportLog ───────────────────────────
-    const lastLog = await db.importLog.findFirst({
-      where: { feedId: FEED_ID, status: { in: ["completed", "cycle_complete"] } },
-      orderBy: { createdAt: "desc" },
-      select: { currentSkip: true, totalItems: true },
-    });
+    // ── 1. Get skip: prefer query param (parallel mode), else from DB ──
+    const skipParam = req.nextUrl.searchParams.get("skip");
+    let skip: number;
 
-    const skip = lastLog?.currentSkip ?? 0;
+    if (skipParam !== null && !isNaN(Number(skipParam))) {
+      skip = Math.max(0, Math.floor(Number(skipParam)));
+    } else {
+      const lastLog = await db.importLog.findFirst({
+        where: { feedId: FEED_ID, status: { in: ["completed", "cycle_complete"] } },
+        orderBy: { createdAt: "desc" },
+        select: { currentSkip: true, totalItems: true },
+      });
+      skip = lastLog?.currentSkip ?? 0;
+    }
 
     // ── 2. Get feed items (cached or fresh) ──────────────────
     let items: FeedItem[];
@@ -102,64 +108,82 @@ async function handleRequest(req: NextRequest) {
       });
     }
 
-    // ── 4. Import products with safety timeout ───────────────
+    // ── 4. Import products with batched transaction ─────────
     let imported = 0;
     let errors = 0;
     let stoppedEarly = false;
 
+    // Prepare all upsert operations first
+    interface UpsertOp {
+      gtin: string;
+      title: string;
+      brand: string;
+      catSlug: string;
+      catName: string;
+      imageUrl: string | null;
+      affiliateLink: string;
+    }
+    const ops: UpsertOp[] = [];
+
     for (const item of batch) {
-      // Safety: stop before Vercel kills us
       if (elapsed() > SAFETY_TIMEOUT_MS) {
         stoppedEarly = true;
         break;
       }
 
-      try {
-        const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${skip + imported}`)}`;
-        const priceChf = parsePrice(item.price);
+      const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${skip + ops.length}`)}`;
+      const priceChf = parsePrice(item.price);
+      const affiliateLink = cleanUrl(item.link);
+      if (!priceChf || !item.title || !affiliateLink) continue;
 
-        const affiliateLink = cleanUrl(item.link);
-        if (!priceChf || !item.title || !affiliateLink) continue;
+      const { slug: catSlug, name: catName } = mapCategory(item.productType);
+      const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
 
-        const { slug: catSlug, name: catName } = mapCategory(item.productType);
-        const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
+      ops.push({
+        gtin,
+        title: decodeHtml(item.title).slice(0, 500),
+        brand: decodeHtml(item.brand || "XXL Parfum").slice(0, 200),
+        catSlug, catName, imageUrl, affiliateLink,
+      });
+    }
 
-        await db.product.upsert({
-          where: { gtin },
-          select: { id: true },
-          create: {
-            gtin,
-            title: decodeHtml(item.title).slice(0, 500),
-            brand: decodeHtml(item.brand || "XXL Parfum").slice(0, 200),
-            category: catSlug,
-            categoryName: catName,
-            imageUrl,
-            shopName: "XXL Parfum",
-            sourceType: "adtraction_feed",
-            affiliateUrl: affiliateLink,
-            isActive: true,
-          },
-          update: {
-            title: decodeHtml(item.title).slice(0, 500),
-            brand: item.brand ? decodeHtml(item.brand).slice(0, 200) : undefined,
-            category: catSlug,
-            categoryName: catName,
-            imageUrl: imageUrl || undefined,
-            shopName: "XXL Parfum",
-            affiliateUrl: affiliateLink,
-            isActive: true,
-            updatedAt: new Date(),
-          },
-        });
-
-        imported++;
-      } catch {
-        errors++;
-      }
+    // Execute all upserts in a single transaction (fewer DB round-trips)
+    if (ops.length > 0) {
+      const results = await db.$transaction(
+        ops.map((op) =>
+          db.product.upsert({
+            where: { gtin: op.gtin },
+            select: { id: true },
+            create: {
+              gtin: op.gtin,
+              title: op.title,
+              brand: op.brand,
+              category: op.catSlug,
+              categoryName: op.catName,
+              imageUrl: op.imageUrl,
+              shopName: "XXL Parfum",
+              sourceType: "adtraction_feed",
+              affiliateUrl: op.affiliateLink,
+              isActive: true,
+            },
+            update: {
+              title: op.title,
+              brand: op.brand,
+              category: op.catSlug,
+              categoryName: op.catName,
+              imageUrl: op.imageUrl || undefined,
+              affiliateUrl: op.affiliateLink,
+              isActive: true,
+              updatedAt: new Date(),
+            },
+          })
+        ),
+      );
+      imported = results.length;
     }
 
     // ── 5. Save progress ─────────────────────────────────────
-    const actualProcessed = imported + errors;
+    const actualProcessed = stoppedEarly ? imported : batch.length;
     const nextSkip = skip + actualProcessed;
     const isComplete = nextSkip >= totalInFeed;
     const savedSkip = isComplete ? 0 : nextSkip;
@@ -177,7 +201,7 @@ async function handleRequest(req: NextRequest) {
     return NextResponse.json({
       ok: true, skip, imported, errors, total: totalInFeed,
       nextSkip: savedSkip, percent: isComplete ? 100 : percent,
-      isComplete, batchNum, totalBatches,
+      isComplete, batchNum, totalBatches, batchSize: BATCH_SIZE,
       message: isComplete ? "Import komplett!" : `Batch ${batchNum}/${totalBatches}`,
       durationMs: elapsed(),
     });
