@@ -359,9 +359,10 @@ export function ProductDetailClient({ item, allProducts }: Props) {
             <button onClick={() => setShowAlert(true)} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700">
               <Bell className="h-3.5 w-3.5" /> Alarm
             </button>
-            <button className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white">
+            <a href={bestSourceUrl || "#"} target="_blank" rel="sponsored nofollow noopener"
+              className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white">
               <ExternalLink className="h-3.5 w-3.5" /> Shop
-            </button>
+            </a>
           </div>
         </div>
       </div>
