@@ -69,7 +69,32 @@ export async function getProducts(): Promise<MockProductWithHistory[]> {
       return dbProducts.map((p) => buildFromDb(p));
     }
   } catch (err) {
-    console.warn("[data] DB fetch failed, using seed data:", err instanceof Error ? err.message : err);
+    // If price column doesn't exist yet, retry without it
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("price")) {
+      try {
+        const dbProducts = await db.product.findMany({
+          where: { isActive: true },
+          select: {
+            id: true, gtin: true, title: true, brand: true, category: true,
+            categoryName: true, imageUrl: true, shopName: true, sourceType: true,
+            affiliateUrl: true, isActive: true,
+            createdAt: true, updatedAt: true,
+            prices: {
+              orderBy: { timestamp: "desc" },
+              take: 10,
+              select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
+            },
+          },
+        });
+        if (dbProducts.length > 0) {
+          return dbProducts.map((p) => buildFromDb(p));
+        }
+      } catch {
+        // fall through to seed
+      }
+    }
+    console.warn("[data] DB fetch failed, using seed data:", msg);
   }
 
   // Fallback to seed
@@ -93,8 +118,30 @@ export async function getProductByGtin(gtin: string): Promise<MockProductWithHis
       },
     });
     if (p) return buildFromDb(p);
-  } catch {
-    // fallback
+  } catch (err) {
+    // If price column doesn't exist yet, retry without it
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("price")) {
+      try {
+        const p = await db.product.findUnique({
+          where: { gtin },
+          select: {
+            id: true, gtin: true, title: true, brand: true, category: true,
+            categoryName: true, imageUrl: true, shopName: true, sourceType: true,
+            affiliateUrl: true, isActive: true,
+            createdAt: true, updatedAt: true,
+            prices: {
+              orderBy: { timestamp: "desc" },
+              take: 30,
+              select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
+            },
+          },
+        });
+        if (p) return buildFromDb(p);
+      } catch {
+        // fall through
+      }
+    }
   }
 
   // Fallback to seed
@@ -148,7 +195,6 @@ type DbProduct = {
 };
 
 function buildFromDb(p: DbProduct): MockProductWithHistory {
-  const directPriceChf = p.price ? Number(p.price) : 0;
   const isFeedProduct = p.sourceType === "adtraction_feed";
 
   const sourceMap = new Map<string, { chf: number; eur: number; url: string }>();
@@ -162,24 +208,28 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     }
   }
 
+  // Determine CHF price: Product.price → Price.amountChf fallback → 0
+  const directPriceChf = p.price ? Number(p.price) : 0;
+  const latestPriceChf = p.prices.length > 0 ? Number(p.prices[0].amountChf) : 0;
+  const bestChf = directPriceChf > 0 ? directPriceChf : latestPriceChf;
+
   const seed = SEED_PRODUCTS.find((s) => s.gtin === p.gtin);
 
-  // For feed products with CHF prices: use the direct price as a fake EUR price
+  // For feed products with CHF prices: reverse-convert to EUR
   // so the existing enrichProduct pipeline produces the correct totalChf.
-  // For non-feed products: use the actual EUR price from sources.
-  const effectiveEur = isFeedProduct && directPriceChf > 0
-    ? directPriceChf / EXCHANGE_RATE  // reverse-convert so calculateSwissPrice returns ~directPriceChf
+  const effectiveEur = isFeedProduct && bestChf > 0
+    ? bestChf / EXCHANGE_RATE
     : 0;
 
   const sources = Array.from(sourceMap.entries()).map(([sid, { eur, url }]) => ({
     sourceId: sid,
     sourceName: p.shopName || SOURCE_NAMES[sid] || sid,
     url,
-    currentPriceEur: isFeedProduct && directPriceChf > 0 ? effectiveEur : eur,
+    currentPriceEur: isFeedProduct && bestChf > 0 ? effectiveEur : eur,
   }));
 
   // If feed product has a price but no Price records yet, create a virtual source
-  if (sources.length === 0 && isFeedProduct && directPriceChf > 0) {
+  if (sources.length === 0 && isFeedProduct && bestChf > 0) {
     sources.push({
       sourceId: "adtraction_xxl_parfum",
       sourceName: p.shopName || "XXL Parfum",
