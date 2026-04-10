@@ -122,8 +122,10 @@ async function handleRequest(req: NextRequest) {
       catName: string;
       imageUrl: string | null;
       affiliateLink: string;
+      priceChf: number;
     }
     const ops: UpsertOp[] = [];
+    let loggedFirst = false;
 
     for (const item of batch) {
       if (elapsed() > SAFETY_TIMEOUT_MS) {
@@ -132,9 +134,16 @@ async function handleRequest(req: NextRequest) {
       }
 
       const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${skip + ops.length}`)}`;
-      const priceChf = parsePrice(item.price);
+      const rawPrice = item.price;
+      const priceChf = parseSwissPrice(rawPrice);
       const affiliateLink = cleanUrl(item.link);
       if (!priceChf || !item.title || !affiliateLink) continue;
+
+      // Debug: log first product of the very first batch
+      if (skip === 0 && !loggedFirst) {
+        console.log(`[Import Debug] Raw: "${rawPrice}" -> Parsed: ${priceChf} | GTIN: ${gtin} | Title: ${decodeHtml(item.title).slice(0, 60)}`);
+        loggedFirst = true;
+      }
 
       const { slug: catSlug, name: catName } = mapCategory(item.productType);
       const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
@@ -143,13 +152,13 @@ async function handleRequest(req: NextRequest) {
         gtin,
         title: decodeHtml(item.title).slice(0, 500),
         brand: decodeHtml(item.brand || "XXL Parfum").slice(0, 200),
-        catSlug, catName, imageUrl, affiliateLink,
+        catSlug, catName, imageUrl, affiliateLink, priceChf,
       });
     }
 
-    // Execute all upserts in a single transaction (fewer DB round-trips)
+    // Execute all product upserts in a single transaction
     if (ops.length > 0) {
-      const results = await db.$transaction(
+      const productResults = await db.$transaction(
         ops.map((op) =>
           db.product.upsert({
             where: { gtin: op.gtin },
@@ -179,7 +188,31 @@ async function handleRequest(req: NextRequest) {
           })
         ),
       );
-      imported = results.length;
+
+      // Write Price records: delete today's stale entries, then bulk create
+      const productIds = productResults.map((p) => p.id);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      await db.price.deleteMany({
+        where: {
+          productId: { in: productIds },
+          sourceId: "adtraction_xxl_parfum",
+          timestamp: { gte: today },
+        },
+      });
+
+      await db.price.createMany({
+        data: productResults.map((product, i) => ({
+          productId: product.id,
+          amountChf: ops[i].priceChf,
+          amountEur: 0,
+          sourceId: "adtraction_xxl_parfum",
+          url: ops[i].affiliateLink,
+        })),
+      });
+
+      imported = productResults.length;
     }
 
     // ── 5. Save progress ─────────────────────────────────────
@@ -309,9 +342,11 @@ function tag(xml: string, name: string): string {
 
 // ── Utils ────────────────────────────────────────────────────
 
-function parsePrice(s: string): number | null {
-  if (!s) return null;
-  const n = parseFloat(s.replace(/[^0-9.,]/g, "").replace(",", "."));
+/** Parse Swiss price strings: "89.90 CHF", "75,00", "100", "CHF 120.50" → number */
+function parseSwissPrice(val: string): number | null {
+  if (!val) return null;
+  const cleaned = val.replace(/[^0-9.,]/g, "").replace(",", ".");
+  const n = parseFloat(cleaned);
   return isNaN(n) || n <= 0 ? null : Math.round(n * 100) / 100;
 }
 
