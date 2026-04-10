@@ -51,6 +51,7 @@ export async function getDynamicCategories(): Promise<
 export async function getProducts(): Promise<MockProductWithHistory[]> {
   try {
     const dbProducts = await db.product.findMany({
+      where: { isActive: true },
       select: {
         id: true, gtin: true, title: true, brand: true, category: true,
         categoryName: true, imageUrl: true, shopName: true, sourceType: true,

@@ -31,10 +31,11 @@ export function CategorySidebar({
     ? CATEGORIES.find((c) => c.slug === activeCategorySlug)
     : undefined;
 
-  // Dynamic categories that are NOT already in master list
+  // Dynamic categories that are NOT in master list, have products, and are clean
   const masterSlugs = new Set(CATEGORIES.map((c) => c.slug));
+  const HIDDEN_CATS = new Set(["sonstiges", "seed"]);
   const feedCategories = (dynamicCategories ?? []).filter(
-    (dc) => !masterSlugs.has(dc.slug) && dc.productCount > 0,
+    (dc) => !masterSlugs.has(dc.slug) && !HIDDEN_CATS.has(dc.slug) && dc.productCount > 0 && !dc.slug.includes("-gt-"),
   );
 
   // ── Inside a category ──────────────────────────────────────
