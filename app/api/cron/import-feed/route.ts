@@ -174,6 +174,7 @@ async function handleRequest(req: NextRequest) {
               sourceType: "adtraction_feed",
               affiliateUrl: op.affiliateLink,
               isActive: true,
+              price: op.priceChf,
             },
             update: {
               title: op.title,
@@ -183,6 +184,7 @@ async function handleRequest(req: NextRequest) {
               imageUrl: op.imageUrl || undefined,
               affiliateUrl: op.affiliateLink,
               isActive: true,
+              price: op.priceChf,
               updatedAt: new Date(),
             },
           })

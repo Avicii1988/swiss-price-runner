@@ -55,7 +55,8 @@ export async function getProducts(): Promise<MockProductWithHistory[]> {
       select: {
         id: true, gtin: true, title: true, brand: true, category: true,
         categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-        affiliateUrl: true, isActive: true, createdAt: true, updatedAt: true,
+        affiliateUrl: true, isActive: true, price: true,
+        createdAt: true, updatedAt: true,
         prices: {
           orderBy: { timestamp: "desc" },
           take: 10,
@@ -82,7 +83,8 @@ export async function getProductByGtin(gtin: string): Promise<MockProductWithHis
       select: {
         id: true, gtin: true, title: true, brand: true, category: true,
         categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-        affiliateUrl: true, isActive: true, createdAt: true, updatedAt: true,
+        affiliateUrl: true, isActive: true, price: true,
+        createdAt: true, updatedAt: true,
         prices: {
           orderBy: { timestamp: "desc" },
           take: 30,
@@ -141,10 +143,14 @@ type DbProduct = {
   shopName?: string | null;
   sourceType?: string | null;
   affiliateUrl?: string | null;
+  price?: unknown | null;
   prices: { amountChf: unknown; amountEur: unknown; sourceId: string; url?: string | null; timestamp: Date }[];
 };
 
 function buildFromDb(p: DbProduct): MockProductWithHistory {
+  const directPriceChf = p.price ? Number(p.price) : 0;
+  const isFeedProduct = p.sourceType === "adtraction_feed";
+
   const sourceMap = new Map<string, { chf: number; eur: number; url: string }>();
   for (const price of p.prices) {
     if (!sourceMap.has(price.sourceId)) {
@@ -158,12 +164,29 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
 
   const seed = SEED_PRODUCTS.find((s) => s.gtin === p.gtin);
 
+  // For feed products with CHF prices: use the direct price as a fake EUR price
+  // so the existing enrichProduct pipeline produces the correct totalChf.
+  // For non-feed products: use the actual EUR price from sources.
+  const effectiveEur = isFeedProduct && directPriceChf > 0
+    ? directPriceChf / EXCHANGE_RATE  // reverse-convert so calculateSwissPrice returns ~directPriceChf
+    : 0;
+
   const sources = Array.from(sourceMap.entries()).map(([sid, { eur, url }]) => ({
     sourceId: sid,
     sourceName: p.shopName || SOURCE_NAMES[sid] || sid,
     url,
-    currentPriceEur: eur,
+    currentPriceEur: isFeedProduct && directPriceChf > 0 ? effectiveEur : eur,
   }));
+
+  // If feed product has a price but no Price records yet, create a virtual source
+  if (sources.length === 0 && isFeedProduct && directPriceChf > 0) {
+    sources.push({
+      sourceId: "adtraction_xxl_parfum",
+      sourceName: p.shopName || "XXL Parfum",
+      url: p.affiliateUrl || "#",
+      currentPriceEur: effectiveEur,
+    });
+  }
 
   const product: MockProduct = {
     gtin: p.gtin,
