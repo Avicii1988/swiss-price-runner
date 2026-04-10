@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
-const BATCH_SIZE = 80;
+const DEFAULT_LIMIT = 50;
 const FEED_ID = "xxl_parfum";
-const SAFETY_TIMEOUT_MS = 7500;
+const SAFETY_TIMEOUT_MS = 6500; // stop 3.5s before Vercel kills us
 const DEFAULT_FEED =
   "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=0&sn=0&flat=0&apid=1710426239&asid=2064719298&gsh=1&pfid=1022&gt=0";
 
@@ -34,243 +34,161 @@ async function handleRequest(req: NextRequest) {
   const startMs = Date.now();
   const elapsed = () => Date.now() - startMs;
 
-  try {
-    // ── 1. Get skip: prefer query param (parallel mode), else from DB ──
-    const skipParam = req.nextUrl.searchParams.get("skip");
-    let skip: number;
+  // ── Parse query params ──────────────────────────────────
+  const params = req.nextUrl.searchParams;
+  const limitParam = params.get("limit");
+  const offsetParam = params.get("offset") ?? params.get("skip"); // backward compat
+  const limit = limitParam ? Math.max(1, Math.min(200, Math.floor(Number(limitParam)))) : DEFAULT_LIMIT;
 
-    if (skipParam !== null && !isNaN(Number(skipParam))) {
-      skip = Math.max(0, Math.floor(Number(skipParam)));
+  try {
+    // ── 1. Determine offset: query param → DB fallback ────
+    let offset: number;
+    if (offsetParam !== null && !isNaN(Number(offsetParam))) {
+      offset = Math.max(0, Math.floor(Number(offsetParam)));
     } else {
       const lastLog = await db.importLog.findFirst({
         where: { feedId: FEED_ID, status: { in: ["completed", "cycle_complete"] } },
         orderBy: { createdAt: "desc" },
-        select: { currentSkip: true, totalItems: true },
+        select: { currentSkip: true },
       });
-      skip = lastLog?.currentSkip ?? 0;
+      offset = lastLog?.currentSkip ?? 0;
     }
 
-    // ── 2. Get feed items (cached or fresh) ──────────────────
+    // ── 2. Get feed items (cached or fresh) ───────────────
     let items: FeedItem[];
     if (cachedItems && Date.now() - cacheTimestamp < CACHE_TTL) {
       items = cachedItems;
     } else {
-      // Check time — downloading takes ~2-3s
       if (elapsed() > 2000) {
-        return timeoutResponse(skip, 0, elapsed(), "Nicht genug Zeit für Download, bitte erneut versuchen.");
+        return jsonResponse(false, { offset, total: 0, message: "Nicht genug Zeit für Download, bitte erneut versuchen.", durationMs: elapsed() });
       }
 
-      const feedRes = await fetch(DEFAULT_FEED, {
-        signal: AbortSignal.timeout(5000),
-      });
-
+      const feedRes = await fetch(DEFAULT_FEED, { signal: AbortSignal.timeout(4000) });
       if (!feedRes.ok) {
-        return errorResponse(skip, `Feed HTTP ${feedRes.status}`, elapsed());
+        return jsonResponse(false, { offset, total: 0, message: `Feed HTTP ${feedRes.status}`, durationMs: elapsed() });
       }
 
       const buffer = await feedRes.arrayBuffer();
       const bytes = new Uint8Array(buffer);
 
       let xml: string;
-      try {
-        xml = await decompressZip(bytes);
-      } catch {
-        xml = new TextDecoder().decode(bytes);
-      }
+      try { xml = await decompressZip(bytes); } catch { xml = new TextDecoder().decode(bytes); }
 
       items = parseFeed(xml);
       cachedItems = items;
       cacheTimestamp = Date.now();
     }
 
-    const totalInFeed = items.length;
-
-    if (totalInFeed === 0) {
-      return NextResponse.json({
-        ok: true, skip: 0, imported: 0, errors: 0, total: 0,
-        nextSkip: 0, percent: 0, isComplete: true,
-        message: "Feed leer", durationMs: elapsed(),
-      });
+    const total = items.length;
+    if (total === 0) {
+      return jsonResponse(true, { offset: 0, total: 0, imported: 0, isComplete: true, message: "Feed leer", durationMs: elapsed() });
     }
 
-    // ── 3. Slice batch ───────────────────────────────────────
-    const batch = items.slice(skip, skip + BATCH_SIZE);
+    // ── 3. Slice batch ────────────────────────────────────
+    const batch = items.slice(offset, offset + limit);
 
     if (batch.length === 0) {
-      // End of feed — reset
-      await logImport(0, totalInFeed, 0, 0, "cycle_complete", "Zyklus fertig.");
-      return NextResponse.json({
-        ok: true, skip, imported: 0, errors: 0, total: totalInFeed,
-        nextSkip: 0, percent: 100, isComplete: true,
-        batchNum: Math.ceil(totalInFeed / BATCH_SIZE),
-        totalBatches: Math.ceil(totalInFeed / BATCH_SIZE),
-        message: "Import komplett!", durationMs: elapsed(),
-      });
+      await logImport(0, total, 0, 0, "cycle_complete", "Zyklus fertig.");
+      return jsonResponse(true, { offset, total, imported: 0, nextOffset: 0, percent: 100, isComplete: true, limit, message: "Import komplett!", durationMs: elapsed() });
     }
 
-    // ── 4. Import products with batched transaction ─────────
+    // ── 4. Upsert products individually (no $transaction) ─
     let imported = 0;
+    let skipped = 0;
     let errors = 0;
     let stoppedEarly = false;
 
-    // Prepare all upsert operations first
-    interface UpsertOp {
-      gtin: string;
-      title: string;
-      brand: string;
-      catSlug: string;
-      catName: string;
-      imageUrl: string | null;
-      affiliateLink: string;
-      priceChf: number;
-    }
-    const ops: UpsertOp[] = [];
-    let loggedFirst = false;
-
     for (const item of batch) {
-      if (elapsed() > SAFETY_TIMEOUT_MS) {
-        stoppedEarly = true;
-        break;
-      }
+      if (elapsed() > SAFETY_TIMEOUT_MS) { stoppedEarly = true; break; }
 
-      const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${skip + ops.length}`)}`;
-      const rawPrice = item.price;
-      const priceChf = parseSwissPrice(rawPrice);
+      const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${offset + imported + skipped}`)}`;
+      const priceChf = parseSwissPrice(item.price);
       const affiliateLink = cleanUrl(item.link);
-      if (!priceChf || !item.title || !affiliateLink) continue;
+      if (!priceChf || !item.title || !affiliateLink) { skipped++; continue; }
 
-      // Debug: log first product of the very first batch
-      if (skip === 0 && !loggedFirst) {
-        console.log(`[Import Debug] Raw: "${rawPrice}" -> Parsed: ${priceChf} | GTIN: ${gtin} | Title: ${decodeHtml(item.title).slice(0, 60)}`);
-        loggedFirst = true;
+      // Debug: first product of first batch
+      if (offset === 0 && imported === 0 && errors === 0) {
+        console.log(`[Import] Raw: "${item.price}" -> ${priceChf} CHF | ${gtin} | ${decodeHtml(item.title).slice(0, 50)}`);
       }
 
       const { slug: catSlug, name: catName } = mapCategory(item.productType);
       const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
+      const title = decodeHtml(item.title).slice(0, 500);
+      const brand = decodeHtml(item.brand || "XXL Parfum").slice(0, 200);
 
-      ops.push({
-        gtin,
-        title: decodeHtml(item.title).slice(0, 500),
-        brand: decodeHtml(item.brand || "XXL Parfum").slice(0, 200),
-        catSlug, catName, imageUrl, affiliateLink, priceChf,
-      });
+      try {
+        await db.product.upsert({
+          where: { gtin },
+          select: { id: true },
+          create: {
+            gtin, title, brand,
+            category: catSlug, categoryName: catName,
+            imageUrl, shopName: "XXL Parfum",
+            sourceType: "adtraction_feed",
+            affiliateUrl: affiliateLink,
+            isActive: true, price: priceChf,
+          },
+          update: {
+            title, brand,
+            category: catSlug, categoryName: catName,
+            imageUrl: imageUrl || undefined,
+            affiliateUrl: affiliateLink,
+            isActive: true, price: priceChf,
+            updatedAt: new Date(),
+          },
+        });
+        imported++;
+      } catch {
+        errors++;
+      }
     }
 
-    // Execute all product upserts in a single transaction
-    if (ops.length > 0) {
-      const productResults = await db.$transaction(
-        ops.map((op) =>
-          db.product.upsert({
-            where: { gtin: op.gtin },
-            select: { id: true },
-            create: {
-              gtin: op.gtin,
-              title: op.title,
-              brand: op.brand,
-              category: op.catSlug,
-              categoryName: op.catName,
-              imageUrl: op.imageUrl,
-              shopName: "XXL Parfum",
-              sourceType: "adtraction_feed",
-              affiliateUrl: op.affiliateLink,
-              isActive: true,
-              price: op.priceChf,
-            },
-            update: {
-              title: op.title,
-              brand: op.brand,
-              category: op.catSlug,
-              categoryName: op.catName,
-              imageUrl: op.imageUrl || undefined,
-              affiliateUrl: op.affiliateLink,
-              isActive: true,
-              price: op.priceChf,
-              updatedAt: new Date(),
-            },
-          })
-        ),
-      );
+    // ── 5. Progress ───────────────────────────────────────
+    const processed = imported + skipped + errors;
+    const nextOffset = offset + processed;
+    const isComplete = nextOffset >= total;
+    const savedOffset = isComplete ? 0 : nextOffset;
+    const percent = Math.min(100, Math.round((nextOffset / total) * 100));
+    const totalBatches = Math.ceil(total / limit);
+    const batchNum = Math.min(totalBatches, Math.ceil(nextOffset / limit));
 
-      // Write Price records: delete today's stale entries, then bulk create
-      const productIds = productResults.map((p) => p.id);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      await db.price.deleteMany({
-        where: {
-          productId: { in: productIds },
-          sourceId: "adtraction_xxl_parfum",
-          timestamp: { gte: today },
-        },
-      });
-
-      await db.price.createMany({
-        data: productResults.map((product, i) => ({
-          productId: product.id,
-          amountChf: ops[i].priceChf,
-          amountEur: 0,
-          sourceId: "adtraction_xxl_parfum",
-          url: ops[i].affiliateLink,
-        })),
-      });
-
-      imported = productResults.length;
-    }
-
-    // ── 5. Save progress ─────────────────────────────────────
-    const actualProcessed = stoppedEarly ? imported : batch.length;
-    const nextSkip = skip + actualProcessed;
-    const isComplete = nextSkip >= totalInFeed;
-    const savedSkip = isComplete ? 0 : nextSkip;
-    const percent = Math.round((nextSkip / totalInFeed) * 100);
-    const batchNum = Math.ceil(nextSkip / BATCH_SIZE);
-    const totalBatches = Math.ceil(totalInFeed / BATCH_SIZE);
-
-    await logImport(savedSkip, totalInFeed, imported, errors,
+    await logImport(savedOffset, total, imported, errors,
       isComplete ? "cycle_complete" : "completed",
       stoppedEarly
-        ? `Timeout nach ${imported} Produkten. Weiter bei ${nextSkip}.`
-        : `Batch ${batchNum}/${totalBatches}: ${imported} importiert.`,
+        ? `Timeout nach ${imported}/${processed}. Weiter bei ${nextOffset}.`
+        : `Batch ${batchNum}/${totalBatches}: ${imported} ok, ${skipped} skip, ${errors} err.`,
     );
 
-    return NextResponse.json({
-      ok: true, skip, imported, errors, total: totalInFeed,
-      nextSkip: savedSkip, percent: isComplete ? 100 : percent,
-      isComplete, batchNum, totalBatches, batchSize: BATCH_SIZE,
+    return jsonResponse(true, {
+      offset, limit, imported, skipped, errors, total,
+      nextOffset: savedOffset, percent: isComplete ? 100 : percent,
+      isComplete, batchNum, totalBatches, stoppedEarly,
       message: isComplete ? "Import komplett!" : `Batch ${batchNum}/${totalBatches}`,
       durationMs: elapsed(),
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     await logImport(0, 0, 0, 0, "error", msg.slice(0, 500));
-    return NextResponse.json({
-      ok: false, skip: 0, imported: 0, errors: 0, total: 0,
-      nextSkip: 0, percent: 0, isComplete: false,
-      message: msg, durationMs: elapsed(),
-    });
+    return jsonResponse(false, { offset: 0, total: 0, message: msg, durationMs: elapsed() });
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function jsonResponse(ok: boolean, data: Record<string, any>) {
+  return NextResponse.json({
+    ok,
+    offset: 0, limit: DEFAULT_LIMIT, imported: 0, skipped: 0, errors: 0, total: 0,
+    nextOffset: 0, percent: 0, isComplete: false,
+    batchNum: 0, totalBatches: 0, stoppedEarly: false,
+    message: "", durationMs: 0,
+    ...data,
+  });
 }
 
 async function logImport(skip: number, total: number, imported: number, errors: number, status: string, message: string) {
   await db.importLog.create({
     data: { feedId: FEED_ID, currentSkip: skip, totalItems: total, imported, errors, status, message },
   }).catch(() => {});
-}
-
-function timeoutResponse(skip: number, total: number, elapsed: number, msg: string) {
-  return NextResponse.json({
-    ok: false, skip, imported: 0, errors: 0, total,
-    nextSkip: skip, percent: 0, isComplete: false,
-    message: msg, durationMs: elapsed,
-  });
-}
-
-function errorResponse(skip: number, msg: string, elapsed: number) {
-  return NextResponse.json({
-    ok: false, skip, imported: 0, errors: 0, total: 0,
-    nextSkip: skip, percent: 0, isComplete: false,
-    message: msg, durationMs: elapsed,
-  });
 }
 
 // ── ZIP ──────────────────────────────────────────────────────
@@ -283,9 +201,9 @@ async function decompressZip(data: Uint8Array): Promise<string> {
   const compSize = data[18] | (data[19] << 8) | (data[20] << 16) | (data[21] << 24);
   const fnLen = data[26] | (data[27] << 8);
   const exLen = data[28] | (data[29] << 8);
-  const offset = 30 + fnLen + exLen;
-  const size = compSize > 0 ? compSize : data.length - offset - 100;
-  const compressed = data.slice(offset, offset + size);
+  const headerOffset = 30 + fnLen + exLen;
+  const size = compSize > 0 ? compSize : data.length - headerOffset - 100;
+  const compressed = data.slice(headerOffset, headerOffset + size);
 
   if (method === 0) return new TextDecoder().decode(compressed);
   if (method === 8) {
@@ -300,8 +218,8 @@ async function decompressZip(data: Uint8Array): Promise<string> {
       if (done) break;
       chunks.push(value);
     }
-    const total = chunks.reduce((s, c) => s + c.length, 0);
-    const result = new Uint8Array(total);
+    const totalBytes = chunks.reduce((s, c) => s + c.length, 0);
+    const result = new Uint8Array(totalBytes);
     let p = 0;
     for (const c of chunks) { result.set(c, p); p += c.length; }
     return new TextDecoder().decode(result);
@@ -353,7 +271,6 @@ function parseSwissPrice(val: string): number | null {
 }
 
 function decodeHtml(s: string): string {
-  // Run multiple passes to handle double-encoded entities like &amp;amp;
   let prev = "";
   let current = s;
   for (let i = 0; i < 3 && current !== prev; i++) {
@@ -367,7 +284,6 @@ function decodeHtml(s: string): string {
   return current;
 }
 
-/** Clean a URL: decode HTML entities + trim whitespace */
 function cleanUrl(s: string): string {
   return decodeHtml(s).trim();
 }
@@ -375,23 +291,18 @@ function cleanUrl(s: string): string {
 // ── Category Mapping ─────────────────────────────────────────
 
 const CATEGORY_MAP: { pattern: string; slug: string; name: string }[] = [
-  // Herrendüfte
   { pattern: "men's fragrance", slug: "herrendufte", name: "Herrendüfte" },
   { pattern: "men's eau de", slug: "herrendufte", name: "Herrendüfte" },
   { pattern: "aftershave", slug: "herrendufte", name: "Herrendüfte" },
   { pattern: "cologne", slug: "herrendufte", name: "Herrendüfte" },
-  // Damendüfte
   { pattern: "women's fragrance", slug: "damendufte", name: "Damendüfte" },
   { pattern: "women's eau de", slug: "damendufte", name: "Damendüfte" },
-  // Unisex
   { pattern: "unisex fragrance", slug: "unisex-dufte", name: "Unisex-Düfte" },
   { pattern: "unisex eau de", slug: "unisex-dufte", name: "Unisex-Düfte" },
-  // Generische Düfte
   { pattern: "fragrance", slug: "parfum", name: "Parfum & Düfte" },
   { pattern: "perfume", slug: "parfum", name: "Parfum & Düfte" },
   { pattern: "eau de parfum", slug: "parfum", name: "Parfum & Düfte" },
   { pattern: "eau de toilette", slug: "parfum", name: "Parfum & Düfte" },
-  // Pflege
   { pattern: "skin care", slug: "pflege", name: "Pflege" },
   { pattern: "skincare", slug: "pflege", name: "Pflege" },
   { pattern: "face care", slug: "pflege", name: "Pflege" },
@@ -399,51 +310,38 @@ const CATEGORY_MAP: { pattern: string; slug: string; name: string }[] = [
   { pattern: "moisturi", slug: "pflege", name: "Pflege" },
   { pattern: "serum", slug: "pflege", name: "Pflege" },
   { pattern: "cleanser", slug: "pflege", name: "Pflege" },
-  // Make-Up
   { pattern: "make up", slug: "make-up", name: "Make-Up" },
   { pattern: "makeup", slug: "make-up", name: "Make-Up" },
   { pattern: "cosmetic", slug: "make-up", name: "Make-Up" },
   { pattern: "lipstick", slug: "make-up", name: "Make-Up" },
   { pattern: "mascara", slug: "make-up", name: "Make-Up" },
   { pattern: "foundation", slug: "make-up", name: "Make-Up" },
-  // Haarpflege
   { pattern: "hair care", slug: "haarpflege", name: "Haarpflege" },
   { pattern: "hair", slug: "haarpflege", name: "Haarpflege" },
   { pattern: "shampoo", slug: "haarpflege", name: "Haarpflege" },
   { pattern: "conditioner", slug: "haarpflege", name: "Haarpflege" },
-  // Körperpflege
   { pattern: "bath", slug: "koerperpflege", name: "Körperpflege" },
   { pattern: "shower", slug: "koerperpflege", name: "Körperpflege" },
   { pattern: "body", slug: "koerperpflege", name: "Körperpflege" },
   { pattern: "deodorant", slug: "koerperpflege", name: "Körperpflege" },
-  // Geschenksets
   { pattern: "gift set", slug: "geschenksets", name: "Geschenksets" },
   { pattern: "gift", slug: "geschenksets", name: "Geschenksets" },
   { pattern: "set", slug: "geschenksets", name: "Geschenksets" },
-  // Sonnenpflege
   { pattern: "sun", slug: "sonnenpflege", name: "Sonnenpflege" },
   { pattern: "spf", slug: "sonnenpflege", name: "Sonnenpflege" },
 ];
 
 function mapCategory(productType: string | undefined): { slug: string; name: string } {
   if (!productType) return { slug: "parfum", name: "Parfum & Düfte" };
-
   const lower = productType.toLowerCase();
-
-  // Try mapping table (first match wins — order matters)
   for (const entry of CATEGORY_MAP) {
-    if (lower.includes(entry.pattern)) {
-      return { slug: entry.slug, name: entry.name };
-    }
+    if (lower.includes(entry.pattern)) return { slug: entry.slug, name: entry.name };
   }
-
-  // Fallback: take first segment before >
   const firstPart = productType.split(">")[0].trim();
   if (firstPart) {
     const name = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
     return { slug: slugify(firstPart), name };
   }
-
   return { slug: "parfum", name: "Parfum & Düfte" };
 }
 
