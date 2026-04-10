@@ -3,6 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, X, RotateCcw } from "lucide-react";
 
+// ── Category-specific filter configs ─────────────────────────
+
+const PARFUM_SIZES = ["30ml", "50ml", "75ml", "100ml", "125ml", "150ml", "200ml"];
+const PARFUM_NOTES = ["Blumig", "Holzig", "Orientalisch", "Frisch", "Zitrisch", "Süss", "Würzig"];
+const CLOTHING_SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+
 interface FilterBarProps {
   brands: string[];
   selectedBrands: string[];
@@ -19,6 +25,8 @@ interface FilterBarProps {
   onDealsOnlyChange?: (v: boolean) => void;
   activeFilterCount: number;
   onClearAll: () => void;
+  /** Category slug — determines which filters to show */
+  categorySlug?: string;
 }
 
 const COLORS = [
@@ -29,14 +37,18 @@ const COLORS = [
   { name: "Blau", value: "blue", hex: "#3B82F6" },
   { name: "Grün", value: "green", hex: "#22C55E" },
   { name: "Gold", value: "gold", hex: "#EAB308" },
-  { name: "Silber", value: "silver", hex: "#C0C0C0" },
+  { name: "Rosa", value: "pink", hex: "#EC4899" },
 ];
 
-const RATINGS = [4, 3, 2, 1];
+/** Detect category type for dynamic filters */
+function getCategoryType(slug?: string): "parfum" | "mode" | "default" {
+  if (!slug) return "default";
+  const s = slug.toLowerCase();
+  if (["parfum", "herrendufte", "damendufte", "unisex-dufte", "geschenksets"].includes(s)) return "parfum";
+  if (["mode", "schuhe", "koerperpflege"].includes(s)) return "mode";
+  return "default";
+}
 
-/**
- * Galaxus-style filter bar — full-width 3-column grid of dropdowns.
- */
 export function FilterBar({
   brands,
   selectedBrands,
@@ -49,169 +61,135 @@ export function FilterBar({
   onRatingChange,
   selectedColors,
   onColorsChange,
-  activeFilterCount,
   dealsOnly = false,
   onDealsOnlyChange,
+  activeFilterCount,
   onClearAll,
+  categorySlug,
 }: FilterBarProps) {
+  const catType = getCategoryType(categorySlug);
+
   return (
     <div className="mb-5">
-      {/* Row 1: 3-column filter grid */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <GalaxusDropdown
-          label="Marke"
-          active={selectedBrands.length > 0}
-          badge={selectedBrands.length || undefined}
-        >
-          <div className="max-h-64 overflow-y-auto p-2">
+      {/* Filter row — Galaxus style: compact, light bg, inline */}
+      <div className="flex flex-wrap gap-2">
+        {/* Marke — always shown */}
+        <FilterDrop label="Marke" active={selectedBrands.length > 0} count={selectedBrands.length}>
+          <div className="max-h-56 overflow-y-auto p-1.5">
             {brands.map((brand) => (
-              <label
-                key={brand}
-                className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm transition hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedBrands.includes(brand)}
-                  onChange={() =>
-                    onBrandsChange(
-                      selectedBrands.includes(brand)
-                        ? selectedBrands.filter((b) => b !== brand)
-                        : [...selectedBrands, brand],
-                    )
-                  }
-                  className="accent-[#D81E05]"
-                />
+              <label key={brand} className="flex cursor-pointer items-center gap-2 rounded px-2.5 py-1.5 text-[13px] hover:bg-gray-100">
+                <input type="checkbox" checked={selectedBrands.includes(brand)}
+                  onChange={() => onBrandsChange(selectedBrands.includes(brand) ? selectedBrands.filter((b) => b !== brand) : [...selectedBrands, brand])}
+                  className="accent-[#0076bd]" />
                 {brand}
               </label>
             ))}
           </div>
-        </GalaxusDropdown>
+        </FilterDrop>
 
-        <GalaxusDropdown
-          label="Preis"
-          active={!!(priceMin || priceMax)}
-        >
+        {/* Preis — always shown */}
+        <FilterDrop label="Preis" active={!!(priceMin || priceMax)}>
           <div className="p-3">
-            <p className="mb-2.5 text-xs font-medium text-gray-500">
-              Preisbereich (CHF)
-            </p>
+            <p className="mb-2 text-xs text-gray-500">Preisbereich (CHF)</p>
             <div className="flex items-center gap-2">
-              <input
-                type="number"
-                placeholder="Min"
-                value={priceMin}
-                onChange={(e) => onPriceMinChange(e.target.value)}
-                className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-gray-400 dark:border-gray-700 dark:bg-gray-800"
-              />
-              <span className="text-sm text-gray-400">–</span>
-              <input
-                type="number"
-                placeholder="Max"
-                value={priceMax}
-                onChange={(e) => onPriceMaxChange(e.target.value)}
-                className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm outline-none focus:border-gray-400 dark:border-gray-700 dark:bg-gray-800"
-              />
+              <input type="number" placeholder="Min" value={priceMin} onChange={(e) => onPriceMinChange(e.target.value)}
+                className="w-24 rounded border border-gray-200 px-2.5 py-1.5 text-sm outline-none focus:border-[#0076bd]" />
+              <span className="text-gray-400">–</span>
+              <input type="number" placeholder="Max" value={priceMax} onChange={(e) => onPriceMaxChange(e.target.value)}
+                className="w-24 rounded border border-gray-200 px-2.5 py-1.5 text-sm outline-none focus:border-[#0076bd]" />
             </div>
           </div>
-        </GalaxusDropdown>
+        </FilterDrop>
 
-        <GalaxusDropdown
-          label="Bewertung"
-          active={rating !== null}
-        >
-          <div className="p-2">
-            {RATINGS.map((r) => (
-              <button
-                key={r}
-                onClick={() => onRatingChange(rating === r ? null : r)}
-                className={`flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm transition ${
-                  rating === r
-                    ? "bg-gray-100 font-medium text-slate-900 dark:bg-gray-800 dark:text-white"
-                    : "text-gray-700 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
-                }`}
-              >
-                <span className="flex">
-                  {Array.from({ length: 5 }, (_, i) => (
-                    <span key={i} className={i < r ? "text-yellow-400" : "text-gray-300 dark:text-gray-600"}>
-                      ★
-                    </span>
-                  ))}
-                </span>
-                <span>& mehr</span>
+        {/* Bewertung */}
+        <FilterDrop label="Bewertung" active={rating !== null}>
+          <div className="p-1.5">
+            {[4, 3, 2, 1].map((r) => (
+              <button key={r} onClick={() => onRatingChange(rating === r ? null : r)}
+                className={`flex w-full items-center gap-2 rounded px-3 py-2 text-sm ${rating === r ? "bg-gray-100 font-medium" : "hover:bg-gray-50"}`}>
+                <span className="flex">{Array.from({ length: 5 }, (_, i) => (
+                  <span key={i} className={i < r ? "text-yellow-400" : "text-gray-300"}>★</span>
+                ))}</span>
+                <span className="text-gray-600">& mehr</span>
               </button>
             ))}
           </div>
-        </GalaxusDropdown>
-      </div>
+        </FilterDrop>
 
-      {/* Row 2: Farbe, Angebote + reset */}
-      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <GalaxusDropdown
-          label="Farbe"
-          active={selectedColors.length > 0}
-          badge={selectedColors.length || undefined}
-        >
-          <div className="grid grid-cols-4 gap-2.5 p-3">
-            {COLORS.map((color) => {
-              const isSelected = selectedColors.includes(color.value);
-              return (
-                <button
-                  key={color.value}
-                  onClick={() =>
-                    onColorsChange(
-                      isSelected
-                        ? selectedColors.filter((c) => c !== color.value)
-                        : [...selectedColors, color.value],
-                    )
-                  }
-                  className={`flex flex-col items-center gap-1 rounded-md p-2 transition ${
-                    isSelected
-                      ? "bg-gray-100 ring-1 ring-gray-400 dark:bg-gray-800 dark:ring-gray-600"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
-                >
-                  <span
-                    className="h-5 w-5 rounded-full border border-gray-200 dark:border-gray-600"
-                    style={{ backgroundColor: color.hex }}
-                  />
-                  <span className="text-[10px] text-gray-600 dark:text-gray-400">
-                    {color.name}
-                  </span>
+        {/* ── Category-specific filters ── */}
+
+        {/* Parfum: Grösse */}
+        {catType === "parfum" && (
+          <FilterDrop label="Grösse" active={false}>
+            <div className="grid grid-cols-3 gap-1 p-2">
+              {PARFUM_SIZES.map((size) => (
+                <button key={size} className="rounded border border-gray-200 px-3 py-1.5 text-xs hover:border-[#0076bd] hover:text-[#0076bd]">
+                  {size}
                 </button>
-              );
-            })}
-          </div>
-        </GalaxusDropdown>
+              ))}
+            </div>
+          </FilterDrop>
+        )}
 
-        {/* Angebote toggle */}
-        <GalaxusDropdown
-          label="Angebote"
-          active={dealsOnly}
-        >
-          <div className="p-3">
-            <label className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-sm transition hover:bg-gray-50 dark:hover:bg-gray-800">
-              <input
-                type="checkbox"
-                checked={dealsOnly}
-                onChange={(e) => onDealsOnlyChange?.(e.target.checked)}
-                className="accent-[#D81E05]"
-              />
+        {/* Parfum: Duftnote */}
+        {catType === "parfum" && (
+          <FilterDrop label="Duftnote" active={false}>
+            <div className="p-1.5">
+              {PARFUM_NOTES.map((note) => (
+                <button key={note} className="flex w-full rounded px-3 py-1.5 text-left text-[13px] text-gray-700 hover:bg-gray-50">
+                  {note}
+                </button>
+              ))}
+            </div>
+          </FilterDrop>
+        )}
+
+        {/* Mode/Schuhe: Grösse */}
+        {catType === "mode" && (
+          <FilterDrop label="Grösse" active={false}>
+            <div className="grid grid-cols-3 gap-1 p-2">
+              {CLOTHING_SIZES.map((size) => (
+                <button key={size} className="rounded border border-gray-200 px-3 py-1.5 text-xs hover:border-[#0076bd] hover:text-[#0076bd]">
+                  {size}
+                </button>
+              ))}
+            </div>
+          </FilterDrop>
+        )}
+
+        {/* Farbe — mode + default */}
+        {catType !== "parfum" && (
+          <FilterDrop label="Farbe" active={selectedColors.length > 0} count={selectedColors.length}>
+            <div className="grid grid-cols-4 gap-2 p-2.5">
+              {COLORS.map((c) => {
+                const sel = selectedColors.includes(c.value);
+                return (
+                  <button key={c.value} onClick={() => onColorsChange(sel ? selectedColors.filter((v) => v !== c.value) : [...selectedColors, c.value])}
+                    className={`flex flex-col items-center gap-1 rounded p-1.5 ${sel ? "ring-1 ring-[#0076bd]" : "hover:bg-gray-50"}`}>
+                    <span className="h-5 w-5 rounded-full border border-gray-200" style={{ backgroundColor: c.hex }} />
+                    <span className="text-[10px] text-gray-500">{c.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </FilterDrop>
+        )}
+
+        {/* Angebote */}
+        <FilterDrop label="Angebote" active={dealsOnly}>
+          <div className="p-2.5">
+            <label className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-[13px] hover:bg-gray-50">
+              <input type="checkbox" checked={dealsOnly} onChange={(e) => onDealsOnlyChange?.(e.target.checked)} className="accent-[#0076bd]" />
               Nur reduzierte Produkte
             </label>
           </div>
-        </GalaxusDropdown>
+        </FilterDrop>
 
-        {/* Reset button */}
+        {/* Reset */}
         {activeFilterCount > 0 && (
-          <div className="flex items-center sm:col-span-2 sm:justify-end">
-            <button
-              onClick={onClearAll}
-              className="flex items-center gap-1.5 text-sm text-[#0076bd] transition hover:text-[#005a94]"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Filter zurücksetzen
-            </button>
-          </div>
+          <button onClick={onClearAll} className="flex items-center gap-1 px-3 py-2 text-[13px] text-[#0076bd] hover:text-[#005a94]">
+            <RotateCcw className="h-3.5 w-3.5" /> Filter zurücksetzen
+          </button>
         )}
       </div>
     </div>
@@ -219,54 +197,49 @@ export function FilterBar({
 }
 
 // ── Galaxus-style dropdown ───────────────────────────────────
-function GalaxusDropdown({
+
+function FilterDrop({
   label,
   active,
-  badge,
+  count,
   children,
 }: {
   label: string;
   active: boolean;
-  badge?: number;
+  count?: number;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
-    if (open) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    if (open) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex w-full items-center justify-between rounded-md border px-4 py-2.5 text-sm transition ${
+        className={`flex items-center gap-1.5 rounded border px-3 py-[7px] text-[13px] transition ${
           active
-            ? "border-gray-400 bg-gray-50 font-medium text-slate-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-            : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-[#141414] dark:text-gray-400 dark:hover:border-gray-600"
+            ? "border-[#0076bd] bg-white font-medium text-[#0076bd]"
+            : "border-gray-200 bg-[#f5f5f5] text-gray-700 hover:border-gray-300"
         }`}
       >
-        <span className="flex items-center gap-2">
-          {label}
-          {badge ? (
-            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#D81E05] px-1.5 text-[10px] font-bold text-white">
-              {badge}
-            </span>
-          ) : null}
-        </span>
-        <ChevronDown
-          className={`h-4 w-4 text-gray-400 transition ${open ? "rotate-180" : ""}`}
-        />
+        {label}
+        {count ? (
+          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#0076bd] px-1 text-[10px] font-bold text-white">
+            {count}
+          </span>
+        ) : null}
+        <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-[#1a1a1a]">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-lg border border-gray-200 bg-white shadow-lg">
           {children}
         </div>
       )}

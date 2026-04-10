@@ -220,6 +220,7 @@ export default function CategoryClient({
               onColorsChange={setSelectedColors}
               activeFilterCount={activeFilterCount}
               onClearAll={clearAllFilters}
+              categorySlug={activeCategorySlug}
             />
 
             {/* Sort toolbar */}
