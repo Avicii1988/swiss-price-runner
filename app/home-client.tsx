@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { Bell, Search, BarChart3, ShoppingBag } from "lucide-react";
+import { Bell, ShoppingBag } from "lucide-react";
 import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -20,6 +20,30 @@ interface HomeClientProps {
 }
 
 const PAGE_SIZE = 24;
+
+const BLOG_ARTICLES = [
+  {
+    slug: "top-5-spring-scents-2026",
+    title: "Top 5 Frühlingsdüfte 2026",
+    excerpt: "Die angesagtesten Parfums für die warme Jahreszeit — von Dior bis Chanel.",
+    image: "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=600&h=340&fit=crop",
+    category: "Beauty",
+  },
+  {
+    slug: "on-running-guide-schweiz",
+    title: "On Running: Der Schweizer Guide",
+    excerpt: "Welcher On-Schuh passt zu deinem Laufstil? Modelle im Vergleich.",
+    image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600&h=340&fit=crop",
+    category: "Sport",
+  },
+  {
+    slug: "apple-iphone-2026-geruechte",
+    title: "iPhone 2026: Was wir wissen",
+    excerpt: "Alle Gerüchte, Leaks und Preiseinschätzungen für die Schweiz.",
+    image: "https://images.unsplash.com/photo-1678685888221-cda773a3dcdb?w=600&h=340&fit=crop",
+    category: "Tech",
+  },
+];
 
 export default function HomeClient({
   initialProducts,
@@ -56,77 +80,49 @@ export default function HomeClient({
   }, [loading, hasMore, offset]);
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
+    <div className="min-h-screen bg-white">
       {alertProduct && <PriceAlertModal item={alertProduct} onClose={() => setAlertProduct(null)} />}
 
       <SiteHeader query={query} onQueryChange={setQuery} allProducts={products} />
 
-      {/* ── Stats Bar ── */}
-      <div className="border-b border-[#e1e1e3] bg-[#f5f5f7]">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-2 sm:px-6">
-          <div className="flex items-center gap-4 text-[11px] text-gray-400">
-            <span className="font-medium text-gray-500">Vertrauenspartner</span>
-            <span className="text-gray-300">XXL Parfum</span>
-            <span className="text-gray-300">Parfumsale</span>
-          </div>
-          <div className="flex items-center gap-4 text-[11px] font-medium text-gray-500">
+      {/* ── Elevator Pitch + Live Stats (subtle, under header) ── */}
+      <div className="border-b border-[#e1e1e3] bg-[#f8f8fa]">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-1.5 sm:px-6">
+          <p className="text-[11px] tracking-wide text-gray-400">
+            Schweizer Preisvergleich mit Alarmfunktion
+          </p>
+          <div className="hidden items-center gap-3 text-[11px] text-gray-400 sm:flex">
             <span>{stats.shops} Shops</span>
-            <span className="text-gray-300">|</span>
+            <span className="text-gray-200">|</span>
             <span>{stats.brands.toLocaleString("de-CH")} Marken</span>
-            <span className="text-gray-300">|</span>
+            <span className="text-gray-200">|</span>
             <span>{stats.offers.toLocaleString("de-CH")} Angebote</span>
           </div>
         </div>
       </div>
 
-      {/* ── "Was ist PreisAlarm?" Info ── */}
-      <div className="border-b border-[#e1e1e3] bg-white">
-        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-6 px-4 py-8 sm:grid-cols-3 sm:px-6">
-          <div className="text-center sm:text-left">
-            <div className="mb-2 flex items-center justify-center gap-2 sm:justify-start">
-              <Search className="h-4 w-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900">Suchen</h3>
-            </div>
-            <p className="text-[13px] leading-relaxed text-gray-500">Durchsuche alle grossen Schweizer Händler an einem Ort.</p>
-          </div>
-          <div className="text-center sm:text-left">
-            <div className="mb-2 flex items-center justify-center gap-2 sm:justify-start">
-              <BarChart3 className="h-4 w-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900">Vergleichen</h3>
-            </div>
-            <p className="text-[13px] leading-relaxed text-gray-500">Neutrale Echtzeit-Preise. Keine versteckten Gebühren.</p>
-          </div>
-          <div className="text-center sm:text-left">
-            <div className="mb-2 flex items-center justify-center gap-2 sm:justify-start">
-              <Bell className="h-4 w-4 text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-900">Alarmieren</h3>
-            </div>
-            <p className="text-[13px] leading-relaxed text-gray-500">Setze einen Preisalarm und verpasse nie wieder den Bestpreis.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Main Content ── */}
-      <div className="mx-auto max-w-[1400px] px-3 py-6 sm:px-5 lg:px-6">
+      {/* ── Main: Sidebar + Products + Blog ── */}
+      <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
         <div className="flex gap-6 lg:gap-8">
-          {/* Sidebar */}
+
+          {/* LEFT SIDEBAR — Categories */}
           <aside className="hidden w-[180px] shrink-0 lg:block">
             <div className="sticky top-[120px]">
               <CategorySidebar dynamicCategories={dynamicCategories} />
             </div>
           </aside>
 
-          {/* Products Grid */}
+          {/* CENTER — Products Grid */}
           <main className="min-w-0 flex-1">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">
-                <ShoppingBag className="mb-0.5 mr-2 inline h-5 w-5 text-gray-400" />
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-base font-bold text-gray-900">
+                <ShoppingBag className="h-4 w-4 text-gray-400" />
                 Alle Angebote
               </h2>
-              <span className="text-xs text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
+              <span className="text-[11px] text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
               {products.map((item) => (
                 <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
               ))}
@@ -135,22 +131,61 @@ export default function HomeClient({
               ))}
             </div>
 
-            {/* Load More */}
             {hasMore && !loading && (
               <div className="mt-8 flex justify-center">
                 <button onClick={loadMore}
-                  className="rounded-lg border border-gray-200 bg-white px-8 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50">
+                  className="rounded-lg border border-[#e1e1e3] bg-white px-8 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50">
                   Mehr Angebote laden
                 </button>
               </div>
             )}
-
             {!hasMore && products.length > 0 && (
-              <p className="mt-8 text-center text-xs text-gray-400">
+              <p className="mt-8 text-center text-[11px] text-gray-400">
                 Alle {totalProducts.toLocaleString("de-CH")} Angebote geladen
               </p>
             )}
           </main>
+
+          {/* RIGHT SIDEBAR — Blog & Partners */}
+          <aside className="hidden w-72 shrink-0 border-l border-[#e1e1e3] pl-8 xl:block">
+            <div className="sticky top-[120px] max-h-[calc(100vh-140px)] overflow-y-auto">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+                News & Trends
+              </p>
+
+              <div className="mt-4 space-y-5">
+                {BLOG_ARTICLES.map((article, i) => (
+                  <Link key={article.slug} href={`/blog/${article.slug}`} className="group block">
+                    <div className="aspect-video overflow-hidden rounded-lg">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={article.image} alt={article.title} width={288} height={162} loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    </div>
+                    <span className="mt-2 block text-[10px] font-semibold uppercase tracking-wider text-[#0076bd]">
+                      {article.category}
+                    </span>
+                    <h3 className="mt-0.5 text-sm font-bold text-gray-900 group-hover:text-[#0076bd]">
+                      {article.title}
+                    </h3>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
+                      {article.excerpt}
+                    </p>
+                    {i < BLOG_ARTICLES.length - 1 && <div className="mt-5 border-b border-gray-100" />}
+                  </Link>
+                ))}
+              </div>
+
+              {/* Partner logos — subtle, in sidebar */}
+              <div className="mt-8 border-t border-gray-100 pt-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-300">Partner</p>
+                <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-gray-300">
+                  <span>XXL Parfum</span>
+                  <span>Parfumsale</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+
         </div>
       </div>
 
