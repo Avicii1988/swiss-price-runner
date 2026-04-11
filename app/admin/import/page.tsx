@@ -35,7 +35,7 @@ export default function ImportPage() {
   );
 }
 
-const PARALLEL_WORKERS = 3;
+const PARALLEL_WORKERS = 1;
 const BATCH_LIMIT = 15;
 
 function ImportDashboard() {

@@ -108,18 +108,11 @@ async function handleRequest(req: NextRequest) {
       feedXml = cached.xml;
       total = cached.total;
     } else {
-      if (elapsed() > 2500) {
-        // Not enough time to download — return known total for progress bar
-        return jsonResponse(false, {
-          offset, total: KNOWN_TOTALS[feedKey] ?? 0,
-          message: "Nicht genug Zeit für Download, bitte erneut versuchen.",
-          durationMs: elapsed(),
-        });
-      }
-
-      const feedRes = await fetch(feed.url, { signal: AbortSignal.timeout(5000) });
+      // First request for this feed — download + decompress
+      // Allow up to 7s for download (leaves ~3s for a small batch)
+      const feedRes = await fetch(feed.url, { signal: AbortSignal.timeout(6500) });
       if (!feedRes.ok) {
-        return jsonResponse(false, { offset, total: 0, message: `Feed HTTP ${feedRes.status}`, durationMs: elapsed() });
+        return jsonResponse(false, { offset, total: KNOWN_TOTALS[feedKey] ?? 0, message: `Feed HTTP ${feedRes.status}`, durationMs: elapsed() });
       }
 
       const buffer = await feedRes.arrayBuffer();
@@ -127,11 +120,24 @@ async function handleRequest(req: NextRequest) {
 
       try { feedXml = await decompressZip(bytes); } catch { feedXml = new TextDecoder().decode(bytes); }
 
-      // Fast count: just count <item> occurrences (no full parsing)
-      total = countItems(feedXml);
+      // Use known total if available, otherwise fast count
+      total = KNOWN_TOTALS[feedKey] ?? countItems(feedXml);
       feedCache.set(feedKey, { xml: feedXml, total, timestamp: Date.now() });
 
-      console.log(`[Import ${feed.id}] Feed downloaded: ${total} items, ${(feedXml.length / 1024).toFixed(0)} KB, ${elapsed()}ms`);
+      console.log(`[Import ${feed.id}] Feed ready: ${total} items, ${(feedXml.length / 1024).toFixed(0)} KB, ${elapsed()}ms`);
+
+      // If download took most of our time, return success with 0 imported
+      // The cache is warm now — next request will be fast
+      if (elapsed() > SAFETY_TIMEOUT_MS) {
+        return jsonResponse(true, {
+          offset, total, imported: 0, skipped: 0, errors: 0,
+          nextOffset: offset, percent: Math.round((offset / total) * 100),
+          isComplete: false, limit, stoppedEarly: true,
+          totalBatches: Math.ceil(total / limit),
+          message: `Feed geladen (${(elapsed() / 1000).toFixed(1)}s) — nächster Batch aus Cache`,
+          durationMs: elapsed(),
+        });
+      }
     }
 
     if (total === 0) {
