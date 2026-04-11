@@ -3,10 +3,10 @@ import { db } from "@/lib/db";
 import { isAuthorized, rateLimit, safeErrorMessage } from "@/lib/api-utils";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
+export const maxDuration = 300;
 
-const DEFAULT_LIMIT = 15;
-const SAFETY_TIMEOUT_MS = 8500;
+const DEFAULT_LIMIT = 50;
+const SAFETY_TIMEOUT_MS = 280_000; // stop 20s before Vercel kills us
 
 // ── Feed Registry: Add new shops here ────────────────────
 interface FeedConfig {
@@ -152,114 +152,80 @@ async function handleRequest(req: NextRequest) {
       return jsonResponse(true, { offset, total, imported: 0, nextOffset: 0, percent: 100, isComplete: true, limit, message: "Import komplett!", durationMs: elapsed() });
     }
 
-    // ── 4. Match & Merge: GTIN-based upsert + per-shop price ─
+    // ── 4. Match & Merge: parallel GTIN upsert + per-shop price ─
     let imported = 0;
     let skipped = 0;
     let errors = 0;
-    let stoppedEarly = false;
+    const stoppedEarly = false;
     const debugErrors: string[] = [];
 
-    for (const item of batch) {
-      if (elapsed() > SAFETY_TIMEOUT_MS) { stoppedEarly = true; break; }
+    // Pre-validate and prepare all items
+    interface PreparedItem {
+      gtin: string; priceChf: number; affiliateLink: string;
+      catSlug: string; catName: string; imageUrl: string | null;
+      title: string; brand: string;
+    }
+    const prepared: PreparedItem[] = [];
 
-      // GTIN sanitization: trim whitespace, use EAN/MPN/hash as fallback
+    for (let i = 0; i < batch.length; i++) {
+      const item = batch[i];
       const rawGtin = (item.gtin || "").trim();
       const rawMpn = (item.mpn || "").trim();
-      const gtin = rawGtin || rawMpn || `feed_${hashStr(item.link || `${offset + imported + skipped + errors}`)}`;
+      const gtin = rawGtin || rawMpn || `feed_${hashStr(item.link || `${offset + i}`)}`;
 
       const priceChf = parseSwissPrice(item.price);
       const affiliateLink = cleanUrl(item.link);
 
-      // Relaxed validation: only GTIN + price are truly required
       if (!priceChf) {
         skipped++;
-        if (skipped <= 3) debugErrors.push(`skip: no price for gtin=${gtin} raw="${item.price}"`);
+        if (skipped <= 3) debugErrors.push(`skip: no price gtin=${gtin}`);
         continue;
       }
       if (!affiliateLink || affiliateLink === "#") {
         skipped++;
-        if (skipped <= 3) debugErrors.push(`skip: no link for gtin=${gtin}`);
+        if (skipped <= 3) debugErrors.push(`skip: no link gtin=${gtin}`);
         continue;
       }
 
-      // Log first item's raw data for debugging
-      if (offset === 0 && imported === 0 && skipped === 0 && errors === 0) {
+      if (prepared.length === 0 && offset === 0) {
         console.log(`[Import ${feed.id}] First item:`, JSON.stringify({
           gtin: item.gtin, mpn: item.mpn, price: item.price,
           title: (item.title || "").slice(0, 60), brand: item.brand,
-          link: (item.link || "").slice(0, 80),
         }));
       }
 
       const { slug: catSlug, name: catName } = mapCategory(item.productType);
-      const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
-      const title = decodeHtml(item.title || gtin).slice(0, 500);
-      const brand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
+      prepared.push({
+        gtin,
+        priceChf,
+        affiliateLink,
+        catSlug,
+        catName,
+        imageUrl: item.imageLink ? cleanUrl(item.imageLink) : null,
+        title: decodeHtml(item.title || gtin).slice(0, 500),
+        brand: decodeHtml(item.brand || feed.shopName).slice(0, 200),
+      });
+    }
 
-      try {
-        // Step A: Find existing product via raw SQL (bypasses pgvector deserialization)
-        const rows = await db.$queryRaw<{ id: string; title: string; imageUrl: string | null; price: number | null; category: string | null }[]>`
-          SELECT id, title, "imageUrl", price::float, category
-          FROM "Product" WHERE gtin = ${gtin} LIMIT 1
-        `;
-        const existing = rows[0] ?? null;
+    // Process all prepared items in parallel (Promise.allSettled)
+    const PARALLEL_CHUNK = 10; // process 10 at a time to avoid overwhelming Supabase
+    for (let c = 0; c < prepared.length; c += PARALLEL_CHUNK) {
+      if (elapsed() > SAFETY_TIMEOUT_MS) break;
 
-        let productId: string;
+      const chunk = prepared.slice(c, c + PARALLEL_CHUNK);
+      const results = await Promise.allSettled(
+        chunk.map((p) => processItem(p, feed, scrub))
+      );
 
-        if (existing) {
-          // Step A1: Update product via raw SQL (never touches embedding_vec)
-          if (scrub) {
-            await db.$executeRaw`
-              UPDATE "Product" SET
-                title = ${title}, brand = ${brand},
-                category = ${catSlug}, "categoryName" = ${catName},
-                "imageUrl" = COALESCE(${imageUrl}, "imageUrl"),
-                price = ${priceChf}, "isActive" = true, "updatedAt" = NOW()
-              WHERE gtin = ${gtin}
-            `;
-          } else {
-            // Smart enrichment: only update if data is better
-            const betterTitle = title.length > existing.title.length;
-            const needsImage = !existing.imageUrl && imageUrl;
-            const lowerPrice = priceChf < (existing.price ?? Infinity);
-            const needsCategory = !existing.category;
-
-            await db.$executeRaw`
-              UPDATE "Product" SET
-                title = CASE WHEN ${betterTitle} THEN ${title} ELSE title END,
-                brand = CASE WHEN ${betterTitle} THEN ${brand} ELSE brand END,
-                "imageUrl" = CASE WHEN ${needsImage ?? false} THEN ${imageUrl} ELSE "imageUrl" END,
-                category = CASE WHEN ${needsCategory ?? false} THEN ${catSlug} ELSE category END,
-                "categoryName" = CASE WHEN ${needsCategory ?? false} THEN ${catName} ELSE "categoryName" END,
-                price = CASE WHEN ${lowerPrice} THEN ${priceChf} ELSE price END,
-                "isActive" = true, "updatedAt" = NOW()
-              WHERE gtin = ${gtin}
-            `;
-          }
-          productId = existing.id;
+      for (const r of results) {
+        if (r.status === "fulfilled") {
+          imported++;
         } else {
-          // Step A2: Create new product via raw SQL
-          const newId = generateId();
-          await db.$executeRaw`
-            INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
-            VALUES (${newId}, ${gtin}, ${title}, ${brand}, ${catSlug}, ${catName}, ${imageUrl}, true, ${priceChf}, ${feed.sourceType}, NOW(), NOW())
-          `;
-          productId = newId;
+          errors++;
+          const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+          debugErrors.push(`err: ${msg.slice(0, 100)}`);
+          if (errors <= 5) console.error(`[Import ${feed.id}]`, msg.slice(0, 200));
         }
-
-        // Step B: Write price for this shop (delete+create — avoids unique constraint issues)
-        await db.$executeRaw`DELETE FROM "Price" WHERE "productId" = ${productId} AND "sourceId" = ${feed.id}`;
-        await db.$executeRaw`
-          INSERT INTO "Price" (id, "productId", "sourceId", "shopName", "amountChf", "amountEur", url, timestamp)
-          VALUES (${generateId()}, ${productId}, ${feed.id}, ${feed.shopName}, ${priceChf}, 0, ${affiliateLink}, NOW())
-        `;
-
-        imported++;
-      } catch (err) {
-        errors++;
-        const msg = err instanceof Error ? err.message : String(err);
-        debugErrors.push(`err gtin=${gtin}: ${msg.slice(0, 120)}`);
-        console.error(`[Import ${feed.id}] gtin=${gtin}:`, msg.slice(0, 200));
       }
     }
 
@@ -305,6 +271,62 @@ function jsonResponse(ok: boolean, data: Record<string, any>) {
     message: "", durationMs: 0,
     ...data,
   });
+}
+
+/** Process a single product: find/create + write price (all raw SQL) */
+async function processItem(
+  p: { gtin: string; priceChf: number; affiliateLink: string; catSlug: string; catName: string; imageUrl: string | null; title: string; brand: string },
+  feed: FeedConfig,
+  scrub: boolean,
+) {
+  const rows = await db.$queryRaw<{ id: string; title: string; imageUrl: string | null; price: number | null; category: string | null }[]>`
+    SELECT id, title, "imageUrl", price::float, category
+    FROM "Product" WHERE gtin = ${p.gtin} LIMIT 1
+  `;
+  const existing = rows[0] ?? null;
+  let productId: string;
+
+  if (existing) {
+    if (scrub) {
+      await db.$executeRaw`
+        UPDATE "Product" SET title = ${p.title}, brand = ${p.brand},
+          category = ${p.catSlug}, "categoryName" = ${p.catName},
+          "imageUrl" = COALESCE(${p.imageUrl}, "imageUrl"),
+          price = ${p.priceChf}, "isActive" = true, "updatedAt" = NOW()
+        WHERE gtin = ${p.gtin}
+      `;
+    } else {
+      const betterTitle = p.title.length > existing.title.length;
+      const needsImage = !existing.imageUrl && p.imageUrl;
+      const lowerPrice = p.priceChf < (existing.price ?? Infinity);
+      const needsCategory = !existing.category;
+      await db.$executeRaw`
+        UPDATE "Product" SET
+          title = CASE WHEN ${betterTitle} THEN ${p.title} ELSE title END,
+          brand = CASE WHEN ${betterTitle} THEN ${p.brand} ELSE brand END,
+          "imageUrl" = CASE WHEN ${needsImage ?? false} THEN ${p.imageUrl} ELSE "imageUrl" END,
+          category = CASE WHEN ${needsCategory ?? false} THEN ${p.catSlug} ELSE category END,
+          "categoryName" = CASE WHEN ${needsCategory ?? false} THEN ${p.catName} ELSE "categoryName" END,
+          price = CASE WHEN ${lowerPrice} THEN ${p.priceChf} ELSE price END,
+          "isActive" = true, "updatedAt" = NOW()
+        WHERE gtin = ${p.gtin}
+      `;
+    }
+    productId = existing.id;
+  } else {
+    const newId = generateId();
+    await db.$executeRaw`
+      INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
+      VALUES (${newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())
+    `;
+    productId = newId;
+  }
+
+  await db.$executeRaw`DELETE FROM "Price" WHERE "productId" = ${productId} AND "sourceId" = ${feed.id}`;
+  await db.$executeRaw`
+    INSERT INTO "Price" (id, "productId", "sourceId", "shopName", "amountChf", "amountEur", url, timestamp)
+    VALUES (${generateId()}, ${productId}, ${feed.id}, ${feed.shopName}, ${p.priceChf}, 0, ${p.affiliateLink}, NOW())
+  `;
 }
 
 async function logImport(feedId: string, skip: number, total: number, imported: number, errors: number, status: string, message: string) {
