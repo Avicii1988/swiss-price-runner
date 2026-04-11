@@ -11,6 +11,7 @@ on:
         options:
           - parfumsale
           - xxl_parfum
+          - import_parfumerie
       limit:
         description: 'Items per batch'
         required: false

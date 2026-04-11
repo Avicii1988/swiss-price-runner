@@ -150,16 +150,40 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
       {/* ═══ Rainbow Divider ═══ */}
       <div className="rainbow-bar" />
 
-      {/* ═══ Noble Footer ═══ */}
-      <footer className="bg-white px-4 py-5 sm:px-6">
-        <div className="mx-auto flex max-w-[1400px] flex-col items-center gap-2 text-center text-[11px] text-gray-400 sm:flex-row sm:justify-between sm:text-left">
-          <span>&copy; {new Date().getFullYear()} PreisAlarm.ch</span>
-          <span className="hidden text-gray-300 sm:inline">Partner: XXL Parfum, Parfumsale, Import Parfumerie</span>
-          <div className="flex gap-4">
-            <Link href="/impressum" className="transition hover:text-gray-600 hover:underline">Impressum</Link>
-            <Link href="/privacy" className="transition hover:text-gray-600 hover:underline">Datenschutz</Link>
-            <a href="mailto:bugs@preisalarm.ch" className="transition hover:text-gray-600 hover:underline">Bug melden</a>
+      {/* ═══ Wide Noble Footer ═══ */}
+      <footer className="bg-white px-4 py-10 sm:px-6">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-8 text-[12px] text-gray-400 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">PreisAlarm</p>
+            <p className="mt-3 leading-relaxed">Dein neutraler Schweizer Preisvergleich für Beauty, Parfum & Lifestyle. Wir vergleichen Preise aus mehreren Shops — transparent und unabhängig.</p>
           </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Rechtliches</p>
+            <nav className="mt-3 flex flex-col gap-1.5">
+              <Link href="/impressum" className="transition hover:text-gray-600 hover:underline">Impressum</Link>
+              <Link href="/privacy" className="transition hover:text-gray-600 hover:underline">Datenschutz (nDSG)</Link>
+              <Link href="/impressum" className="transition hover:text-gray-600 hover:underline">AGB</Link>
+            </nav>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Service</p>
+            <nav className="mt-3 flex flex-col gap-1.5">
+              <Link href="/" className="transition hover:text-gray-600 hover:underline">Preisalarm setzen</Link>
+              <Link href="/" className="transition hover:text-gray-600 hover:underline">Shop-Übersicht</Link>
+              <a href="mailto:bugs@preisalarm.ch" className="transition hover:text-gray-600 hover:underline">Bug melden</a>
+            </nav>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Partner-Shops</p>
+            <nav className="mt-3 flex flex-col gap-1.5">
+              <span>XXL Parfum</span>
+              <span>Parfumsale</span>
+              <span>Import Parfumerie</span>
+            </nav>
+          </div>
+        </div>
+        <div className="mx-auto mt-8 max-w-[1400px] border-t border-[#f0f0f2] pt-5 text-center text-[10px] text-gray-300">
+          &copy; {new Date().getFullYear()} PreisAlarm.ch — Preisvergleich Schweiz
         </div>
       </footer>
     </div>

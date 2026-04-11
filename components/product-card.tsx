@@ -107,10 +107,13 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           {product.title.replace(product.brand, "").trim()}
         </p>
 
-        {/* Bottom: sources + bell with tooltip */}
+        {/* Bottom: "Ab X.– bei Y Shops" + bell */}
         <div className="mt-auto flex items-center justify-between pt-2">
           {sources > 0 ? (
-            <p className="text-[10px] text-gray-400">{sources} {sources === 1 ? "Angebot" : "Angebote"}</p>
+            <p className="text-[10px] text-gray-400">
+              {hasPrice && <span className="font-medium text-gray-500">Ab {formatPrice(bestPrice.totalChf)}</span>}
+              {sources > 1 ? ` bei ${sources} Shops` : ` · 1 Angebot`}
+            </p>
           ) : <span />}
           {onAlert && (
             <div className="relative">
