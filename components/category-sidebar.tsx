@@ -106,11 +106,11 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
         );
       })}
 
-      {/* Unmapped feed categories */}
+      {/* Unmapped feed categories (only named ones, no junk) */}
       {unmappedFeed.length > 0 && (
         <>
           <div className="my-3 border-t border-gray-100" />
-          {unmappedFeed.map((dc) => {
+          {unmappedFeed.slice(0, 8).map((dc) => {
             const Icon = getCategoryIcon(dc.slug);
             return (
               <Link key={dc.slug} href={`/category/${dc.slug}`}
@@ -125,6 +125,16 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
           })}
         </>
       )}
+
+      {/* Service Links */}
+      <div className="mt-5 border-t border-gray-100 pt-4">
+        <Link href="/" className="block py-[5px] text-[12px] text-gray-400 transition hover:text-gray-600">
+          Shop-Übersicht
+        </Link>
+        <Link href="/" className="block py-[5px] text-[12px] text-gray-400 transition hover:text-gray-600">
+          Marken-Übersicht
+        </Link>
+      </div>
     </nav>
   );
 }

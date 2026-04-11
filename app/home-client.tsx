@@ -86,40 +86,6 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
               <span className="text-[11px] text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
             </div>
 
-            {/* ═══ Galaxus Filter Bar ═══ */}
-            <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-3">
-              <select className="rounded border border-[#e1e1e3] bg-white px-3 py-2 text-[13px] text-gray-600 outline-none transition hover:border-gray-300 focus:border-gray-400">
-                <option value="">Marke</option>
-                <option>Chanel</option><option>Dior</option><option>Armani</option>
-                <option>YSL</option><option>Versace</option><option>Hugo Boss</option>
-                <option>Lancôme</option><option>Prada</option><option>Gucci</option>
-              </select>
-              <select className="rounded border border-[#e1e1e3] bg-white px-3 py-2 text-[13px] text-gray-600 outline-none transition hover:border-gray-300 focus:border-gray-400">
-                <option value="">Preis</option>
-                <option>Bis CHF 50</option><option>CHF 50–100</option>
-                <option>CHF 100–200</option><option>Ab CHF 200</option>
-              </select>
-              <select className="rounded border border-[#e1e1e3] bg-white px-3 py-2 text-[13px] text-gray-600 outline-none transition hover:border-gray-300 focus:border-gray-400">
-                <option value="">Typ</option>
-                <option>Eau de Parfum</option><option>Eau de Toilette</option>
-                <option>Extrait</option><option>Body Lotion</option>
-                <option>Geschenkset</option>
-              </select>
-              <select className="rounded border border-[#e1e1e3] bg-white px-3 py-2 text-[13px] text-gray-600 outline-none transition hover:border-gray-300 focus:border-gray-400">
-                <option value="">Geschlecht</option>
-                <option>Damen</option><option>Herren</option><option>Unisex</option>
-              </select>
-              <select className="rounded border border-[#e1e1e3] bg-white px-3 py-2 text-[13px] text-gray-600 outline-none transition hover:border-gray-300 focus:border-gray-400">
-                <option value="">Grösse</option>
-                <option>30ml</option><option>50ml</option><option>75ml</option>
-                <option>100ml</option><option>125ml</option><option>200ml</option>
-              </select>
-              <select className="rounded border border-[#e1e1e3] bg-white px-3 py-2 text-[13px] text-gray-600 outline-none transition hover:border-gray-300 focus:border-gray-400">
-                <option value="">Shop</option>
-                <option>XXL Parfum</option><option>Parfumsale</option><option>Import Parfumerie</option>
-              </select>
-            </div>
-
             <div className="grid grid-cols-2 gap-px bg-[#f0f0f2] sm:grid-cols-3 lg:grid-cols-3">
               {products.map((item) => (
                 <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
