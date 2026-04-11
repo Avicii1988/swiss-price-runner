@@ -61,25 +61,48 @@ export async function GET(req: NextRequest) {
 
     // ── Step 3: Cleanup ──
     if (step === "3" || step === "all") {
-      const renamed = await db.$executeRawUnsafe(`
-        UPDATE "Price" SET "sourceId" = 'parfumsale', "shopName" = 'Parfumsale'
-        WHERE "sourceId" = 'import_parfumerie'
-      `);
-      results.push(`Step 3: Renamed import_parfumerie: ${renamed}`);
-
-      // Batched: fix numeric categories 500 at a time
-      let totalFixed = 0;
-      for (let i = 0; i < 40; i++) {
-        const fixed = await db.$executeRawUnsafe(`
-          UPDATE "Product" SET category = 'parfum', "categoryName" = 'Parfum & Düfte'
-          WHERE id IN (
-            SELECT id FROM "Product" WHERE category ~ '^[0-9]+$' AND "isActive" = true LIMIT 500
-          )
+      // 3a: Rename import_parfumerie sources
+      try {
+        const renamed = await db.$executeRawUnsafe(`
+          UPDATE "Price" SET "sourceId" = 'parfumsale', "shopName" = 'Parfumsale'
+          WHERE "sourceId" = 'import_parfumerie'
         `);
-        totalFixed += Number(fixed);
-        if (Number(fixed) === 0) break;
+        results.push(`Step 3a: Renamed import_parfumerie: ${renamed}`);
+      } catch (e) {
+        results.push(`Step 3a: Skip rename (${e instanceof Error ? e.message.slice(0, 80) : "error"})`);
       }
-      results.push(`Step 3: Numeric categories fixed: ${totalFixed}`);
+
+      // 3b: Fix numeric categories — use SIMILAR TO (more portable than ~)
+      let totalFixed = 0;
+      try {
+        for (let i = 0; i < 100; i++) {
+          const fixed = await db.$executeRawUnsafe(`
+            UPDATE "Product" SET category = 'parfum', "categoryName" = 'Parfum & Düfte'
+            WHERE id IN (
+              SELECT id FROM "Product"
+              WHERE category SIMILAR TO '[0-9]+'
+              LIMIT 200
+            )
+          `);
+          const count = Number(fixed);
+          totalFixed += count;
+          if (count === 0) break;
+        }
+        results.push(`Step 3b: Numeric categories fixed: ${totalFixed}`);
+      } catch (e) {
+        results.push(`Step 3b: Partial fix ${totalFixed} (${e instanceof Error ? e.message.slice(0, 80) : "error"})`);
+      }
+
+      // 3c: Fix short nonsense slugs (1-2 chars like "ab", "de")
+      try {
+        const shortFixed = await db.$executeRawUnsafe(`
+          UPDATE "Product" SET category = 'parfum', "categoryName" = 'Parfum & Düfte'
+          WHERE LENGTH(category) <= 2 AND "isActive" = true
+        `);
+        results.push(`Step 3c: Short slugs fixed: ${shortFixed}`);
+      } catch (e) {
+        results.push(`Step 3c: Skip (${e instanceof Error ? e.message.slice(0, 80) : "error"})`);
+      }
     }
 
     return NextResponse.json({
