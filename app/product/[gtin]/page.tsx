@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProductByGtin, getAllGtinsFromDb, getProducts } from "@/lib/data";
+import { getProductByGtin } from "@/lib/data";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import { getCategoryBySlug } from "@/lib/categories";
@@ -104,10 +104,7 @@ function buildJsonLd(item: NonNullable<Awaited<ReturnType<typeof getProductByGti
 }
 
 export default async function ProductPage({ params }: { params: { gtin: string } }) {
-  const [item, allProducts] = await Promise.all([
-    getProductByGtin(params.gtin),
-    getProducts(),
-  ]);
+  const item = await getProductByGtin(params.gtin);
   if (!item) notFound();
 
   const jsonLd = buildJsonLd(item);
@@ -118,7 +115,7 @@ export default async function ProductPage({ params }: { params: { gtin: string }
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ProductDetailClient item={item} allProducts={allProducts} />
+      <ProductDetailClient item={item} allProducts={[]} />
     </>
   );
 }

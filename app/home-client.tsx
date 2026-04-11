@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { Bell, Search, BarChart3, ShoppingBag, Store, Tag, Package } from "lucide-react";
+import { Bell, ShoppingBag, Store, Tag, Package } from "lucide-react";
 import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -56,7 +56,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
       {alertProduct && <PriceAlertModal item={alertProduct} onClose={() => setAlertProduct(null)} />}
       <SiteHeader query={query} onQueryChange={setQuery} allProducts={products} />
 
-      {/* ═══ Stats Bar — modern gradient ═══ */}
+      {/* ═══ Stats Bar — gradient with icons ═══ */}
       <div className="bg-gradient-to-r from-[#1a1f36] to-[#2d3561]">
         <div className="mx-auto flex max-w-[1400px] items-center justify-center gap-6 px-4 py-2.5 sm:gap-10 sm:px-6">
           <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-white/80">
@@ -71,28 +71,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
         </div>
       </div>
 
-      {/* ═══ PreisAlarm Banner — 3 Spalten ═══ */}
-      <div className="border-b border-[#e1e1e3] bg-[#fafafa]">
-        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-6 px-4 py-7 sm:grid-cols-3 sm:px-6">
-          <div className="text-center">
-            <Search className="mx-auto mb-2 h-5 w-5 text-gray-300" />
-            <h3 className="text-[13px] font-bold text-gray-900">Suchen</h3>
-            <p className="mt-1 text-[12px] leading-relaxed text-gray-500">Durchsuche alle grossen Schweizer Händler an einem Ort.</p>
-          </div>
-          <div className="text-center">
-            <BarChart3 className="mx-auto mb-2 h-5 w-5 text-gray-300" />
-            <h3 className="text-[13px] font-bold text-gray-900">Vergleichen</h3>
-            <p className="mt-1 text-[12px] leading-relaxed text-gray-500">Neutrale Echtzeit-Preise. Keine versteckten Gebühren.</p>
-          </div>
-          <div className="text-center">
-            <Bell className="mx-auto mb-2 h-5 w-5 text-gray-300" />
-            <h3 className="text-[13px] font-bold text-gray-900">Alarmieren</h3>
-            <p className="mt-1 text-[12px] leading-relaxed text-gray-500">Setze einen Preisalarm und verpasse nie wieder den Bestpreis.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══ Main: Sidebar + Products + Blog ═══ */}
+      {/* ═══ Main: Sidebar + Products + Blog (no banner) ═══ */}
       <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
         <div className="flex gap-6 lg:gap-8">
           <aside className="hidden w-[180px] shrink-0 lg:block">
@@ -152,11 +131,11 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
         </div>
       </div>
 
-      {/* ═══ CTA Footer (original simple style) ═══ */}
+      {/* ═══ CTA — "Preisalarm" prominent ═══ */}
       <section className="border-t border-gray-200 bg-gray-900 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-xl text-center">
-          <h2 className="text-lg font-bold text-white">Verpasse keinen Deal mehr</h2>
-          <p className="mt-2 text-sm text-gray-400">Erstelle einen Preisalarm und wir informieren dich, sobald der Preis sinkt.</p>
+          <h2 className="text-2xl font-bold text-white">Preisalarm</h2>
+          <p className="mt-2 text-sm text-gray-400">Erstelle einen Alarm und wir informieren dich, sobald der Preis sinkt.</p>
           <button
             onClick={() => {
               if (!isLoggedIn) { setShowAuthModal(true); return; }
@@ -169,7 +148,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
       </section>
 
       {/* ═══ Minimal Footer ═══ */}
-      <footer className="border-t border-gray-200 bg-white px-4 py-6 sm:px-6">
+      <footer className="border-t border-gray-200 bg-white px-4 py-5 sm:px-6">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center gap-3 text-[11px] text-gray-400 sm:flex-row sm:justify-between">
           <span>&copy; {new Date().getFullYear()} PreisAlarm.ch</span>
           <div className="flex gap-4">
