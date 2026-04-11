@@ -1,0 +1,99 @@
+name: Import Feed
+
+on:
+  workflow_dispatch:
+    inputs:
+      feed:
+        description: 'Feed key (xxl_parfum or parfumsale)'
+        required: true
+        default: 'parfumsale'
+        type: choice
+        options:
+          - parfumsale
+          - xxl_parfum
+      limit:
+        description: 'Items per batch'
+        required: false
+        default: '15'
+      scrub:
+        description: 'Scrub mode (overwrite all fields)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Run batch import loop
+        env:
+          SITE_URL: https://www.preisalarm.ch
+          IMPORT_SECRET: ${{ secrets.IMPORT_SECRET }}
+          FEED: ${{ inputs.feed }}
+          LIMIT: ${{ inputs.limit }}
+          SCRUB: ${{ inputs.scrub }}
+        run: |
+          set -euo pipefail
+
+          OFFSET=0
+          TOTAL=0
+          IMPORTED=0
+          ERRORS=0
+          BATCH=0
+          SCRUB_PARAM=""
+          if [ "$SCRUB" = "true" ]; then SCRUB_PARAM="&scrub=true"; fi
+
+          echo "🚀 Starting import: feed=$FEED limit=$LIMIT scrub=$SCRUB"
+
+          # Init: get total + last offset
+          INIT=$(curl -sf "$SITE_URL/api/cron/import-feed?secret=$IMPORT_SECRET&feed=$FEED&limit=$LIMIT&init=true")
+          TOTAL=$(echo "$INIT" | jq -r '.total')
+          OFFSET=$(echo "$INIT" | jq -r '.nextOffset // 0')
+          echo "📦 Total: $TOTAL items, resuming at offset $OFFSET"
+
+          while true; do
+            BATCH=$((BATCH + 1))
+
+            RESULT=$(curl -sf --max-time 30 \
+              "$SITE_URL/api/cron/import-feed?secret=$IMPORT_SECRET&feed=$FEED&limit=$LIMIT&offset=$OFFSET$SCRUB_PARAM" \
+              || echo '{"ok":false,"message":"curl failed"}')
+
+            OK=$(echo "$RESULT" | jq -r '.ok')
+            BATCH_IMPORTED=$(echo "$RESULT" | jq -r '.imported // 0')
+            BATCH_ERRORS=$(echo "$RESULT" | jq -r '.errors // 0')
+            BATCH_SKIPPED=$(echo "$RESULT" | jq -r '.skipped // 0')
+            NEXT=$(echo "$RESULT" | jq -r '.nextOffset // 0')
+            PCT=$(echo "$RESULT" | jq -r '.percent // 0')
+            DURATION=$(echo "$RESULT" | jq -r '.durationMs // 0')
+            IS_COMPLETE=$(echo "$RESULT" | jq -r '.isComplete')
+            MSG=$(echo "$RESULT" | jq -r '.message // ""')
+
+            IMPORTED=$((IMPORTED + BATCH_IMPORTED))
+            ERRORS=$((ERRORS + BATCH_ERRORS))
+
+            echo "[$BATCH] $PCT% | +$BATCH_IMPORTED ok, $BATCH_SKIPPED skip, $BATCH_ERRORS err | offset=$OFFSET→$NEXT | ${DURATION}ms | $MSG"
+
+            if [ "$IS_COMPLETE" = "true" ]; then
+              echo ""
+              echo "🎉 Import complete! $IMPORTED imported, $ERRORS errors out of $TOTAL items."
+              break
+            fi
+
+            if [ "$OK" != "true" ]; then
+              echo "⚠️  Batch failed: $MSG — retrying in 5s..."
+              sleep 5
+              continue
+            fi
+
+            OFFSET=$NEXT
+
+            # Safety: don't loop forever
+            if [ "$BATCH" -ge 2000 ]; then
+              echo "⛔ Safety limit reached (2000 batches). Stopping."
+              break
+            fi
+          done
+
+          echo ""
+          echo "📊 Summary: $IMPORTED imported, $ERRORS errors, $BATCH batches"
