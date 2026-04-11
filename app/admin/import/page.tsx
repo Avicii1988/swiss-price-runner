@@ -44,6 +44,7 @@ function ImportDashboard() {
 
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [running, setRunning] = useState(false);
+  const [scrubMode, setScrubMode] = useState(false);
   const [percent, setPercent] = useState(0);
   const [total, setTotal] = useState(0);
   const [totalImported, setTotalImported] = useState(0);
@@ -65,6 +66,7 @@ function ImportDashboard() {
   const totalRef = useRef(0);
   const importStartRef = useRef(0);
   const totalImportedRef = useRef(0);
+  const scrubRef = useRef(false);
 
   useEffect(() => { setAuthorized(!!secret || null); }, [secret]);
 
@@ -112,7 +114,7 @@ function ImportDashboard() {
 
       try {
         const res = await fetch(
-          `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}&offset=${myOffset}&scrub=true`,
+          `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}&offset=${myOffset}${scrubRef.current ? "&scrub=true" : ""}`,
         );
         const data: BatchResult = await res.json();
 
@@ -169,11 +171,12 @@ function ImportDashboard() {
     setActiveWorkers(0);
     totalImportedRef.current = 0;
     importStartRef.current = Date.now();
+    scrubRef.current = scrubMode;
 
     // Init request — get total + starting offset
     try {
       const initRes = await fetch(
-        `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}&scrub=true`,
+        `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}${scrubRef.current ? "&scrub=true" : ""}`,
       );
       const init: BatchResult = await initRes.json();
 
@@ -193,7 +196,7 @@ function ImportDashboard() {
       setPercent(init.percent);
       updateSpeed(init.imported);
 
-      addLog(`✅ Feed geladen: ${init.total.toLocaleString("de-CH")} Produkte, ${PARALLEL_WORKERS} Worker x ${BATCH_LIMIT}/Batch`, true);
+      addLog(`✅ Feed geladen: ${init.total.toLocaleString("de-CH")} Produkte, ${PARALLEL_WORKERS} Worker x ${BATCH_LIMIT}/Batch${scrubRef.current ? " [SCRUB]" : ""}`, true);
 
       if (init.isComplete) {
         setIsComplete(true);
@@ -225,7 +228,7 @@ function ImportDashboard() {
 
     setRunning(false);
     setEta("");
-  }, [secret, addLog, updateSpeed, worker]);
+  }, [secret, scrubMode, addLog, updateSpeed, worker]);
 
   const stopImport = () => {
     stopRef.current = true;
@@ -271,11 +274,20 @@ function ImportDashboard() {
           <Stat label="Worker" value={running ? `${activeWorkers}/${PARALLEL_WORKERS}` : "—"} />
         </div>
 
+        {/* Mode toggle */}
+        {!running && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, color: scrubMode ? "#f59e0b" : "#6b7280", cursor: "pointer" }}>
+            <input type="checkbox" checked={scrubMode} onChange={(e) => setScrubMode(e.target.checked)}
+              style={{ accentColor: "#f59e0b" }} />
+            Scrub-Modus (Daten komplett überschreiben)
+          </label>
+        )}
+
         {/* Controls */}
         <div style={styles.controls}>
           {!running ? (
-            <button onClick={runImport} style={styles.btnStart}>
-              ▶ {isComplete ? "Neuer Zyklus" : percent > 0 ? "Weiter" : "Import starten"}
+            <button onClick={runImport} style={{ ...styles.btnStart, background: scrubMode ? "#d97706" : "#D81E05" }}>
+              ▶ {isComplete ? "Neuer Zyklus" : percent > 0 ? "Weiter" : scrubMode ? "Scrub starten" : "Import starten"}
             </button>
           ) : (
             <button onClick={stopImport} style={styles.btnStop}>■ Stop</button>
