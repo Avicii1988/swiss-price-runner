@@ -194,12 +194,12 @@ async function handleRequest(req: NextRequest) {
           productId = created.id;
         }
 
-        // Step B: Upsert Price for this shop (unique on productId+sourceId)
-        await db.price.upsert({
-          where: {
-            productId_sourceId: { productId, sourceId: feed.id },
-          },
-          create: {
+        // Step B: Upsert Price for this shop (delete+create pattern — works with or without unique constraint)
+        await db.price.deleteMany({
+          where: { productId, sourceId: feed.id },
+        });
+        await db.price.create({
+          data: {
             productId,
             sourceId: feed.id,
             shopName: feed.shopName,
@@ -207,17 +207,14 @@ async function handleRequest(req: NextRequest) {
             amountEur: 0,
             url: affiliateLink,
           },
-          update: {
-            amountChf: priceChf,
-            shopName: feed.shopName,
-            url: affiliateLink,
-            timestamp: new Date(),
-          },
         });
 
         imported++;
-      } catch {
+      } catch (err) {
         errors++;
+        if (errors <= 3) {
+          console.error(`[Import] Error at gtin=${gtin}:`, err instanceof Error ? err.message : err);
+        }
       }
     }
 

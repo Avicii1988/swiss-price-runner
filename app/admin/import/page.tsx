@@ -269,7 +269,7 @@ function ImportDashboard() {
 
         {/* Stats */}
         <div style={styles.statsGrid}>
-          <Stat label="Importiert" value={totalImported.toLocaleString("de-CH")} />
+          <Stat label="Verarbeitet" value={totalImported.toLocaleString("de-CH")} />
           <Stat label="Fehler" value={String(totalErrors)} />
           <Stat label="Total Feed" value={total ? total.toLocaleString("de-CH") : "—"} />
           <Stat label="Letzte Batch" value={lastDuration ? `${(lastDuration / 1000).toFixed(1)}s` : "—"} />
