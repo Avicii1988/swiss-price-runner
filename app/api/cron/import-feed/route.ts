@@ -158,73 +158,62 @@ async function handleRequest(req: NextRequest) {
       const brand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
 
       try {
-        // Step A: Find or create Product by GTIN
-        const existing = await db.product.findUnique({
-          where: { gtin },
-          select: { id: true, title: true, imageUrl: true, price: true, category: true },
-        });
+        // Step A: Find existing product via raw SQL (bypasses pgvector deserialization)
+        const rows = await db.$queryRaw<{ id: string; title: string; imageUrl: string | null; price: number | null; category: string | null }[]>`
+          SELECT id, title, "imageUrl", price::float, category
+          FROM "Product" WHERE gtin = ${gtin} LIMIT 1
+        `;
+        const existing = rows[0] ?? null;
 
         let productId: string;
 
         if (existing) {
-          const updates: Record<string, unknown> = {
-            isActive: true,
-            updatedAt: new Date(),
-          };
-
+          // Step A1: Update product via raw SQL (never touches embedding_vec)
           if (scrub) {
-            updates.title = title;
-            updates.brand = brand;
-            updates.category = catSlug;
-            updates.categoryName = catName;
-            if (imageUrl) updates.imageUrl = imageUrl;
-            updates.price = priceChf;
+            await db.$executeRaw`
+              UPDATE "Product" SET
+                title = ${title}, brand = ${brand},
+                category = ${catSlug}, "categoryName" = ${catName},
+                "imageUrl" = COALESCE(${imageUrl}, "imageUrl"),
+                price = ${priceChf}, "isActive" = true, "updatedAt" = NOW()
+              WHERE gtin = ${gtin}
+            `;
           } else {
-            if (title.length > existing.title.length) {
-              updates.title = title;
-              updates.brand = brand;
-            }
-            if (!existing.imageUrl && imageUrl) {
-              updates.imageUrl = imageUrl;
-            }
-            if (!existing.category) {
-              updates.category = catSlug;
-              updates.categoryName = catName;
-            }
-            const existingPrice = existing.price ? Number(existing.price) : Infinity;
-            if (priceChf < existingPrice) {
-              updates.price = priceChf;
-            }
-          }
+            // Smart enrichment: only update if data is better
+            const betterTitle = title.length > existing.title.length;
+            const needsImage = !existing.imageUrl && imageUrl;
+            const lowerPrice = priceChf < (existing.price ?? Infinity);
+            const needsCategory = !existing.category;
 
-          await db.product.update({ where: { gtin }, data: updates });
+            await db.$executeRaw`
+              UPDATE "Product" SET
+                title = CASE WHEN ${betterTitle} THEN ${title} ELSE title END,
+                brand = CASE WHEN ${betterTitle} THEN ${brand} ELSE brand END,
+                "imageUrl" = CASE WHEN ${needsImage ?? false} THEN ${imageUrl} ELSE "imageUrl" END,
+                category = CASE WHEN ${needsCategory ?? false} THEN ${catSlug} ELSE category END,
+                "categoryName" = CASE WHEN ${needsCategory ?? false} THEN ${catName} ELSE "categoryName" END,
+                price = CASE WHEN ${lowerPrice} THEN ${priceChf} ELSE price END,
+                "isActive" = true, "updatedAt" = NOW()
+              WHERE gtin = ${gtin}
+            `;
+          }
           productId = existing.id;
         } else {
-          const created = await db.product.create({
-            data: {
-              gtin, title, brand,
-              category: catSlug, categoryName: catName,
-              imageUrl, isActive: true, price: priceChf,
-            },
-            select: { id: true },
-          });
-          productId = created.id;
+          // Step A2: Create new product via raw SQL
+          const newId = generateId();
+          await db.$executeRaw`
+            INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
+            VALUES (${newId}, ${gtin}, ${title}, ${brand}, ${catSlug}, ${catName}, ${imageUrl}, true, ${priceChf}, ${feed.sourceType}, NOW(), NOW())
+          `;
+          productId = newId;
         }
 
-        // Step B: Write price for this shop (delete+create)
-        await db.price.deleteMany({
-          where: { productId, sourceId: feed.id },
-        });
-        await db.price.create({
-          data: {
-            productId,
-            sourceId: feed.id,
-            shopName: feed.shopName,
-            amountChf: priceChf,
-            amountEur: 0,
-            url: affiliateLink,
-          },
-        });
+        // Step B: Write price for this shop (delete+create — avoids unique constraint issues)
+        await db.$executeRaw`DELETE FROM "Price" WHERE "productId" = ${productId} AND "sourceId" = ${feed.id}`;
+        await db.$executeRaw`
+          INSERT INTO "Price" (id, "productId", "sourceId", "shopName", "amountChf", "amountEur", url, timestamp)
+          VALUES (${generateId()}, ${productId}, ${feed.id}, ${feed.shopName}, ${priceChf}, 0, ${affiliateLink}, NOW())
+        `;
 
         imported++;
       } catch (err) {
@@ -449,4 +438,11 @@ function hashStr(s: string): string {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
   return Math.abs(h).toString(36);
+}
+
+/** Generate a cuid-like unique ID (avoids Prisma's default which touches the model) */
+function generateId(): string {
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 10);
+  return `c${ts}${rand}`;
 }
