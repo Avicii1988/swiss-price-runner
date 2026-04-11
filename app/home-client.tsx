@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { Bell, ShoppingBag, Store, Tag, Package } from "lucide-react";
+import { Bell, Search, BarChart3, ShoppingBag, Store, Tag, Package } from "lucide-react";
 import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -51,36 +51,48 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
     setLoading(false);
   }, [loading, hasMore, offset]);
 
-  const statsText = `${stats.shops} Shops  ·  ${stats.brands.toLocaleString("de-CH")} Marken  ·  ${stats.offers.toLocaleString("de-CH")} Angebote`;
-
   return (
     <div className="min-h-screen bg-white">
       {alertProduct && <PriceAlertModal item={alertProduct} onClose={() => setAlertProduct(null)} />}
       <SiteHeader query={query} onQueryChange={setQuery} allProducts={products} />
 
-      {/* ── Stats Bar — desktop static, mobile marquee ── */}
-      <div className="border-b border-[#e1e1e3] bg-[#f8f8fa]">
-        <div className="mx-auto max-w-[1400px] px-4 py-1.5 sm:px-6">
-          {/* Desktop */}
-          <div className="hidden items-center justify-between sm:flex">
-            <p className="text-[11px] tracking-wide text-gray-400">Schweizer Preisvergleich mit Alarmfunktion</p>
-            <div className="flex items-center gap-4 text-[11px] text-gray-400">
-              <span className="inline-flex items-center gap-1"><Store className="h-3 w-3" />{stats.shops} Shops</span>
-              <span className="inline-flex items-center gap-1"><Tag className="h-3 w-3" />{stats.brands.toLocaleString("de-CH")} Marken</span>
-              <span className="inline-flex items-center gap-1"><Package className="h-3 w-3" />{stats.offers.toLocaleString("de-CH")} Angebote</span>
-            </div>
+      {/* ═══ Stats Bar — modern gradient ═══ */}
+      <div className="bg-gradient-to-r from-[#1a1f36] to-[#2d3561]">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-center gap-6 px-4 py-2.5 sm:gap-10 sm:px-6">
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-white/80">
+            <Store className="h-3.5 w-3.5 text-white/50" />{stats.shops} Shops
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-white/80">
+            <Tag className="h-3.5 w-3.5 text-white/50" />{stats.brands.toLocaleString("de-CH")} Marken
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-white/80">
+            <Package className="h-3.5 w-3.5 text-white/50" />{stats.offers.toLocaleString("de-CH")} Angebote
+          </span>
+        </div>
+      </div>
+
+      {/* ═══ PreisAlarm Banner — 3 Spalten ═══ */}
+      <div className="border-b border-[#e1e1e3] bg-[#fafafa]">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-6 px-4 py-7 sm:grid-cols-3 sm:px-6">
+          <div className="text-center">
+            <Search className="mx-auto mb-2 h-5 w-5 text-gray-300" />
+            <h3 className="text-[13px] font-bold text-gray-900">Suchen</h3>
+            <p className="mt-1 text-[12px] leading-relaxed text-gray-500">Durchsuche alle grossen Schweizer Händler an einem Ort.</p>
           </div>
-          {/* Mobile marquee */}
-          <div className="relative overflow-hidden sm:hidden" style={{ height: 20 }}>
-            <div className="animate-marquee flex whitespace-nowrap text-[11px] text-gray-400">
-              <span className="mr-16">{statsText}</span>
-              <span className="mr-16">{statsText}</span>
-            </div>
+          <div className="text-center">
+            <BarChart3 className="mx-auto mb-2 h-5 w-5 text-gray-300" />
+            <h3 className="text-[13px] font-bold text-gray-900">Vergleichen</h3>
+            <p className="mt-1 text-[12px] leading-relaxed text-gray-500">Neutrale Echtzeit-Preise. Keine versteckten Gebühren.</p>
+          </div>
+          <div className="text-center">
+            <Bell className="mx-auto mb-2 h-5 w-5 text-gray-300" />
+            <h3 className="text-[13px] font-bold text-gray-900">Alarmieren</h3>
+            <p className="mt-1 text-[12px] leading-relaxed text-gray-500">Setze einen Preisalarm und verpasse nie wieder den Bestpreis.</p>
           </div>
         </div>
       </div>
 
-      {/* ── Main: Sidebar + Products + Blog ── */}
+      {/* ═══ Main: Sidebar + Products + Blog ═══ */}
       <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
         <div className="flex gap-6 lg:gap-8">
           <aside className="hidden w-[180px] shrink-0 lg:block">
@@ -95,7 +107,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
               <span className="text-[11px] text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-px bg-[#f0f0f2] sm:grid-cols-3 lg:grid-cols-3">
               {products.map((item) => (
                 <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
               ))}
@@ -140,37 +152,30 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
         </div>
       </div>
 
-      {/* ── Footer — Apple/Galaxus clean ── */}
-      <footer className="border-t border-[#e1e1e3] bg-[#f9f9f9]">
-        <div className="mx-auto grid max-w-[1400px] grid-cols-2 gap-8 px-4 py-10 text-[12px] text-gray-400 sm:px-6 md:grid-cols-4">
-          <div>
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">PreisAlarm</p>
-            <p className="leading-relaxed">Schweizer Preisvergleich mit Echtzeit-Alarmen. Wir durchsuchen alle grossen Händler, damit du immer den besten Preis findest.</p>
-          </div>
-          <div>
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Rechtliches</p>
-            <ul className="space-y-1.5">
-              <li><Link href="/impressum" className="hover:text-gray-600">Impressum</Link></li>
-              <li><Link href="/privacy" className="hover:text-gray-600">Datenschutz</Link></li>
-              <li><Link href="/privacy" className="hover:text-gray-600">AGB</Link></li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Features</p>
-            <ul className="space-y-1.5">
-              <li><Link href="/" className="hover:text-gray-600">Preisvergleich</Link></li>
-              <li><Link href="/" className="hover:text-gray-600">Preisalarm</Link></li>
-              <li><Link href="/" className="hover:text-gray-600">Shop-Übersicht</Link></li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Bug Bounty</p>
-            <p className="leading-relaxed">Bug entdeckt? Melde ihn und erhalte eine Belohnung.</p>
-            <a href="mailto:bugs@preisalarm.ch" className="mt-2 inline-block text-[#0076bd] hover:underline">bugs@preisalarm.ch</a>
-          </div>
+      {/* ═══ CTA Footer (original simple style) ═══ */}
+      <section className="border-t border-gray-200 bg-gray-900 px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-xl text-center">
+          <h2 className="text-lg font-bold text-white">Verpasse keinen Deal mehr</h2>
+          <p className="mt-2 text-sm text-gray-400">Erstelle einen Preisalarm und wir informieren dich, sobald der Preis sinkt.</p>
+          <button
+            onClick={() => {
+              if (!isLoggedIn) { setShowAuthModal(true); return; }
+              if (featured.length > 0) handleAlert(featured[0]);
+            }}
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#D81E05] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#b91a04]">
+            <Bell className="h-4 w-4" /> Preisalarm erstellen
+          </button>
         </div>
-        <div className="border-t border-[#e1e1e3] bg-white/50 px-4 py-4 text-center text-[11px] text-gray-300 sm:px-6">
-          &copy; {new Date().getFullYear()} PreisAlarm.ch — Partner: XXL Parfum, Parfumsale
+      </section>
+
+      {/* ═══ Minimal Footer ═══ */}
+      <footer className="border-t border-gray-200 bg-white px-4 py-6 sm:px-6">
+        <div className="mx-auto flex max-w-[1400px] flex-col items-center gap-3 text-[11px] text-gray-400 sm:flex-row sm:justify-between">
+          <span>&copy; {new Date().getFullYear()} PreisAlarm.ch</span>
+          <div className="flex gap-4">
+            <Link href="/impressum" className="hover:text-gray-600">Impressum</Link>
+            <Link href="/privacy" className="hover:text-gray-600">Datenschutz</Link>
+          </div>
         </div>
       </footer>
     </div>
