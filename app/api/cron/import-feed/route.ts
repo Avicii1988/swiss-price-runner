@@ -19,7 +19,7 @@ interface FeedConfig {
 const FEEDS: Record<string, FeedConfig> = {
   xxl_parfum: {
     id: "xxl_parfum",
-    url: "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=0&sn=0&flat=0&apid=1710426239&asid=2064719298&gsh=1&pfid=1022&gt=0",
+    url: "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1710426239&asid=2064719298&gsh=1&pfid=1022&gt=1",
     shopName: "XXL Parfum",
     sourceType: "adtraction_feed",
   },
@@ -34,9 +34,8 @@ const FEEDS: Record<string, FeedConfig> = {
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
 
-// ── In-memory feed cache (survives within same serverless instance) ──
-let cachedItems: FeedItem[] | null = null;
-let cacheTimestamp = 0;
+// ── In-memory feed cache (per feed key, survives within same serverless instance) ──
+const feedCache = new Map<string, { items: FeedItem[]; timestamp: number }>();
 const CACHE_TTL = 10 * 60 * 1000; // 10 min
 
 export async function GET(req: NextRequest) { return handleRequest(req); }
@@ -60,6 +59,7 @@ async function handleRequest(req: NextRequest) {
   const feedKey = params.get("feed") ?? DEFAULT_FEED_KEY;
   const feed = FEEDS[feedKey] ?? FEEDS[DEFAULT_FEED_KEY];
   const limit = limitParam ? Math.max(1, Math.min(200, Math.floor(Number(limitParam)))) : DEFAULT_LIMIT;
+  const scrub = params.get("scrub") === "true"; // force overwrite all product fields with clean feed data
 
   try {
     // ── 1. Determine offset: query param → DB fallback ────
@@ -75,10 +75,11 @@ async function handleRequest(req: NextRequest) {
       offset = lastLog?.currentSkip ?? 0;
     }
 
-    // ── 2. Get feed items (cached or fresh) ───────────────
+    // ── 2. Get feed items (cached per feed key, or fresh) ──
     let items: FeedItem[];
-    if (cachedItems && Date.now() - cacheTimestamp < CACHE_TTL) {
-      items = cachedItems;
+    const cached = feedCache.get(feedKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      items = cached.items;
     } else {
       if (elapsed() > 2000) {
         return jsonResponse(false, { offset, total: 0, message: "Nicht genug Zeit für Download, bitte erneut versuchen.", durationMs: elapsed() });
@@ -96,8 +97,7 @@ async function handleRequest(req: NextRequest) {
       try { xml = await decompressZip(bytes); } catch { xml = new TextDecoder().decode(bytes); }
 
       items = parseFeed(xml);
-      cachedItems = items;
-      cacheTimestamp = Date.now();
+      feedCache.set(feedKey, { items, timestamp: Date.now() });
     }
 
     const total = items.length;
@@ -146,27 +146,32 @@ async function handleRequest(req: NextRequest) {
         let productId: string;
 
         if (existing) {
-          // Data Enrichment: only update fields that improve the record
           const updates: Record<string, unknown> = {
             isActive: true,
             updatedAt: new Date(),
+            category: catSlug,
+            categoryName: catName,
           };
-          // Longer title = better data
-          if (title.length > existing.title.length) {
+
+          if (scrub) {
+            // Scrub mode: overwrite ALL fields with clean feed data
             updates.title = title;
             updates.brand = brand;
-          }
-          // Fill missing image
-          if (!existing.imageUrl && imageUrl) {
-            updates.imageUrl = imageUrl;
-          }
-          // Update category (always from latest feed)
-          updates.category = catSlug;
-          updates.categoryName = catName;
-          // Update price to lowest across all shops
-          const existingPrice = existing.price ? Number(existing.price) : Infinity;
-          if (priceChf < existingPrice) {
+            if (imageUrl) updates.imageUrl = imageUrl;
             updates.price = priceChf;
+          } else {
+            // Enrichment mode: only update if data is better
+            if (title.length > existing.title.length) {
+              updates.title = title;
+              updates.brand = brand;
+            }
+            if (!existing.imageUrl && imageUrl) {
+              updates.imageUrl = imageUrl;
+            }
+            const existingPrice = existing.price ? Number(existing.price) : Infinity;
+            if (priceChf < existingPrice) {
+              updates.price = priceChf;
+            }
           }
 
           await db.product.update({ where: { gtin }, data: updates });
