@@ -36,7 +36,7 @@ export default function ImportPage() {
 }
 
 const PARALLEL_WORKERS = 3;
-const BATCH_LIMIT = 20;
+const BATCH_LIMIT = 15;
 
 function ImportDashboard() {
   const searchParams = useSearchParams();
@@ -176,7 +176,8 @@ function ImportDashboard() {
     scrubRef.current = scrubMode;
     feedRef.current = feedKey;
 
-    // Fast init: get total count instantly (no feed download)
+    // Fast init: get total + last offset (no feed download)
+    let resumeOffset = 0;
     try {
       const initRes = await fetch(
         `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&feed=${feedRef.current}&limit=${BATCH_LIMIT}&init=true`,
@@ -184,17 +185,20 @@ function ImportDashboard() {
       const init: BatchResult = await initRes.json();
 
       totalRef.current = init.total;
+      resumeOffset = init.nextOffset ?? 0;
       setTotal(init.total);
       setTotalBatches(init.totalBatches);
+      if (resumeOffset > 0 && init.total > 0) {
+        setPercent(Math.round((resumeOffset / init.total) * 100));
+      }
 
-      addLog(`✅ ${feedRef.current}: ${init.total.toLocaleString("de-CH")} Produkte, ${PARALLEL_WORKERS}x${BATCH_LIMIT}${scrubRef.current ? " [SCRUB]" : ""}`, true);
+      addLog(`✅ ${feedRef.current}: ${init.total.toLocaleString("de-CH")} Produkte${resumeOffset > 0 ? `, weiter bei ${resumeOffset}` : ""}, ${PARALLEL_WORKERS}x${BATCH_LIMIT}${scrubRef.current ? " [SCRUB]" : ""}`, true);
     } catch {
-      // Even if init fails, start anyway with known defaults
       addLog(`⚠ Init übersprungen — starte direkt`, true);
     }
 
-    // Start immediately from offset 0
-    nextOffsetRef.current = 0;
+    // Resume from last offset (or 0 for fresh start)
+    nextOffsetRef.current = resumeOffset;
 
     // Launch workers
     const errRef = { count: 0 };

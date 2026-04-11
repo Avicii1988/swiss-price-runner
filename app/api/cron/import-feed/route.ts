@@ -5,7 +5,7 @@ import { isAuthorized, rateLimit, safeErrorMessage } from "@/lib/api-utils";
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
-const DEFAULT_LIMIT = 20;
+const DEFAULT_LIMIT = 15;
 const SAFETY_TIMEOUT_MS = 8500;
 
 // ── Feed Registry: Add new shops here ────────────────────
@@ -67,14 +67,21 @@ async function handleRequest(req: NextRequest) {
   const scrub = params.get("scrub") === "true"; // force overwrite all product fields with clean feed data
 
   try {
-    // ── 0. Fast init: return known total instantly (no download) ──
+    // ── 0. Fast init: return known total + last offset (no download) ──
     if (params.get("init") === "true") {
       const knownTotal = KNOWN_TOTALS[feedKey] ?? 0;
+      const lastLog = await db.importLog.findFirst({
+        where: { feedId: feed.id, status: { in: ["completed", "cycle_complete"] } },
+        orderBy: { createdAt: "desc" },
+        select: { currentSkip: true },
+      }).catch(() => null);
+      const lastOffset = lastLog?.currentSkip ?? 0;
+      const pct = knownTotal > 0 ? Math.round((lastOffset / knownTotal) * 100) : 0;
       return jsonResponse(true, {
-        offset: 0, total: knownTotal, imported: 0,
-        percent: 0, isComplete: false, limit,
-        totalBatches: Math.ceil(knownTotal / limit),
-        message: `${feed.shopName}: ${knownTotal} Produkte`,
+        offset: lastOffset, nextOffset: lastOffset, total: knownTotal,
+        imported: 0, percent: pct, isComplete: lastOffset === 0 && pct === 100,
+        limit, totalBatches: Math.ceil(knownTotal / limit),
+        message: `${feed.shopName}: ${knownTotal} Produkte${lastOffset > 0 ? `, weiter bei ${lastOffset}` : ""}`,
         durationMs: elapsed(),
       });
     }
