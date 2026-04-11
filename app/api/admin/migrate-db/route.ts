@@ -49,6 +49,13 @@ export async function GET(req: NextRequest) {
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Product_isActive_price_idx" ON "Product"("isActive", "price")`);
     results.push("Performance indexes OK");
 
+    // Cleanup: rename import_parfumerie → parfumsale in existing Price records
+    const renamed = await db.$executeRawUnsafe(`
+      UPDATE "Price" SET "sourceId" = 'parfumsale', "shopName" = 'Parfumsale'
+      WHERE "sourceId" = 'import_parfumerie'
+    `);
+    results.push(`Renamed import_parfumerie prices: ${renamed}`);
+
     return NextResponse.json({
       ok: true,
       results,

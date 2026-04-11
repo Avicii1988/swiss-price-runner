@@ -36,7 +36,7 @@ export default function ImportPage() {
 }
 
 const PARALLEL_WORKERS = 3;
-const BATCH_LIMIT = 50;
+const BATCH_LIMIT = 20;
 
 function ImportDashboard() {
   const searchParams = useSearchParams();
@@ -283,7 +283,7 @@ function ImportDashboard() {
             <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
               {[
                 { key: "xxl_parfum", label: "XXL Parfum" },
-                { key: "import_parfumerie", label: "Import Parfumerie" },
+                { key: "parfumsale", label: "Parfumsale" },
               ].map((f) => (
                 <button key={f.key} onClick={() => setFeedKey(f.key)}
                   style={{

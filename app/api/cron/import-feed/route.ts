@@ -5,8 +5,8 @@ import { isAuthorized, rateLimit, safeErrorMessage } from "@/lib/api-utils";
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
-const DEFAULT_LIMIT = 50;
-const SAFETY_TIMEOUT_MS = 6500;
+const DEFAULT_LIMIT = 20;
+const SAFETY_TIMEOUT_MS = 8500;
 
 // ── Feed Registry: Add new shops here ────────────────────
 interface FeedConfig {
@@ -23,10 +23,10 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "XXL Parfum",
     sourceType: "adtraction_feed",
   },
-  import_parfumerie: {
-    id: "import_parfumerie",
+  parfumsale: {
+    id: "parfumsale",
     url: "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1629076403&asid=2064719298&gsh=1&pfid=1000&gt=1",
-    shopName: "Import Parfumerie",
+    shopName: "Parfumsale",
     sourceType: "adtraction_feed",
   },
 };
