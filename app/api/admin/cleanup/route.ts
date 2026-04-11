@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+import { isAuthorized, safeErrorMessage } from "@/lib/api-utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -8,8 +10,7 @@ export async function POST(req: NextRequest) { return handle(req); }
 export async function GET(req: NextRequest) { return handle(req); }
 
 async function handle(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET) {
+  if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const step = parseInt(req.nextUrl.searchParams.get("step") || "1");
@@ -19,7 +20,6 @@ async function handle(req: NextRequest) {
 
     switch (step) {
       case 1: {
-        // Fix categories — bulk SQL updates
         const r1 = await db.$executeRaw`UPDATE "Product" SET category = 'herrendufte', "categoryName" = 'Herrendüfte' WHERE ("categoryName" ILIKE '%men''s fragrance%' OR "categoryName" ILIKE '%aftershave%' OR "categoryName" ILIKE '%cologne%') AND category != 'herrendufte'`;
         const r2 = await db.$executeRaw`UPDATE "Product" SET category = 'damendufte', "categoryName" = 'Damendüfte' WHERE ("categoryName" ILIKE '%women''s fragrance%') AND category != 'damendufte'`;
         const r3 = await db.$executeRaw`UPDATE "Product" SET category = 'unisex-dufte', "categoryName" = 'Unisex-Düfte' WHERE ("categoryName" ILIKE '%unisex fragrance%') AND category != 'unisex-dufte'`;
@@ -35,7 +35,6 @@ async function handle(req: NextRequest) {
       }
 
       case 2: {
-        // Fix double-encoded URLs — bulk SQL
         const links = await db.$executeRaw`UPDATE "Product" SET "affiliateUrl" = REPLACE(REPLACE(REPLACE("affiliateUrl", '&amp;amp;', '&'), '&amp;', '&'), '&amp;', '&') WHERE "affiliateUrl" LIKE '%&amp;%'`;
         const imgs = await db.$executeRaw`UPDATE "Product" SET "imageUrl" = REPLACE(REPLACE(REPLACE("imageUrl", '&amp;amp;', '&'), '&amp;', '&'), '&amp;', '&') WHERE "imageUrl" LIKE '%&amp;%'`;
         results.fixedLinks = links;
@@ -44,18 +43,15 @@ async function handle(req: NextRequest) {
       }
 
       case 3: {
-        // Move unmapped categories to sonstiges
-        const valid = ['smartphones','laptops','kopfhoerer','schuhe','gaming','haushalt','mode','parfum','uhren','tv-audio','foto','sport','baby','buecher','beauty','herrendufte','damendufte','unisex-dufte','pflege','make-up','haarpflege','koerperpflege','geschenksets','sonnenpflege','sonstiges','seed'];
-        const moved = await db.$executeRaw`UPDATE "Product" SET category = 'sonstiges', "categoryName" = 'Sonstiges' WHERE category NOT IN (${valid.join("','")}) AND "isActive" = true`;
-        // Actually need Prisma.join for this:
+        // Fix: Use Prisma.join for safe parameterized IN clause (no string concatenation)
+        const validCategories = ['smartphones','laptops','kopfhoerer','schuhe','gaming','haushalt','mode','parfum','uhren','tv-audio','foto','sport','baby','buecher','beauty','herrendufte','damendufte','unisex-dufte','pflege','make-up','haarpflege','koerperpflege','geschenksets','sonnenpflege','sonstiges','seed'];
+        const moved = await db.$executeRaw`UPDATE "Product" SET category = 'sonstiges', "categoryName" = 'Sonstiges' WHERE category NOT IN (${Prisma.join(validCategories)}) AND "isActive" = true`;
         const moved2 = await db.$executeRaw`UPDATE "Product" SET category = 'sonstiges', "categoryName" = 'Sonstiges' WHERE category LIKE '%>%' AND "isActive" = true`;
         results.movedToSonstiges = Number(moved) + Number(moved2);
         break;
       }
 
       case 4: {
-        // Deactivate products where no price exists or price = 0
-        // Use a subquery to find products without any positive price
         const deactivated = await db.$executeRaw`
           UPDATE "Product" SET "isActive" = false
           WHERE "sourceType" = 'adtraction_feed'
@@ -69,7 +65,7 @@ async function handle(req: NextRequest) {
     }
 
     return NextResponse.json({ status: "ok", ...results });
-  } catch (e) {
-    return NextResponse.json({ step, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ step, error: safeErrorMessage(error) }, { status: 500 });
   }
 }

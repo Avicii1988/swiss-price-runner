@@ -24,7 +24,7 @@ export async function GET() {
     checks.price_count = String(await db.price.count());
   } catch (err) {
     checks.database = "fail";
-    checks.db_error = err instanceof Error ? err.message : "Unknown";
+    console.error("[health] DB check failed:", err instanceof Error ? err.message : err);
   }
 
   const allOk = checks.database === "ok";

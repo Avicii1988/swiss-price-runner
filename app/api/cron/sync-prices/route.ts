@@ -1,26 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { sendPriceAlertEmail } from "@/lib/email/send-alert";
 import { SEED_PRODUCTS } from "@/prisma/seed";
+import { isAuthorized } from "@/lib/api-utils";
 
-/**
- * POST /api/cron/sync-prices
- *
- * Runs every 6 hours (Vercel Cron: 0 *​/6 * * *).
- * Authenticates via Bearer CRON_SECRET.
- *
- * Flow:
- *  1. Health check — verify DB is reachable.
- *  2. Seed products if the Product table is empty.
- *  3. Fetch latest prices from seed data + SearchApi (live Swiss prices).
- *  4. Calculate Swiss landed cost (EUR→CHF + taxes + customs).
- *  5. Write Price snapshots to DB.
- *  6. Evaluate active alerts and send emails via Resend in batches.
- */
-export async function POST(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+export async function POST(request: NextRequest) {
+  if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

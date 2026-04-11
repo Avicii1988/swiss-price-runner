@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isAuthorized, rateLimit, safeErrorMessage } from "@/lib/api-utils";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
 
 const DEFAULT_LIMIT = 50;
-const SAFETY_TIMEOUT_MS = 6500; // stop 3.5s before Vercel kills us
+const SAFETY_TIMEOUT_MS = 6500;
 
 // ── Feed Registry: Add new shops here ────────────────────
 interface FeedConfig {
@@ -38,20 +39,15 @@ let cachedItems: FeedItem[] | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 10 * 60 * 1000; // 10 min
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  if (req.headers.get("authorization") === `Bearer ${secret}`) return true;
-  if (req.nextUrl.searchParams.get("secret") === secret) return true;
-  return false;
-}
-
 export async function GET(req: NextRequest) { return handleRequest(req); }
 export async function POST(req: NextRequest) { return handleRequest(req); }
 
 async function handleRequest(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!rateLimit(req, 60, 60_000)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const startMs = Date.now();
@@ -192,9 +188,10 @@ async function handleRequest(req: NextRequest) {
       durationMs: elapsed(),
     });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    await logImport(feed.id, 0, 0, 0, 0, "error", msg.slice(0, 500));
-    return jsonResponse(false, { offset: 0, total: 0, message: msg, durationMs: elapsed() });
+    const internalMsg = error instanceof Error ? error.message : String(error);
+    console.error("[import-feed]", internalMsg);
+    await logImport(feed.id, 0, 0, 0, 0, "error", internalMsg.slice(0, 500));
+    return jsonResponse(false, { offset: 0, total: 0, message: safeErrorMessage(error), durationMs: elapsed() });
   }
 }
 
