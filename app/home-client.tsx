@@ -154,7 +154,8 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
       <footer className="bg-white px-4 py-10 sm:px-6">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-8 text-[12px] text-gray-400 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="mb-3 cursor-pointer">
+            <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="mb-3 flex cursor-pointer items-center gap-1.5">
+              <Bell className="h-4 w-4 text-[#D81E05]" />
               <span className="text-[15px] font-black tracking-tight text-gray-900">
                 Preis<span className="text-[#D81E05]">Alarm</span>
               </span>

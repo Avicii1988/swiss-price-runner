@@ -25,24 +25,33 @@ const FEED_TO_PARENT: Record<string, string> = {
   haarpflege: "parfum", koerperpflege: "parfum", sonnenpflege: "parfum",
 };
 
+/** Returns true if the slug looks like valid text (not a numeric ID from a feed) */
+function isValidSlug(slug: string): boolean {
+  // Reject pure numbers, very short slugs, or slugs that are just IDs
+  if (/^\d+$/.test(slug)) return false;
+  if (slug.length < 3) return false;
+  return true;
+}
+
 export function CategorySidebar({ activeCategorySlug, dynamicCategories }: CategorySidebarProps) {
   const [expandedSlug, setExpandedSlug] = useState<string | null>(activeCategorySlug ?? null);
 
-  // Build a map of feed slug → product count from DB
+  // Build a map of feed slug → product count from DB (only valid text slugs)
   const feedCounts = new Map<string, number>();
   for (const dc of dynamicCategories ?? []) {
-    if (dc.productCount > 0 && dc.slug !== "sonstiges" && dc.slug !== "seed") {
+    if (dc.productCount > 0 && isValidSlug(dc.slug) && dc.slug !== "sonstiges" && dc.slug !== "seed") {
       feedCounts.set(dc.slug, dc.productCount);
     }
   }
 
-  // Feed categories that don't belong to any master category
+  // Feed categories that don't belong to any master category (only valid text names)
   const masterSlugs = new Set(CATEGORIES.map((c) => c.slug));
   const mappedSlugs = new Set(Object.keys(FEED_TO_PARENT));
+  const HIDDEN = new Set(["sonstiges", "seed", "parfum"]);
   const unmappedFeed = (dynamicCategories ?? []).filter(
     (dc) => !masterSlugs.has(dc.slug) && !mappedSlugs.has(dc.slug)
-      && dc.productCount > 0 && dc.slug !== "sonstiges" && dc.slug !== "seed"
-      && !dc.slug.includes("-gt-"),
+      && dc.productCount > 0 && isValidSlug(dc.slug)
+      && !HIDDEN.has(dc.slug) && !dc.slug.includes("-gt-"),
   );
 
   return (

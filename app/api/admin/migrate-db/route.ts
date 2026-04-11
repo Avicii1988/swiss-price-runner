@@ -56,6 +56,13 @@ export async function GET(req: NextRequest) {
     `);
     results.push(`Renamed import_parfumerie prices: ${renamed}`);
 
+    // Cleanup: move numeric category slugs to "parfum"
+    const numericFixed = await db.$executeRawUnsafe(`
+      UPDATE "Product" SET category = 'parfum', "categoryName" = 'Parfum & Düfte'
+      WHERE category ~ '^[0-9]+$' AND "isActive" = true
+    `);
+    results.push(`Numeric categories fixed: ${numericFixed}`);
+
     return NextResponse.json({
       ok: true,
       results,

@@ -510,11 +510,13 @@ function mapCategory(productType: string | undefined): { slug: string; name: str
   for (const entry of CATEGORY_MAP) {
     if (lower.includes(entry.pattern)) return { slug: entry.slug, name: entry.name };
   }
+  // Fallback: use first segment before ">"
   const firstPart = productType.split(">")[0].trim();
-  if (firstPart) {
+  if (firstPart && !/^\d+$/.test(firstPart) && firstPart.length > 2) {
     const name = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
     return { slug: slugify(firstPart), name };
   }
+  // Numeric IDs or unknown → default to parfum
   return { slug: "parfum", name: "Parfum & Düfte" };
 }
 
