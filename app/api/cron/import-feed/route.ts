@@ -117,26 +117,48 @@ async function handleRequest(req: NextRequest) {
     let skipped = 0;
     let errors = 0;
     let stoppedEarly = false;
+    const debugErrors: string[] = [];
 
     for (const item of batch) {
-      if (elapsed() > SAFETY_TIMEOUT_MS) { stoppedEarly = true; break; }
+      // Relaxed timeout for debugging — only stop at 9s (Vercel max is 10s)
+      if (elapsed() > 9000) { stoppedEarly = true; break; }
 
-      const gtin = item.gtin || item.mpn || `feed_${hashStr(item.link || `${offset + imported + skipped}`)}`;
+      // GTIN sanitization: trim whitespace, use EAN/MPN/hash as fallback
+      const rawGtin = (item.gtin || "").trim();
+      const rawMpn = (item.mpn || "").trim();
+      const gtin = rawGtin || rawMpn || `feed_${hashStr(item.link || `${offset + imported + skipped + errors}`)}`;
+
       const priceChf = parseSwissPrice(item.price);
       const affiliateLink = cleanUrl(item.link);
-      if (!priceChf || !item.title || !affiliateLink) { skipped++; continue; }
 
-      if (offset === 0 && imported === 0 && errors === 0) {
-        console.log(`[Import] Raw: "${item.price}" -> ${priceChf} CHF | ${gtin} | ${decodeHtml(item.title).slice(0, 50)}`);
+      // Relaxed validation: only GTIN + price are truly required
+      if (!priceChf) {
+        skipped++;
+        if (skipped <= 3) debugErrors.push(`skip: no price for gtin=${gtin} raw="${item.price}"`);
+        continue;
+      }
+      if (!affiliateLink || affiliateLink === "#") {
+        skipped++;
+        if (skipped <= 3) debugErrors.push(`skip: no link for gtin=${gtin}`);
+        continue;
+      }
+
+      // Log first item's raw data for debugging
+      if (offset === 0 && imported === 0 && skipped === 0 && errors === 0) {
+        console.log(`[Import ${feed.id}] First item:`, JSON.stringify({
+          gtin: item.gtin, mpn: item.mpn, price: item.price,
+          title: (item.title || "").slice(0, 60), brand: item.brand,
+          link: (item.link || "").slice(0, 80),
+        }));
       }
 
       const { slug: catSlug, name: catName } = mapCategory(item.productType);
       const imageUrl = item.imageLink ? cleanUrl(item.imageLink) : null;
-      const title = decodeHtml(item.title).slice(0, 500);
+      const title = decodeHtml(item.title || gtin).slice(0, 500);
       const brand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
 
       try {
-        // Step A: Upsert Product — enrichment: only overwrite if data is better
+        // Step A: Find or create Product by GTIN
         const existing = await db.product.findUnique({
           where: { gtin },
           select: { id: true, title: true, imageUrl: true, price: true, category: true },
@@ -148,11 +170,9 @@ async function handleRequest(req: NextRequest) {
           const updates: Record<string, unknown> = {
             isActive: true,
             updatedAt: new Date(),
-            // Keep existing category — don't let Shop #2 move products around
           };
 
           if (scrub) {
-            // Scrub mode: overwrite ALL fields with clean feed data
             updates.title = title;
             updates.brand = brand;
             updates.category = catSlug;
@@ -160,7 +180,6 @@ async function handleRequest(req: NextRequest) {
             if (imageUrl) updates.imageUrl = imageUrl;
             updates.price = priceChf;
           } else {
-            // Smart Enrichment: only update if data is better
             if (title.length > existing.title.length) {
               updates.title = title;
               updates.brand = brand;
@@ -168,7 +187,6 @@ async function handleRequest(req: NextRequest) {
             if (!existing.imageUrl && imageUrl) {
               updates.imageUrl = imageUrl;
             }
-            // Only set category if product has none yet
             if (!existing.category) {
               updates.category = catSlug;
               updates.categoryName = catName;
@@ -182,7 +200,6 @@ async function handleRequest(req: NextRequest) {
           await db.product.update({ where: { gtin }, data: updates });
           productId = existing.id;
         } else {
-          // New product
           const created = await db.product.create({
             data: {
               gtin, title, brand,
@@ -194,7 +211,7 @@ async function handleRequest(req: NextRequest) {
           productId = created.id;
         }
 
-        // Step B: Upsert Price for this shop (delete+create pattern — works with or without unique constraint)
+        // Step B: Write price for this shop (delete+create)
         await db.price.deleteMany({
           where: { productId, sourceId: feed.id },
         });
@@ -212,9 +229,9 @@ async function handleRequest(req: NextRequest) {
         imported++;
       } catch (err) {
         errors++;
-        if (errors <= 3) {
-          console.error(`[Import] Error at gtin=${gtin}:`, err instanceof Error ? err.message : err);
-        }
+        const msg = err instanceof Error ? err.message : String(err);
+        debugErrors.push(`err gtin=${gtin}: ${msg.slice(0, 120)}`);
+        console.error(`[Import ${feed.id}] gtin=${gtin}:`, msg.slice(0, 200));
       }
     }
 
@@ -240,6 +257,7 @@ async function handleRequest(req: NextRequest) {
       isComplete, batchNum, totalBatches, stoppedEarly,
       message: isComplete ? "Import komplett!" : `Batch ${batchNum}/${totalBatches}`,
       durationMs: elapsed(),
+      debug: debugErrors.length > 0 ? debugErrors.slice(0, 10) : undefined,
     });
   } catch (error) {
     const internalMsg = error instanceof Error ? error.message : String(error);
