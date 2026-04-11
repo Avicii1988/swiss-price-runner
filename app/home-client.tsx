@@ -131,7 +131,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
         </div>
       </div>
 
-      {/* ═══ CTA — "Preisalarm" prominent ═══ */}
+      {/* ═══ CTA — "Preisalarm" ═══ */}
       <section className="border-t border-gray-200 bg-gray-900 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-xl text-center">
           <h2 className="text-2xl font-bold text-white">Preisalarm</h2>
@@ -147,13 +147,15 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
         </div>
       </section>
 
-      {/* ═══ Minimal Footer ═══ */}
-      <footer className="border-t border-gray-200 bg-white px-4 py-5 sm:px-6">
-        <div className="mx-auto flex max-w-[1400px] flex-col items-center gap-3 text-[11px] text-gray-400 sm:flex-row sm:justify-between">
+      {/* ═══ Noble Footer ═══ */}
+      <footer className="border-t border-[#f0f0f2] bg-white px-4 py-5 sm:px-6">
+        <div className="mx-auto flex max-w-[1400px] flex-col items-center gap-2 text-center text-[11px] text-gray-400 sm:flex-row sm:justify-between sm:text-left">
           <span>&copy; {new Date().getFullYear()} PreisAlarm.ch</span>
+          <span className="hidden text-gray-300 sm:inline">Partner: XXL Parfum, Parfumsale</span>
           <div className="flex gap-4">
-            <Link href="/impressum" className="hover:text-gray-600">Impressum</Link>
-            <Link href="/privacy" className="hover:text-gray-600">Datenschutz</Link>
+            <Link href="/impressum" className="transition hover:text-gray-600 hover:underline">Impressum</Link>
+            <Link href="/privacy" className="transition hover:text-gray-600 hover:underline">Datenschutz</Link>
+            <a href="mailto:bugs@preisalarm.ch" className="transition hover:text-gray-600 hover:underline">Bug melden</a>
           </div>
         </div>
       </footer>

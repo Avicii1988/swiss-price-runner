@@ -13,7 +13,6 @@ export function hasValidImage(url: string | undefined | null): boolean {
   return true;
 }
 
-/** Galaxus price: "79.–" or "79.50" */
 function formatPrice(chf: number): string {
   if (chf <= 0) return "–";
   const rounded = Math.round(chf * 100) / 100;
@@ -43,7 +42,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
 
   if (layout === "list") {
     return (
-      <div className="group relative flex items-center gap-4 border-b border-[#f0f0f2] bg-white p-3 transition hover:bg-[#f6f6f8] sm:gap-5 sm:p-4">
+      <div className="group relative flex items-center gap-4 border-b border-[#f0f0f2] bg-white p-3 transition-colors duration-200 hover:bg-[#f8f8f9] sm:gap-5 sm:p-4">
         <Link href={`/product/${product.gtin}`} className="flex flex-1 items-center gap-4 sm:gap-5">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center p-1 sm:h-24 sm:w-24">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -62,19 +61,30 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
     );
   }
 
-  // ── Grid: no border, white bg, separated by grid gap-px bg-[#f0f0f2] ──
   return (
-    <div className="group relative flex flex-col bg-white transition hover:bg-[#f6f6f8]">
-      {/* Hover icons — top right */}
-      <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition group-hover:opacity-100">
-        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
-          className={`flex h-6 w-6 items-center justify-center rounded-full bg-white/90 shadow-sm transition ${faved ? "text-red-500" : "text-gray-400 hover:text-red-400"}`}>
-          <Heart className={`h-3 w-3 ${faved ? "fill-current" : ""}`} />
-        </button>
-        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
-          className={`flex h-6 w-6 items-center justify-center rounded-full bg-white/90 shadow-sm transition ${pinned ? "text-blue-500" : "text-gray-400 hover:text-blue-400"}`}>
-          <Pin className={`h-3 w-3 ${pinned ? "fill-current" : ""}`} />
-        </button>
+    <div className="group relative flex flex-col bg-white transition-colors duration-200 hover:bg-[#f8f8f9]">
+      {/* Icons — hidden on desktop (show on hover), subtle on mobile (always visible) */}
+      <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-30 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100">
+        {/* Heart */}
+        <div className="relative">
+          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
+            className={`peer flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-200 hover:scale-110 ${faved ? "text-red-500" : "text-gray-400 hover:text-red-400"}`}>
+            <Heart className={`h-3 w-3 ${faved ? "fill-current" : ""}`} />
+          </button>
+          <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
+            Favorit
+          </span>
+        </div>
+        {/* Pin */}
+        <div className="relative">
+          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
+            className={`peer flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-200 hover:scale-110 ${pinned ? "text-blue-500" : "text-gray-400 hover:text-blue-400"}`}>
+            <Pin className={`h-3 w-3 ${pinned ? "fill-current" : ""}`} />
+          </button>
+          <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
+            Merken
+          </span>
+        </div>
       </div>
 
       <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col p-3 sm:p-4">
@@ -83,12 +93,12 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={product.imageUrl || FALLBACK_IMG} alt={product.title} width={200} height={200} loading="lazy"
-              className="max-h-full max-w-full object-contain transition-transform group-hover:scale-105"
+              className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
           </div>
         </div>
 
-        {/* Price */}
+        {/* Price — Galaxus bold */}
         <span className="mt-2 text-xl font-bold tracking-tight text-gray-900">
           {hasPrice ? formatPrice(bestPrice.totalChf) : "–"}
         </span>
@@ -99,16 +109,21 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           {product.title.replace(product.brand, "").trim()}
         </p>
 
-        {/* Bottom: sources + bell */}
+        {/* Bottom: sources + bell with tooltip */}
         <div className="mt-auto flex items-center justify-between pt-2">
           {sources > 0 ? (
             <p className="text-[10px] text-gray-400">{sources} {sources === 1 ? "Angebot" : "Angebote"}</p>
           ) : <span />}
           {onAlert && (
-            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-gray-300 transition hover:text-[#D81E05]" title="Preisalarm">
-              <Bell className="h-3.5 w-3.5" />
-            </button>
+            <div className="relative">
+              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
+                className="peer flex h-7 w-7 items-center justify-center rounded-full text-gray-300 transition-all duration-200 hover:scale-110 hover:text-[#D81E05]">
+                <Bell className="h-3.5 w-3.5" />
+              </button>
+              <span className="pointer-events-none absolute -top-7 right-0 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
+                Preisalarm
+              </span>
+            </div>
           )}
         </div>
       </Link>
@@ -120,7 +135,7 @@ export function ProductCardSkeleton({ layout = "grid" }: { layout?: "grid" | "li
   if (layout === "list") {
     return (
       <div className="flex animate-pulse items-center gap-4 border-b border-[#f0f0f2] bg-white p-3 sm:gap-5 sm:p-4">
-        <div className="h-20 w-20 shrink-0 rounded bg-gray-100 sm:h-24 sm:w-24" />
+        <div className="h-20 w-20 shrink-0 rounded bg-gray-50 sm:h-24 sm:w-24" />
         <div className="min-w-0 flex-1 space-y-2">
           <div className="h-4 w-3/4 rounded bg-gray-100" />
           <div className="h-3 w-1/2 rounded bg-gray-100" />
