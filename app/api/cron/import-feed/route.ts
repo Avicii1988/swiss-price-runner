@@ -33,9 +33,15 @@ const FEEDS: Record<string, FeedConfig> = {
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
 
-// ── In-memory feed cache (per feed key, survives within same serverless instance) ──
-const feedCache = new Map<string, { items: FeedItem[]; timestamp: number }>();
+// ── In-memory feed cache: stores RAW XML + total count (not parsed items) ──
+const feedCache = new Map<string, { xml: string; total: number; timestamp: number }>();
 const CACHE_TTL = 10 * 60 * 1000; // 10 min
+
+// Known totals for instant progress bar on first request
+const KNOWN_TOTALS: Record<string, number> = {
+  xxl_parfum: 16355,
+  parfumsale: 8578,
+};
 
 export async function GET(req: NextRequest) { return handleRequest(req); }
 export async function POST(req: NextRequest) { return handleRequest(req); }
@@ -74,17 +80,25 @@ async function handleRequest(req: NextRequest) {
       offset = lastLog?.currentSkip ?? 0;
     }
 
-    // ── 2. Get feed items (cached per feed key, or fresh) ──
-    let items: FeedItem[];
+    // ── 2. Get or download feed XML ────────────────────────
+    let feedXml: string;
+    let total: number;
     const cached = feedCache.get(feedKey);
+
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      items = cached.items;
+      feedXml = cached.xml;
+      total = cached.total;
     } else {
-      if (elapsed() > 2000) {
-        return jsonResponse(false, { offset, total: 0, message: "Nicht genug Zeit für Download, bitte erneut versuchen.", durationMs: elapsed() });
+      if (elapsed() > 2500) {
+        // Not enough time to download — return known total for progress bar
+        return jsonResponse(false, {
+          offset, total: KNOWN_TOTALS[feedKey] ?? 0,
+          message: "Nicht genug Zeit für Download, bitte erneut versuchen.",
+          durationMs: elapsed(),
+        });
       }
 
-      const feedRes = await fetch(feed.url, { signal: AbortSignal.timeout(4000) });
+      const feedRes = await fetch(feed.url, { signal: AbortSignal.timeout(5000) });
       if (!feedRes.ok) {
         return jsonResponse(false, { offset, total: 0, message: `Feed HTTP ${feedRes.status}`, durationMs: elapsed() });
       }
@@ -92,20 +106,21 @@ async function handleRequest(req: NextRequest) {
       const buffer = await feedRes.arrayBuffer();
       const bytes = new Uint8Array(buffer);
 
-      let xml: string;
-      try { xml = await decompressZip(bytes); } catch { xml = new TextDecoder().decode(bytes); }
+      try { feedXml = await decompressZip(bytes); } catch { feedXml = new TextDecoder().decode(bytes); }
 
-      items = parseFeed(xml);
-      feedCache.set(feedKey, { items, timestamp: Date.now() });
+      // Fast count: just count <item> occurrences (no full parsing)
+      total = countItems(feedXml);
+      feedCache.set(feedKey, { xml: feedXml, total, timestamp: Date.now() });
+
+      console.log(`[Import ${feed.id}] Feed downloaded: ${total} items, ${(feedXml.length / 1024).toFixed(0)} KB, ${elapsed()}ms`);
     }
 
-    const total = items.length;
     if (total === 0) {
       return jsonResponse(true, { offset: 0, total: 0, imported: 0, isComplete: true, message: "Feed leer", durationMs: elapsed() });
     }
 
-    // ── 3. Slice batch ────────────────────────────────────
-    const batch = items.slice(offset, offset + limit);
+    // ── 3. Parse ONLY the batch we need (lazy slice) ──────
+    const batch = parseFeedSlice(feedXml, offset, limit);
 
     if (batch.length === 0) {
       await logImport(feed.id, 0, total, 0, 0, "cycle_complete", "Zyklus fertig.");
@@ -317,22 +332,44 @@ interface FeedItem {
   brand: string; gtin: string; mpn: string; productType: string;
 }
 
-function parseFeed(xml: string): FeedItem[] {
+/** Fast count: counts <item> tags without parsing content (~10x faster than full parse) */
+function countItems(xml: string): number {
+  let count = 0;
+  let pos = 0;
+  while (true) {
+    pos = xml.indexOf("<item>", pos);
+    if (pos === -1) break;
+    count++;
+    pos += 6;
+  }
+  return count;
+}
+
+/** Lazy parser: only fully parses items in [offset, offset+limit] range */
+function parseFeedSlice(xml: string, offset: number, limit: number): FeedItem[] {
   const items: FeedItem[] = [];
   const re = /<item>([\s\S]*?)<\/item>/gi;
   let m;
+  let index = 0;
+  const end = offset + limit;
+
   while ((m = re.exec(xml)) !== null) {
-    const b = m[1];
-    items.push({
-      title: tag(b, "g:title") || tag(b, "title") || "",
-      price: tag(b, "g:sale_price") || tag(b, "sale_price") || tag(b, "g:price") || tag(b, "price") || "",
-      link: tag(b, "g:link") || tag(b, "link") || "",
-      imageLink: tag(b, "g:image_link") || tag(b, "image_link") || "",
-      brand: tag(b, "g:brand") || tag(b, "brand") || "",
-      gtin: tag(b, "g:gtin") || tag(b, "g:ean") || "",
-      mpn: tag(b, "g:mpn") || tag(b, "g:id") || tag(b, "id") || "",
-      productType: tag(b, "g:product_type") || tag(b, "g:google_product_category") || "",
-    });
+    if (index >= end) break; // Stop early — we have enough
+    if (index >= offset) {
+      // Only parse items in our window
+      const b = m[1];
+      items.push({
+        title: tag(b, "g:title") || tag(b, "title") || "",
+        price: tag(b, "g:sale_price") || tag(b, "sale_price") || tag(b, "g:price") || tag(b, "price") || "",
+        link: tag(b, "g:link") || tag(b, "link") || "",
+        imageLink: tag(b, "g:image_link") || tag(b, "image_link") || "",
+        brand: tag(b, "g:brand") || tag(b, "brand") || "",
+        gtin: tag(b, "g:gtin") || tag(b, "g:ean") || "",
+        mpn: tag(b, "g:mpn") || tag(b, "g:id") || tag(b, "id") || "",
+        productType: tag(b, "g:product_type") || tag(b, "g:google_product_category") || "",
+      });
+    }
+    index++;
   }
   return items;
 }
