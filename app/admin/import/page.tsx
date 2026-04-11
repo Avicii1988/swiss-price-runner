@@ -45,6 +45,7 @@ function ImportDashboard() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [running, setRunning] = useState(false);
   const [scrubMode, setScrubMode] = useState(false);
+  const [feedKey, setFeedKey] = useState("xxl_parfum");
   const [percent, setPercent] = useState(0);
   const [total, setTotal] = useState(0);
   const [totalImported, setTotalImported] = useState(0);
@@ -67,6 +68,7 @@ function ImportDashboard() {
   const importStartRef = useRef(0);
   const totalImportedRef = useRef(0);
   const scrubRef = useRef(false);
+  const feedRef = useRef("xxl_parfum");
 
   useEffect(() => { setAuthorized(!!secret || null); }, [secret]);
 
@@ -114,7 +116,7 @@ function ImportDashboard() {
 
       try {
         const res = await fetch(
-          `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}&offset=${myOffset}${scrubRef.current ? "&scrub=true" : ""}`,
+          `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&feed=${feedRef.current}&limit=${BATCH_LIMIT}&offset=${myOffset}${scrubRef.current ? "&scrub=true" : ""}`,
         );
         const data: BatchResult = await res.json();
 
@@ -172,11 +174,12 @@ function ImportDashboard() {
     totalImportedRef.current = 0;
     importStartRef.current = Date.now();
     scrubRef.current = scrubMode;
+    feedRef.current = feedKey;
 
     // Init request — get total + starting offset
     try {
       const initRes = await fetch(
-        `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}${scrubRef.current ? "&scrub=true" : ""}`,
+        `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&feed=${feedRef.current}&limit=${BATCH_LIMIT}${scrubRef.current ? "&scrub=true" : ""}`,
       );
       const init: BatchResult = await initRes.json();
 
@@ -196,7 +199,7 @@ function ImportDashboard() {
       setPercent(init.percent);
       updateSpeed(init.imported);
 
-      addLog(`✅ Feed geladen: ${init.total.toLocaleString("de-CH")} Produkte, ${PARALLEL_WORKERS} Worker x ${BATCH_LIMIT}/Batch${scrubRef.current ? " [SCRUB]" : ""}`, true);
+      addLog(`✅ ${feedRef.current}: ${init.total.toLocaleString("de-CH")} Produkte, ${PARALLEL_WORKERS}x${BATCH_LIMIT}${scrubRef.current ? " [SCRUB]" : ""}`, true);
 
       if (init.isComplete) {
         setIsComplete(true);
@@ -228,7 +231,7 @@ function ImportDashboard() {
 
     setRunning(false);
     setEta("");
-  }, [secret, scrubMode, addLog, updateSpeed, worker]);
+  }, [secret, scrubMode, feedKey, addLog, updateSpeed, worker]);
 
   const stopImport = () => {
     stopRef.current = true;
@@ -274,13 +277,32 @@ function ImportDashboard() {
           <Stat label="Worker" value={running ? `${activeWorkers}/${PARALLEL_WORKERS}` : "—"} />
         </div>
 
-        {/* Mode toggle */}
+        {/* Feed selector + Mode toggle */}
         {!running && (
-          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, color: scrubMode ? "#f59e0b" : "#6b7280", cursor: "pointer" }}>
-            <input type="checkbox" checked={scrubMode} onChange={(e) => setScrubMode(e.target.checked)}
-              style={{ accentColor: "#f59e0b" }} />
-            Scrub-Modus (Daten komplett überschreiben)
-          </label>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              {[
+                { key: "xxl_parfum", label: "XXL Parfum" },
+                { key: "import_parfumerie", label: "Import Parfumerie" },
+              ].map((f) => (
+                <button key={f.key} onClick={() => setFeedKey(f.key)}
+                  style={{
+                    flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid",
+                    borderColor: feedKey === f.key ? "#D81E05" : "#333",
+                    background: feedKey === f.key ? "#D81E05" : "#222",
+                    color: feedKey === f.key ? "white" : "#9ca3af",
+                    fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: scrubMode ? "#f59e0b" : "#6b7280", cursor: "pointer" }}>
+              <input type="checkbox" checked={scrubMode} onChange={(e) => setScrubMode(e.target.checked)}
+                style={{ accentColor: "#f59e0b" }} />
+              Scrub-Modus (Daten komplett überschreiben)
+            </label>
+          </div>
         )}
 
         {/* Controls */}

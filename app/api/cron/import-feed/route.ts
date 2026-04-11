@@ -23,13 +23,12 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "XXL Parfum",
     sourceType: "adtraction_feed",
   },
-  // ── Shop #2 — uncomment and configure when ready ──
-  // shop_two: {
-  //   id: "shop_two",
-  //   url: "https://...",
-  //   shopName: "Shop Two",
-  //   sourceType: "adtraction_feed",
-  // },
+  import_parfumerie: {
+    id: "import_parfumerie",
+    url: "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1629076403&asid=2064719298&gsh=1&pfid=1000&gt=1",
+    shopName: "Import Parfumerie",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
@@ -140,7 +139,7 @@ async function handleRequest(req: NextRequest) {
         // Step A: Upsert Product — enrichment: only overwrite if data is better
         const existing = await db.product.findUnique({
           where: { gtin },
-          select: { id: true, title: true, imageUrl: true, price: true },
+          select: { id: true, title: true, imageUrl: true, price: true, category: true },
         });
 
         let productId: string;
@@ -149,24 +148,30 @@ async function handleRequest(req: NextRequest) {
           const updates: Record<string, unknown> = {
             isActive: true,
             updatedAt: new Date(),
-            category: catSlug,
-            categoryName: catName,
+            // Keep existing category — don't let Shop #2 move products around
           };
 
           if (scrub) {
             // Scrub mode: overwrite ALL fields with clean feed data
             updates.title = title;
             updates.brand = brand;
+            updates.category = catSlug;
+            updates.categoryName = catName;
             if (imageUrl) updates.imageUrl = imageUrl;
             updates.price = priceChf;
           } else {
-            // Enrichment mode: only update if data is better
+            // Smart Enrichment: only update if data is better
             if (title.length > existing.title.length) {
               updates.title = title;
               updates.brand = brand;
             }
             if (!existing.imageUrl && imageUrl) {
               updates.imageUrl = imageUrl;
+            }
+            // Only set category if product has none yet
+            if (!existing.category) {
+              updates.category = catSlug;
+              updates.categoryName = catName;
             }
             const existingPrice = existing.price ? Number(existing.price) : Infinity;
             if (priceChf < existingPrice) {
