@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       feed:
-        description: 'Feed key (xxl_parfum or parfumsale)'
+        description: 'Feed key'
         required: true
         default: 'parfumsale'
         type: choice
@@ -15,7 +15,7 @@ on:
       limit:
         description: 'Items per batch'
         required: false
-        default: '15'
+        default: '50'
       scrub:
         description: 'Scrub mode (overwrite all fields)'
         required: false
@@ -25,7 +25,7 @@ on:
 jobs:
   import:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Run batch import loop
         env:
@@ -42,24 +42,45 @@ jobs:
           IMPORTED=0
           ERRORS=0
           BATCH=0
+          RETRIES=0
+          MAX_RETRIES=5
           SCRUB_PARAM=""
           if [ "$SCRUB" = "true" ]; then SCRUB_PARAM="&scrub=true"; fi
+
+          CURL_OPTS="-sS -L --max-time 300 -H 'User-Agent: Mozilla/5.0 (GitHub-Actions; PreisAlarm-Import)'"
 
           echo "🚀 Starting import: feed=$FEED limit=$LIMIT scrub=$SCRUB"
 
           # Init: get total + last offset
-          INIT=$(curl -sf "$SITE_URL/api/cron/import-feed?secret=$IMPORT_SECRET&feed=$FEED&limit=$LIMIT&init=true")
-          TOTAL=$(echo "$INIT" | jq -r '.total')
+          INIT=$(eval curl $CURL_OPTS \
+            "'$SITE_URL/api/cron/import-feed?secret=$IMPORT_SECRET&feed=$FEED&limit=$LIMIT&init=true'" \
+            || echo '{"total":0,"nextOffset":0}')
+          TOTAL=$(echo "$INIT" | jq -r '.total // 0')
           OFFSET=$(echo "$INIT" | jq -r '.nextOffset // 0')
           echo "📦 Total: $TOTAL items, resuming at offset $OFFSET"
 
           while true; do
             BATCH=$((BATCH + 1))
 
-            RESULT=$(curl -sf --max-time 30 \
-              "$SITE_URL/api/cron/import-feed?secret=$IMPORT_SECRET&feed=$FEED&limit=$LIMIT&offset=$OFFSET$SCRUB_PARAM" \
-              || echo '{"ok":false,"message":"curl failed"}')
+            RESULT=$(eval curl $CURL_OPTS \
+              "'$SITE_URL/api/cron/import-feed?secret=$IMPORT_SECRET&feed=$FEED&limit=$LIMIT&offset=$OFFSET$SCRUB_PARAM'" \
+              2>&1 || true)
 
+            # Check if we got valid JSON
+            if ! echo "$RESULT" | jq -e '.ok' > /dev/null 2>&1; then
+              RETRIES=$((RETRIES + 1))
+              echo "[$BATCH] ⚠️  No valid response (attempt $RETRIES/$MAX_RETRIES)"
+              if [ "$RETRIES" -ge "$MAX_RETRIES" ]; then
+                echo "⛔ Too many consecutive failures. Stopping."
+                break
+              fi
+              BACKOFF=$((RETRIES * 10))
+              echo "    Waiting ${BACKOFF}s before retry..."
+              sleep $BACKOFF
+              continue
+            fi
+
+            RETRIES=0
             OK=$(echo "$RESULT" | jq -r '.ok')
             BATCH_IMPORTED=$(echo "$RESULT" | jq -r '.imported // 0')
             BATCH_ERRORS=$(echo "$RESULT" | jq -r '.errors // 0')
@@ -69,11 +90,18 @@ jobs:
             DURATION=$(echo "$RESULT" | jq -r '.durationMs // 0')
             IS_COMPLETE=$(echo "$RESULT" | jq -r '.isComplete')
             MSG=$(echo "$RESULT" | jq -r '.message // ""')
+            REAL_TOTAL=$(echo "$RESULT" | jq -r '.total // 0')
+
+            # Update total if server returns a real count
+            if [ "$REAL_TOTAL" -gt 0 ] 2>/dev/null; then
+              TOTAL=$REAL_TOTAL
+            fi
 
             IMPORTED=$((IMPORTED + BATCH_IMPORTED))
             ERRORS=$((ERRORS + BATCH_ERRORS))
 
-            echo "[$BATCH] $PCT% | +$BATCH_IMPORTED ok, $BATCH_SKIPPED skip, $BATCH_ERRORS err | offset=$OFFSET→$NEXT | ${DURATION}ms | $MSG"
+            DURATION_S=$(echo "scale=1; $DURATION / 1000" | bc 2>/dev/null || echo "$DURATION")
+            echo "[$BATCH] $PCT% | +$BATCH_IMPORTED ok, $BATCH_SKIPPED skip, $BATCH_ERRORS err | offset=$OFFSET→$NEXT | ${DURATION_S}s | $MSG"
 
             if [ "$IS_COMPLETE" = "true" ]; then
               echo ""
@@ -82,19 +110,20 @@ jobs:
             fi
 
             if [ "$OK" != "true" ]; then
-              echo "⚠️  Batch failed: $MSG — retrying in 5s..."
-              sleep 5
+              RETRIES=$((RETRIES + 1))
+              BACKOFF=$((RETRIES * 5))
+              echo "    Retrying in ${BACKOFF}s..."
+              sleep $BACKOFF
               continue
             fi
 
             OFFSET=$NEXT
 
-            # Safety: don't loop forever
-            if [ "$BATCH" -ge 2000 ]; then
-              echo "⛔ Safety limit reached (2000 batches). Stopping."
+            if [ "$BATCH" -ge 5000 ]; then
+              echo "⛔ Safety limit reached (5000 batches). Stopping."
               break
             fi
           done
 
           echo ""
-          echo "📊 Summary: $IMPORTED imported, $ERRORS errors, $BATCH batches"
+          echo "📊 Summary: $IMPORTED imported, $ERRORS errors, $BATCH batches, total=$TOTAL"
