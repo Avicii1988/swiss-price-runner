@@ -1,22 +1,24 @@
-import { getProducts, getFeatured, getDistinctCategories, getDynamicCategories } from "@/lib/data";
+import { getProductsPaginated, getFeatured, getDynamicCategories, getSiteStats } from "@/lib/data";
 import HomeClient from "./home-client";
 
-export const dynamic = "force-dynamic"; // load fresh product data on every request
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [allProducts, featured, categories, dynamicCategories] = await Promise.all([
-    getProducts(),
+  const [{ products: initialProducts, total }, featured, dynamicCategories, stats] = await Promise.all([
+    getProductsPaginated(24, 0),
     getFeatured(),
-    getDistinctCategories(),
     getDynamicCategories(),
+    getSiteStats(),
   ]);
 
   return (
     <HomeClient
-      allProducts={allProducts}
+      initialProducts={initialProducts}
+      totalProducts={total}
       featured={featured}
-      categories={categories}
+      categories={[]}
       dynamicCategories={dynamicCategories}
+      stats={stats}
     />
   );
 }

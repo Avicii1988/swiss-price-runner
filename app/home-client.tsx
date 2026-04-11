@@ -1,422 +1,171 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
-import type { Route } from "next";
-import {
-  Bell,
-  ArrowRight,
-  Flame,
-  Apple,
-  Footprints,
-  Droplets,
-  Sparkles,
-  Monitor,
-} from "lucide-react";
-import { ProductCard, hasValidImage } from "@/components/product-card";
-import { ProductDetailModal } from "@/components/product-detail-modal";
+import { Bell, Search, BarChart3, ShoppingBag } from "lucide-react";
+import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
 import { PriceAlertModal } from "@/components/price-alert-modal";
-import { VisualSearchModal } from "@/components/visual-search-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
-import { TrustBrandsBar } from "@/components/trust-brands-bar";
 import { useAuth } from "@/lib/auth/auth-context";
-import { useLang } from "@/lib/i18n-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface HomeClientProps {
-  allProducts: MockProductWithHistory[];
+  initialProducts: MockProductWithHistory[];
+  totalProducts: number;
   featured: MockProductWithHistory[];
   categories: string[];
   dynamicCategories?: { slug: string; name: string; productCount: number }[];
+  stats: { shops: number; brands: number; offers: number };
 }
 
-// Section header component
-function SectionHeader({
-  icon,
-  title,
-  href,
-  linkText = "Alle",
-}: {
-  icon: React.ReactNode;
-  title: string;
-  href?: string;
-  linkText?: string;
-}) {
-  return (
-    <div className="mb-4 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        {icon}
-        <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-      </div>
-      {href && (
-        <Link
-          href={href as Route}
-          className="flex items-center gap-1 text-xs font-medium text-[#0076bd] transition hover:text-[#005a94]"
-        >
-          {linkText} <ArrowRight className="h-3 w-3" />
-        </Link>
-      )}
-    </div>
-  );
-}
+const PAGE_SIZE = 24;
 
-const BLOG_ARTICLES = [
-  {
-    slug: "top-5-spring-scents-2026",
-    title: "Top 5 Frühlingsdüfte 2026",
-    excerpt: "Die angesagtesten Parfums für die warme Jahreszeit — von Dior bis Chanel.",
-    image: "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=600&h=340&fit=crop",
-    category: "Beauty",
-  },
-  {
-    slug: "on-running-guide-schweiz",
-    title: "On Running: Der Schweizer Guide",
-    excerpt: "Welcher On-Schuh passt zu deinem Laufstil? Modelle im Vergleich.",
-    image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600&h=340&fit=crop",
-    category: "Sport",
-  },
-  {
-    slug: "apple-iphone-2026-geruechte",
-    title: "iPhone 2026: Was wir wissen",
-    excerpt: "Alle Gerüchte, Leaks und Preiseinschätzungen für die Schweiz.",
-    image: "https://images.unsplash.com/photo-1678685888221-cda773a3dcdb?w=600&h=340&fit=crop",
-    category: "Tech",
-  },
-];
-
-export default function HomeClient({ allProducts, featured, dynamicCategories }: HomeClientProps) {
-  const { t } = useLang();
+export default function HomeClient({
+  initialProducts,
+  totalProducts,
+  featured,
+  dynamicCategories,
+  stats,
+}: HomeClientProps) {
   const [query, setQuery] = useState("");
-  const [selectedProduct, setSelectedProduct] =
-    useState<MockProductWithHistory | null>(null);
-  const [alertProduct, setAlertProduct] =
-    useState<MockProductWithHistory | null>(null);
-  const [showVisionModal, setShowVisionModal] = useState(false);
+  const [alertProduct, setAlertProduct] = useState<MockProductWithHistory | null>(null);
+  const [products, setProducts] = useState(initialProducts);
+  const [loading, setLoading] = useState(false);
+  const [offset, setOffset] = useState(PAGE_SIZE);
+  const hasMore = offset < totalProducts;
 
   const { isLoggedIn, setShowAuthModal } = useAuth();
 
-  const handleSelect = useCallback(
-    (item: MockProductWithHistory) => setSelectedProduct(item),
-    [],
-  );
-  const handleAlert = useCallback(
-    (item: MockProductWithHistory) => {
-      setSelectedProduct(null);
-      setAlertProduct(item);
-    },
-    [],
-  );
+  const handleAlert = useCallback((item: MockProductWithHistory) => setAlertProduct(item), []);
 
-  // Only products with valid images AND non-zero price for the main page
-  const withImages = useMemo(
-    () => allProducts.filter((p) => hasValidImage(p.product.imageUrl) && p.bestPrice.totalChf > 0),
-    [allProducts],
-  );
-
-  // ── Diversified Hot Deals: at least 50% non-tech ───────────
-  const hotDeals = useMemo(() => {
-    const lifestyle = withImages.filter((p) =>
-      ["parfum", "beauty", "mode", "schuhe"].includes(p.product.category),
-    );
-    const tech = withImages.filter((p) =>
-      !["parfum", "beauty", "mode", "schuhe"].includes(p.product.category),
-    );
-    const topLifestyle = [...lifestyle]
-      .sort((a, b) => b.priceDrop30d - a.priceDrop30d)
-      .slice(0, 3);
-    const topTech = [...tech]
-      .sort((a, b) => b.priceDrop30d - a.priceDrop30d)
-      .slice(0, 3);
-    const mixed: MockProductWithHistory[] = [];
-    for (let i = 0; i < 3; i++) {
-      if (topLifestyle[i]) mixed.push(topLifestyle[i]);
-      if (topTech[i]) mixed.push(topTech[i]);
+  const loadMore = useCallback(async () => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/products/list?limit=${PAGE_SIZE}&offset=${offset}`);
+      const data = await res.json();
+      if (data.products?.length) {
+        setProducts((prev) => [...prev, ...data.products]);
+        setOffset((prev) => prev + data.products.length);
+      }
+    } catch {
+      // silent
     }
-    return mixed;
-  }, [withImages]);
-
-  // ── Category-specific product groups (images only) ─────────
-  const beautyProducts = useMemo(
-    () =>
-      withImages
-        .filter((p) => ["beauty", "parfum"].includes(p.product.category) &&
-          ["La Mer", "Dyson", "Lancôme", "Chanel", "Dior", "YSL"].some((b) => p.product.brand.includes(b)))
-        .slice(0, 4),
-    [withImages],
-  );
-
-  // Exklusive Düfte — pick the 4 perfumes NOT already shown in Beauty
-  const perfumeProducts = useMemo(() => {
-    const beautyGtins = new Set(beautyProducts.map((p) => p.product.gtin));
-    return withImages
-      .filter((p) => p.product.category === "parfum" && !beautyGtins.has(p.product.gtin))
-      .slice(0, 4);
-  }, [withImages, beautyProducts]);
-
-  const shoeProducts = useMemo(
-    () =>
-      withImages
-        .filter(
-          (p) =>
-            ["schuhe", "mode"].includes(p.product.category) &&
-            ["Nike", "Adidas", "On Running", "New Balance"].includes(
-              p.product.brand,
-            ),
-        )
-        .slice(0, 4),
-    [withImages],
-  );
-
-  const appleProducts = useMemo(
-    () => withImages.filter((p) => p.product.brand === "Apple").slice(0, 4),
-    [withImages],
-  );
-
-  const techProducts = useMemo(
-    () =>
-      withImages
-        .filter((p) =>
-          ["smartphones", "laptops", "kopfhoerer", "gaming", "tv-audio"].includes(
-            p.product.category,
-          ) && p.product.brand !== "Apple",
-        )
-        .sort((a, b) => b.priceDrop30d - a.priceDrop30d)
-        .slice(0, 4),
-    [withImages],
-  );
+    setLoading(false);
+  }, [loading, hasMore, offset]);
 
   return (
-    <div className="min-h-screen bg-white">
-      {selectedProduct && (
-        <ProductDetailModal
-          item={selectedProduct}
-          onOpenAlert={handleAlert}
-          onClose={() => setSelectedProduct(null)}
-        />
-      )}
-      {alertProduct && (
-        <PriceAlertModal
-          item={alertProduct}
-          onClose={() => setAlertProduct(null)}
-        />
-      )}
-      {showVisionModal && (
-        <VisualSearchModal
-          onClose={() => setShowVisionModal(false)}
-          allProducts={allProducts}
-        />
-      )}
+    <div className="min-h-screen bg-[#fafafa]">
+      {alertProduct && <PriceAlertModal item={alertProduct} onClose={() => setAlertProduct(null)} />}
 
-      <SiteHeader
-        query={query}
-        onQueryChange={setQuery}
-        allProducts={allProducts}
-        showVision={() => setShowVisionModal(true)}
-      />
+      <SiteHeader query={query} onQueryChange={setQuery} allProducts={products} />
 
-      {/* ═══ MAIN ═══ */}
-      <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
+      {/* ── Stats Bar ── */}
+      <div className="border-b border-[#e1e1e3] bg-[#f5f5f7]">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-2 sm:px-6">
+          <div className="flex items-center gap-4 text-[11px] text-gray-400">
+            <span className="font-medium text-gray-500">Vertrauenspartner</span>
+            <span className="text-gray-300">XXL Parfum</span>
+            <span className="text-gray-300">Parfumsale</span>
+          </div>
+          <div className="flex items-center gap-4 text-[11px] font-medium text-gray-500">
+            <span>{stats.shops} Shops</span>
+            <span className="text-gray-300">|</span>
+            <span>{stats.brands.toLocaleString("de-CH")} Marken</span>
+            <span className="text-gray-300">|</span>
+            <span>{stats.offers.toLocaleString("de-CH")} Angebote</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── "Was ist PreisAlarm?" Info ── */}
+      <div className="border-b border-[#e1e1e3] bg-white">
+        <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-6 px-4 py-8 sm:grid-cols-3 sm:px-6">
+          <div className="text-center sm:text-left">
+            <div className="mb-2 flex items-center justify-center gap-2 sm:justify-start">
+              <Search className="h-4 w-4 text-gray-400" />
+              <h3 className="text-sm font-bold text-gray-900">Suchen</h3>
+            </div>
+            <p className="text-[13px] leading-relaxed text-gray-500">Durchsuche alle grossen Schweizer Händler an einem Ort.</p>
+          </div>
+          <div className="text-center sm:text-left">
+            <div className="mb-2 flex items-center justify-center gap-2 sm:justify-start">
+              <BarChart3 className="h-4 w-4 text-gray-400" />
+              <h3 className="text-sm font-bold text-gray-900">Vergleichen</h3>
+            </div>
+            <p className="text-[13px] leading-relaxed text-gray-500">Neutrale Echtzeit-Preise. Keine versteckten Gebühren.</p>
+          </div>
+          <div className="text-center sm:text-left">
+            <div className="mb-2 flex items-center justify-center gap-2 sm:justify-start">
+              <Bell className="h-4 w-4 text-gray-400" />
+              <h3 className="text-sm font-bold text-gray-900">Alarmieren</h3>
+            </div>
+            <p className="text-[13px] leading-relaxed text-gray-500">Setze einen Preisalarm und verpasse nie wieder den Bestpreis.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Content ── */}
+      <div className="mx-auto max-w-[1400px] px-3 py-6 sm:px-5 lg:px-6">
         <div className="flex gap-6 lg:gap-8">
-          {/* LEFT SIDEBAR */}
+          {/* Sidebar */}
           <aside className="hidden w-[180px] shrink-0 lg:block">
             <div className="sticky top-[120px]">
               <CategorySidebar dynamicCategories={dynamicCategories} />
             </div>
           </aside>
 
-          {/* CENTER */}
+          {/* Products Grid */}
           <main className="min-w-0 flex-1">
-            {/* ═══ 🔥 Hot Deals — diversified ═══ */}
-            {hotDeals.length > 0 && (
-              <section className="mb-10">
-                <SectionHeader
-                  icon={<Flame className="h-5 w-5 text-orange-500" />}
-                  title={t("hotDeals")}
-                />
-                <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
-                  {hotDeals.slice(0, 6).map((item) => (
-                    <ProductCard
-                      key={item.product.gtin}
-                      item={item}
-                      onSelect={handleSelect}
-                      onAlert={handleAlert}
-                    />
-                  ))}
-                </div>
-              </section>
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">
+                <ShoppingBag className="mb-0.5 mr-2 inline h-5 w-5 text-gray-400" />
+                Alle Angebote
+              </h2>
+              <span className="text-xs text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              {products.map((item) => (
+                <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
+              ))}
+              {loading && Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                <ProductCardSkeleton key={`skel-${i}`} />
+              ))}
+            </div>
+
+            {/* Load More */}
+            {hasMore && !loading && (
+              <div className="mt-8 flex justify-center">
+                <button onClick={loadMore}
+                  className="rounded-lg border border-gray-200 bg-white px-8 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50">
+                  Mehr Angebote laden
+                </button>
+              </div>
             )}
 
-            {/* ═══ 1. Premium Beauty & Skincare ═══ */}
-            {beautyProducts.length > 0 && (
-              <section className="mb-10">
-                <SectionHeader
-                  icon={<Sparkles className="h-5 w-5 text-pink-500" />}
-                  title={t("beautySection")}
-                  href="/category/parfum"
-                />
-                <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
-                  {beautyProducts.map((item) => (
-                    <ProductCard
-                      key={item.product.gtin}
-                      item={item}
-                      onSelect={handleSelect}
-                      onAlert={handleAlert}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ═══ 2. Exklusive Düfte ═══ */}
-            {perfumeProducts.length > 0 && (
-              <section className="mb-10">
-                <SectionHeader
-                  icon={<Droplets className="h-5 w-5 text-violet-500" />}
-                  title={t("perfumeSection")}
-                  href="/category/parfum"
-                />
-                <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
-                  {perfumeProducts.map((item) => (
-                    <ProductCard
-                      key={item.product.gtin}
-                      item={item}
-                      onSelect={handleSelect}
-                      onAlert={handleAlert}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ═══ 3. Trend Schuhe & Sneaker ═══ */}
-            {shoeProducts.length > 0 && (
-              <section className="mb-10">
-                <SectionHeader
-                  icon={<Footprints className="h-5 w-5 text-orange-500" />}
-                  title={t("shoesSection")}
-                  href="/category/schuhe"
-                />
-                <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
-                  {shoeProducts.map((item) => (
-                    <ProductCard
-                      key={item.product.gtin}
-                      item={item}
-                      onSelect={handleSelect}
-                      onAlert={handleAlert}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ═══ 4. Apple World ═══ */}
-            {appleProducts.length > 0 && (
-              <section className="mb-10">
-                <SectionHeader
-                  icon={<Apple className="h-5 w-5 text-gray-700" />}
-                  title={t("appleSection")}
-                  href="/category/smartphones"
-                />
-                <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
-                  {appleProducts.map((item) => (
-                    <ProductCard
-                      key={item.product.gtin}
-                      item={item}
-                      onSelect={handleSelect}
-                      onAlert={handleAlert}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* ═══ 5. Tech & Gadgets ═══ */}
-            {techProducts.length > 0 && (
-              <section className="mb-10">
-                <SectionHeader
-                  icon={<Monitor className="h-5 w-5 text-slate-600" />}
-                  title={t("techSection")}
-                  href="/category/laptops"
-                />
-                <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-3">
-                  {techProducts.map((item) => (
-                    <ProductCard
-                      key={item.product.gtin}
-                      item={item}
-                      onSelect={handleSelect}
-                      onAlert={handleAlert}
-                    />
-                  ))}
-                </div>
-              </section>
+            {!hasMore && products.length > 0 && (
+              <p className="mt-8 text-center text-xs text-gray-400">
+                Alle {totalProducts.toLocaleString("de-CH")} Angebote geladen
+              </p>
             )}
           </main>
-
-          {/* RIGHT SIDEBAR — News & Trends */}
-          <aside className="hidden w-72 shrink-0 border-l border-gray-100 pl-8 xl:block">
-            <div className="sticky top-[120px] max-h-[calc(100vh-140px)] overflow-y-auto">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
-                {t("newsTrends")}
-              </p>
-
-              <div className="mt-4 space-y-5">
-                {BLOG_ARTICLES.map((article, i) => (
-                  <Link key={article.slug} href={`/blog/${article.slug}`} className="group block">
-                    <div className="aspect-video overflow-hidden rounded-lg">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={article.image}
-                        alt={article.title}
-                        width={288}
-                        height={162}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        loading="lazy"
-                      />
-                    </div>
-                    <span className="mt-2 block text-[10px] font-semibold uppercase tracking-wider text-[#0076bd]">
-                      {article.category}
-                    </span>
-                    <h3 className="mt-0.5 text-sm font-bold text-slate-900 group-hover:text-[#0076bd]">
-                      {article.title}
-                    </h3>
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
-                      {article.excerpt}
-                    </p>
-                    {i < BLOG_ARTICLES.length - 1 && (
-                      <div className="mt-5 border-b border-gray-100" />
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </aside>
         </div>
       </div>
 
-      {/* Beliebte Marken */}
-      <TrustBrandsBar />
-
       {/* CTA */}
-      <section className="bg-slate-900 px-4 py-12 sm:px-6">
+      <section className="border-t border-gray-200 bg-gray-900 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-xl text-center">
-          <h2 className="text-lg font-bold text-white">
-            {t("ctaTitle")}
-          </h2>
-          <p className="mt-2 text-sm text-slate-400">
-            {t("ctaSubtitle")}
-          </p>
+          <h2 className="text-lg font-bold text-white">Verpasse keinen Deal mehr</h2>
+          <p className="mt-2 text-sm text-gray-400">Erstelle einen Preisalarm und wir informieren dich, sobald der Preis sinkt.</p>
           <button
             onClick={() => {
-              if (!isLoggedIn) {
-                setShowAuthModal(true);
-                return;
-              }
+              if (!isLoggedIn) { setShowAuthModal(true); return; }
               if (featured.length > 0) handleAlert(featured[0]);
             }}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#D81E05] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#b91a04]"
-          >
-            <Bell className="h-4 w-4" /> {t("ctaButton")}
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#D81E05] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#b91a04]">
+            <Bell className="h-4 w-4" /> Preisalarm erstellen
           </button>
         </div>
       </section>

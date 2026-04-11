@@ -305,7 +305,6 @@ export default function CategoryClient({
                   <ProductCard
                     key={item.product.gtin}
                     item={item}
-                    onSelect={handleSelect}
                     onAlert={handleAlert}
                     layout={viewMode}
                   />

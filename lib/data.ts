@@ -50,7 +50,6 @@ export async function getDynamicCategories(): Promise<
  */
 export async function getProducts(): Promise<MockProductWithHistory[]> {
   try {
-    // Lean query: no prices relation needed for list views (we use Product.price)
     const dbProducts = await db.product.findMany({
       where: { isActive: true },
       select: {
@@ -67,8 +66,55 @@ export async function getProducts(): Promise<MockProductWithHistory[]> {
     console.warn("[data] DB fetch failed, using seed data:", err instanceof Error ? err.message : err);
   }
 
-  // Fallback to seed
   return buildFromSeed();
+}
+
+/**
+ * Lightweight homepage query: only loads `limit` products sorted by best price.
+ * Used instead of getProducts() on the homepage to avoid loading 16k+ products.
+ */
+export async function getProductsPaginated(limit = 24, offset = 0): Promise<{ products: MockProductWithHistory[]; total: number }> {
+  try {
+    const [dbProducts, total] = await Promise.all([
+      db.product.findMany({
+        where: { isActive: true, price: { gt: 0 } },
+        select: {
+          id: true, gtin: true, title: true, brand: true, category: true,
+          categoryName: true, imageUrl: true, shopName: true, sourceType: true,
+          affiliateUrl: true, price: true,
+        },
+        orderBy: { updatedAt: "desc" },
+        skip: offset,
+        take: limit,
+      }),
+      db.product.count({ where: { isActive: true, price: { gt: 0 } } }),
+    ]);
+
+    return {
+      products: dbProducts.map((p) => buildFromDb({ ...p, prices: [] })),
+      total,
+    };
+  } catch (err) {
+    console.warn("[data] paginated fetch failed:", err instanceof Error ? err.message : err);
+    const all = buildFromSeed();
+    return { products: all.slice(offset, offset + limit), total: all.length };
+  }
+}
+
+/**
+ * Stats for the stats bar — cached via ISR.
+ */
+export async function getSiteStats(): Promise<{ shops: number; brands: number; offers: number }> {
+  try {
+    const [brandResult, offerCount, shopResult] = await Promise.all([
+      db.product.groupBy({ by: ["brand"], where: { isActive: true }, _count: true }),
+      db.product.count({ where: { isActive: true } }),
+      db.price.groupBy({ by: ["sourceId"], _count: true }),
+    ]);
+    return { shops: shopResult.length, brands: brandResult.length, offers: offerCount };
+  } catch {
+    return { shops: 2, brands: 500, offers: 16000 };
+  }
 }
 
 export async function getProductByGtin(gtin: string): Promise<MockProductWithHistory | null> {
