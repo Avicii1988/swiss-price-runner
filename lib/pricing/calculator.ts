@@ -30,7 +30,7 @@ const DUTY_FREE_THRESHOLD_CHF = 65;
 // ---------------------------------------------------------------------------
 
 export const PriceInputSchema = z.object({
-  amountEur: z.number().positive(),
+  amountEur: z.number().min(0),
   exchangeRate: z.number().positive(),
   weightKg: z.number().nonnegative().optional().default(0),
   category: z.enum(["standard", "reduced"]).optional().default("standard"),
@@ -69,6 +69,14 @@ export interface PriceBreakdown {
  */
 export function calculateSwissPrice(input: PriceInput): PriceBreakdown {
   const parsed = PriceInputSchema.parse(input);
+
+  // Short-circuit: amountEur=0 means no price available
+  if (parsed.amountEur === 0) {
+    return {
+      originalEur: 0, netEur: 0, netChf: 0, chVat: 0,
+      customsFee: 0, totalChf: 0, exchangeRate: parsed.exchangeRate, savings: 0,
+    };
+  }
 
   // 1. Strip German VAT
   const netEur = parsed.amountEur / (1 + DE_VAT_RATE);

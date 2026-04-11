@@ -14,7 +14,7 @@ export const ExternalProductSchema = z.object({
 
 export const ExternalPriceSchema = z.object({
   gtin: z.string().min(8).max(14),
-  amountEur: z.number().positive(),
+  amountEur: z.number().min(0),
   url: z.string().url().optional(),
   availableInCh: z.boolean().optional().default(false),
 });
