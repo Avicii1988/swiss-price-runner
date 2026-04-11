@@ -67,6 +67,18 @@ async function handleRequest(req: NextRequest) {
   const scrub = params.get("scrub") === "true"; // force overwrite all product fields with clean feed data
 
   try {
+    // ── 0. Fast init: return known total instantly (no download) ──
+    if (params.get("init") === "true") {
+      const knownTotal = KNOWN_TOTALS[feedKey] ?? 0;
+      return jsonResponse(true, {
+        offset: 0, total: knownTotal, imported: 0,
+        percent: 0, isComplete: false, limit,
+        totalBatches: Math.ceil(knownTotal / limit),
+        message: `${feed.shopName}: ${knownTotal} Produkte`,
+        durationMs: elapsed(),
+      });
+    }
+
     // ── 1. Determine offset: query param → DB fallback ────
     let offset: number;
     if (offsetParam !== null && !isNaN(Number(offsetParam))) {
@@ -135,8 +147,7 @@ async function handleRequest(req: NextRequest) {
     const debugErrors: string[] = [];
 
     for (const item of batch) {
-      // Relaxed timeout for debugging — only stop at 9s (Vercel max is 10s)
-      if (elapsed() > 9000) { stoppedEarly = true; break; }
+      if (elapsed() > SAFETY_TIMEOUT_MS) { stoppedEarly = true; break; }
 
       // GTIN sanitization: trim whitespace, use EAN/MPN/hash as fallback
       const rawGtin = (item.gtin || "").trim();
