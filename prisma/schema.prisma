@@ -61,11 +61,13 @@ model Price {
   amountChf Decimal  @db.Decimal(10, 2)
   amountEur Decimal  @db.Decimal(10, 2)
   sourceId  String
+  shopName  String?
   url       String?
   timestamp DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
+  @@unique([productId, sourceId])
   @@index([productId, timestamp])
   @@index([sourceId])
 }

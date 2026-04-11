@@ -113,7 +113,7 @@ async function handleRequest(req: NextRequest) {
       return jsonResponse(true, { offset, total, imported: 0, nextOffset: 0, percent: 100, isComplete: true, limit, message: "Import komplett!", durationMs: elapsed() });
     }
 
-    // ── 4. Upsert products individually (no $transaction) ─
+    // ── 4. Match & Merge: GTIN-based upsert + per-shop price ─
     let imported = 0;
     let skipped = 0;
     let errors = 0;
@@ -127,7 +127,6 @@ async function handleRequest(req: NextRequest) {
       const affiliateLink = cleanUrl(item.link);
       if (!priceChf || !item.title || !affiliateLink) { skipped++; continue; }
 
-      // Debug: first product of first batch
       if (offset === 0 && imported === 0 && errors === 0) {
         console.log(`[Import] Raw: "${item.price}" -> ${priceChf} CHF | ${gtin} | ${decodeHtml(item.title).slice(0, 50)}`);
       }
@@ -138,26 +137,74 @@ async function handleRequest(req: NextRequest) {
       const brand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
 
       try {
-        await db.product.upsert({
+        // Step A: Upsert Product — enrichment: only overwrite if data is better
+        const existing = await db.product.findUnique({
           where: { gtin },
-          select: { id: true },
+          select: { id: true, title: true, imageUrl: true, price: true },
+        });
+
+        let productId: string;
+
+        if (existing) {
+          // Data Enrichment: only update fields that improve the record
+          const updates: Record<string, unknown> = {
+            isActive: true,
+            updatedAt: new Date(),
+          };
+          // Longer title = better data
+          if (title.length > existing.title.length) {
+            updates.title = title;
+            updates.brand = brand;
+          }
+          // Fill missing image
+          if (!existing.imageUrl && imageUrl) {
+            updates.imageUrl = imageUrl;
+          }
+          // Update category (always from latest feed)
+          updates.category = catSlug;
+          updates.categoryName = catName;
+          // Update price to lowest across all shops
+          const existingPrice = existing.price ? Number(existing.price) : Infinity;
+          if (priceChf < existingPrice) {
+            updates.price = priceChf;
+          }
+
+          await db.product.update({ where: { gtin }, data: updates });
+          productId = existing.id;
+        } else {
+          // New product
+          const created = await db.product.create({
+            data: {
+              gtin, title, brand,
+              category: catSlug, categoryName: catName,
+              imageUrl, isActive: true, price: priceChf,
+            },
+            select: { id: true },
+          });
+          productId = created.id;
+        }
+
+        // Step B: Upsert Price for this shop (unique on productId+sourceId)
+        await db.price.upsert({
+          where: {
+            productId_sourceId: { productId, sourceId: feed.id },
+          },
           create: {
-            gtin, title, brand,
-            category: catSlug, categoryName: catName,
-            imageUrl, shopName: feed.shopName,
-            sourceType: feed.sourceType,
-            affiliateUrl: affiliateLink,
-            isActive: true, price: priceChf,
+            productId,
+            sourceId: feed.id,
+            shopName: feed.shopName,
+            amountChf: priceChf,
+            amountEur: 0,
+            url: affiliateLink,
           },
           update: {
-            title, brand,
-            category: catSlug, categoryName: catName,
-            imageUrl: imageUrl || undefined,
-            affiliateUrl: affiliateLink,
-            isActive: true, price: priceChf,
-            updatedAt: new Date(),
+            amountChf: priceChf,
+            shopName: feed.shopName,
+            url: affiliateLink,
+            timestamp: new Date(),
           },
         });
+
         imported++;
       } catch {
         errors++;

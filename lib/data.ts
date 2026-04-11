@@ -81,8 +81,7 @@ export async function getProductByGtin(gtin: string): Promise<MockProductWithHis
         affiliateUrl: true, price: true,
         prices: {
           orderBy: { timestamp: "desc" },
-          take: 10,
-          select: { amountChf: true, amountEur: true, sourceId: true, url: true, timestamp: true },
+          select: { amountChf: true, amountEur: true, sourceId: true, shopName: true, url: true, timestamp: true },
         },
       },
     });
@@ -138,20 +137,21 @@ type DbProduct = {
   sourceType?: string | null;
   affiliateUrl?: string | null;
   price?: unknown | null;
-  prices: { amountChf: unknown; amountEur: unknown; sourceId: string; url?: string | null; timestamp?: Date }[];
+  prices: { amountChf: unknown; amountEur: unknown; sourceId: string; shopName?: string | null; url?: string | null; timestamp?: Date }[];
 };
 
 function buildFromDb(p: DbProduct): MockProductWithHistory {
   const isFeedProduct = p.sourceType === "adtraction_feed";
   const affiliateUrl = p.affiliateUrl || "#";
 
-  const sourceMap = new Map<string, { chf: number; eur: number; url: string }>();
+  const sourceMap = new Map<string, { chf: number; eur: number; url: string; shopName: string }>();
   for (const price of p.prices) {
     if (!sourceMap.has(price.sourceId)) {
       sourceMap.set(price.sourceId, {
         chf: Number(price.amountChf),
         eur: Number(price.amountEur),
         url: price.url && price.url !== "#" ? price.url : affiliateUrl,
+        shopName: price.shopName || p.shopName || price.sourceId,
       });
     }
   }
@@ -169,18 +169,18 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     ? bestChf / EXCHANGE_RATE
     : 0;
 
-  const sources = Array.from(sourceMap.entries()).map(([sid, { eur, url }]) => ({
+  const sources = Array.from(sourceMap.entries()).map(([sid, { eur, url, shopName: sName }]) => ({
     sourceId: sid,
-    sourceName: p.shopName || SOURCE_NAMES[sid] || sid,
+    sourceName: sName || SOURCE_NAMES[sid] || sid,
     url,
     currentPriceEur: isFeedProduct && bestChf > 0 ? effectiveEur : eur,
   }));
 
-  // Feed product without Price records: always create a virtual source
+  // Feed product without Price records: create a virtual source from Product fields
   if (sources.length === 0 && isFeedProduct) {
     sources.push({
-      sourceId: "adtraction_xxl_parfum",
-      sourceName: p.shopName || "XXL Parfum",
+      sourceId: "feed_default",
+      sourceName: p.shopName || "Shop",
       url: affiliateUrl,
       currentPriceEur: effectiveEur,
     });
