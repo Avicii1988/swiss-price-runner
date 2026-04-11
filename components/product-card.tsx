@@ -5,7 +5,7 @@ import { Bell, Heart, Pin } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
-const FALLBACK_IMG = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop";
+const FALLBACK_IMG = "/placeholder-product.svg";
 
 export function hasValidImage(url: string | undefined | null): boolean {
   if (!url) return false;

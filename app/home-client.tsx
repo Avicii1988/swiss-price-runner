@@ -154,8 +154,12 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
       <footer className="bg-white px-4 py-10 sm:px-6">
         <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-8 text-[12px] text-gray-400 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">PreisAlarm</p>
-            <p className="mt-3 leading-relaxed">Dein neutraler Schweizer Preisvergleich für Beauty, Parfum & Lifestyle. Wir vergleichen Preise aus mehreren Shops — transparent und unabhängig.</p>
+            <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="mb-3 cursor-pointer">
+              <span className="text-[15px] font-black tracking-tight text-gray-900">
+                Preis<span className="text-[#D81E05]">Alarm</span>
+              </span>
+            </button>
+            <p className="leading-relaxed">Dein neutraler Schweizer Preisvergleich für Beauty, Parfum & Lifestyle. Transparent, unabhängig, mit Echtzeit-Alarmen.</p>
           </div>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Rechtliches</p>

@@ -151,20 +151,23 @@ export const CATEGORIES: Category[] = [
       { slug: "mode-taschen", name: "Taschen & Accessoires", productCount: 366 },
     ],
   },
-  // 8. Parfum & Düfte (includes Beauty & Pflege sub-categories)
+  // 8. Parfum & Düfte (subcategories match actual feed slugs from DB)
   {
     slug: "parfum",
     name: "Parfum & Düfte",
     icon: Droplets,
     description: "Herren- und Damendüfte, Beauty und Pflege",
-    productCount: 2435,
+    productCount: 16000,
     subcategories: [
-      { slug: "parfum-herren", name: "Herrendüfte", productCount: 345 },
-      { slug: "parfum-damen", name: "Damendüfte", productCount: 456 },
-      { slug: "parfum-unisex", name: "Unisex-Düfte", productCount: 89 },
-      { slug: "parfum-pflege", name: "Hautpflege", productCount: 567 },
-      { slug: "parfum-makeup", name: "Make-up", productCount: 432 },
-      { slug: "parfum-haarpflege", name: "Haarpflege", productCount: 345 },
+      { slug: "damendufte", name: "Damenparfum", productCount: 0 },
+      { slug: "herrendufte", name: "Herrenparfum", productCount: 0 },
+      { slug: "unisex-dufte", name: "Unisex", productCount: 0 },
+      { slug: "geschenksets", name: "Geschenksets", productCount: 0 },
+      { slug: "pflege", name: "Gesichts- & Körperpflege", productCount: 0 },
+      { slug: "make-up", name: "Make-up", productCount: 0 },
+      { slug: "haarpflege", name: "Haarpflege", productCount: 0 },
+      { slug: "koerperpflege", name: "Körperpflege", productCount: 0 },
+      { slug: "sonnenpflege", name: "Sonnenpflege", productCount: 0 },
     ],
   },
   // 9. Uhren & Schmuck
