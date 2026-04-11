@@ -29,6 +29,12 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Parfumsale",
     sourceType: "adtraction_feed",
   },
+  import_parfumerie: {
+    id: "import_parfumerie",
+    url: "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1718945489&asid=2064719298&gsh=1&pfid=1087&gt=1",
+    shopName: "Import Parfumerie",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
@@ -41,6 +47,7 @@ const CACHE_TTL = 10 * 60 * 1000; // 10 min
 const KNOWN_TOTALS: Record<string, number> = {
   xxl_parfum: 16355,
   parfumsale: 8578,
+  import_parfumerie: 10000,
 };
 
 export async function GET(req: NextRequest) { return handleRequest(req); }

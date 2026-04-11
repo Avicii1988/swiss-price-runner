@@ -147,11 +147,14 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
         </div>
       </section>
 
+      {/* ═══ Rainbow Divider ═══ */}
+      <div className="rainbow-bar" />
+
       {/* ═══ Noble Footer ═══ */}
-      <footer className="border-t border-[#f0f0f2] bg-white px-4 py-5 sm:px-6">
+      <footer className="bg-white px-4 py-5 sm:px-6">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center gap-2 text-center text-[11px] text-gray-400 sm:flex-row sm:justify-between sm:text-left">
           <span>&copy; {new Date().getFullYear()} PreisAlarm.ch</span>
-          <span className="hidden text-gray-300 sm:inline">Partner: XXL Parfum, Parfumsale</span>
+          <span className="hidden text-gray-300 sm:inline">Partner: XXL Parfum, Parfumsale, Import Parfumerie</span>
           <div className="flex gap-4">
             <Link href="/impressum" className="transition hover:text-gray-600 hover:underline">Impressum</Link>
             <Link href="/privacy" className="transition hover:text-gray-600 hover:underline">Datenschutz</Link>

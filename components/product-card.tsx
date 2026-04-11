@@ -63,23 +63,21 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
 
   return (
     <div className="group relative flex flex-col bg-white transition-colors duration-200 hover:bg-[#f8f8f9]">
-      {/* Icons — hidden on desktop (show on hover), subtle on mobile (always visible) */}
-      <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-30 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100">
-        {/* Heart */}
+      {/* Icons — subtle on mobile, fade in on desktop hover */}
+      <div className="absolute right-2 top-2 z-10 flex gap-1.5 opacity-40 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100">
         <div className="relative">
           <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
-            className={`peer flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-200 hover:scale-110 ${faved ? "text-red-500" : "text-gray-400 hover:text-red-400"}`}>
-            <Heart className={`h-3 w-3 ${faved ? "fill-current" : ""}`} />
+            className={`peer flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-all duration-200 hover:scale-110 ${faved ? "text-red-500" : "text-gray-500 hover:text-red-500"}`}>
+            <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
           </button>
           <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
             Favorit
           </span>
         </div>
-        {/* Pin */}
         <div className="relative">
           <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
-            className={`peer flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-sm transition-all duration-200 hover:scale-110 ${pinned ? "text-blue-500" : "text-gray-400 hover:text-blue-400"}`}>
-            <Pin className={`h-3 w-3 ${pinned ? "fill-current" : ""}`} />
+            className={`peer flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-all duration-200 hover:scale-110 ${pinned ? "text-blue-500" : "text-gray-500 hover:text-blue-500"}`}>
+            <Pin className={`h-4 w-4 ${pinned ? "fill-current" : ""}`} />
           </button>
           <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
             Merken
@@ -117,8 +115,8 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           {onAlert && (
             <div className="relative">
               <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
-                className="peer flex h-7 w-7 items-center justify-center rounded-full text-gray-300 transition-all duration-200 hover:scale-110 hover:text-[#D81E05]">
-                <Bell className="h-3.5 w-3.5" />
+                className="peer flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-all duration-200 hover:scale-110 hover:text-[#D81E05]">
+                <Bell className="h-4 w-4" />
               </button>
               <span className="pointer-events-none absolute -top-7 right-0 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
                 Preisalarm
