@@ -13,6 +13,13 @@ export function hasValidImage(url: string | undefined | null): boolean {
   return true;
 }
 
+/** Proxy external images to avoid 403 referrer blocks */
+function proxyUrl(url: string | null | undefined): string {
+  if (!url) return FALLBACK_IMG;
+  if (url.startsWith("/")) return url; // local
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 function formatPrice(chf: number): string {
   if (chf <= 0) return "–";
   const rounded = Math.round(chf * 100) / 100;
@@ -46,7 +53,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
         <Link href={`/product/${product.gtin}`} className="flex flex-1 items-center gap-4 sm:gap-5">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center p-1 sm:h-24 sm:w-24">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={product.imageUrl || FALLBACK_IMG} alt={product.title} width={80} height={80} loading="lazy"
+            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={80} height={80} loading="lazy"
               className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
           </div>
           <div className="min-w-0 flex-1">
@@ -90,7 +97,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
         <div className="aspect-square overflow-hidden p-3">
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={product.imageUrl || FALLBACK_IMG} alt={product.title} width={200} height={200} loading="lazy"
+            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={200} height={200} loading="lazy"
               className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
           </div>
