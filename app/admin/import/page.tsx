@@ -112,7 +112,7 @@ function ImportDashboard() {
 
       try {
         const res = await fetch(
-          `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}&offset=${myOffset}`,
+          `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}&offset=${myOffset}&scrub=true`,
         );
         const data: BatchResult = await res.json();
 
@@ -173,7 +173,7 @@ function ImportDashboard() {
     // Init request — get total + starting offset
     try {
       const initRes = await fetch(
-        `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}`,
+        `/api/cron/import-feed?secret=${encodeURIComponent(secret)}&limit=${BATCH_LIMIT}&scrub=true`,
       );
       const init: BatchResult = await initRes.json();
 
