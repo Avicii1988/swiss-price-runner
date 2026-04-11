@@ -7,10 +7,11 @@ import { getCategoryBySlug } from "@/lib/categories";
 import { ProductDetailClient } from "./client";
 
 export const revalidate = 3600; // ISR: regenerate every hour
+export const dynamicParams = true; // allow any gtin, not just pre-rendered ones
 
+// Don't pre-render at build time — pages are generated on first request, then cached
 export async function generateStaticParams() {
-  const gtins = await getAllGtinsFromDb();
-  return gtins.map((gtin) => ({ gtin }));
+  return [];
 }
 
 export async function generateMetadata({ params }: { params: { gtin: string } }): Promise<Metadata> {

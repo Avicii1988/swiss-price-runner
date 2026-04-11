@@ -3,7 +3,7 @@ import { parseCategorySlugs } from "@/lib/categories";
 import { prettifySlug } from "@/lib/category-icons";
 import CategoryClient from "./client";
 
-export const revalidate = 3600; // ISR: regenerate every hour
+export const dynamic = "force-dynamic"; // categories depend on active filters + imports
 
 export default async function CategoryPage({
   params,
