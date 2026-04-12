@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User } from "lucide-react";
+import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User, Store, Tag } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -21,6 +21,15 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ query, onQueryChange, allProducts = [], onCategorySelect, showVision }: SiteHeaderProps) {
   const { lang, setLang, t } = useLang();
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+
+  // Fetch category counts once on mount (for mobile menu badges)
+  useEffect(() => {
+    fetch("/api/products/categories").then((r) => r.json()).then((data) => {
+      if (data.counts) setCategoryCounts(data.counts);
+    }).catch(() => {});
+  }, []);
+
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
@@ -231,6 +240,10 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             {SIDEBAR_CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const isExpanded = expandedMenu === cat.slug;
+              // Compute real count: category itself + all subcategory slugs
+              const catCount = categoryCounts[cat.slug] ?? 0;
+              const subsCount = cat.subcategories.reduce((s, sub) => s + (categoryCounts[sub.slug] ?? 0), 0);
+              const totalCount = catCount + subsCount;
               const hasSubs = cat.subcategories.length > 0;
 
               return (
@@ -242,7 +255,8 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                     >
                       <Icon className={`h-[16px] w-[16px] transition ${isExpanded ? "text-[#D81E05]" : "text-gray-400"}`} strokeWidth={1.75} />
                       <span className={isExpanded ? "font-medium" : ""}>{cat.name}</span>
-                      <ChevronDown className={`ml-auto h-4 w-4 text-gray-300 transition ${isExpanded ? "rotate-180" : ""}`} />
+                      {totalCount > 0 && <span className="ml-auto text-[11px] text-gray-400">{totalCount.toLocaleString("de-CH")}</span>}
+                      <ChevronDown className={`ml-2 h-4 w-4 text-gray-300 transition ${isExpanded ? "rotate-180" : ""}`} />
                     </button>
                   ) : (
                     <Link
@@ -252,7 +266,8 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                     >
                       <Icon className="h-[16px] w-[16px] text-gray-400" strokeWidth={1.75} />
                       <span>{cat.name}</span>
-                      <ChevronRight className="ml-auto h-4 w-4 text-gray-300" />
+                      {totalCount > 0 && <span className="ml-auto text-[11px] text-gray-400">{totalCount.toLocaleString("de-CH")}</span>}
+                      <ChevronRight className="ml-2 h-4 w-4 text-gray-300" />
                     </Link>
                   )}
                   {isExpanded && (
@@ -264,31 +279,38 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                       >
                         Alle in {cat.name}
                       </Link>
-                      {cat.subcategories.map((sub) => (
+                      {cat.subcategories.map((sub) => {
+                        const subCount = categoryCounts[sub.slug] ?? 0;
+                        return (
                         <Link
                           key={sub.slug}
-                          href={`/category/${cat.slug}/${sub.slug}`}
+                          href={`/category/${sub.slug}`}
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center justify-between px-12 py-2 text-[14px] text-gray-600 transition hover:text-slate-900"
                         >
                           <span>{sub.name}</span>
-                          <span className="text-[10px] text-gray-400">{sub.productCount}</span>
+                          {subCount > 0 && <span className="text-[10px] text-gray-400">{subCount.toLocaleString("de-CH")}</span>}
                         </Link>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
               );
             })}
-            {/* Service Links (analog Desktop-Sidebar) */}
+            {/* Service Links — styled like categories with icons */}
             <div className="mt-2 border-t border-gray-100 pt-2">
-              <Link href="/" onClick={() => setMobileMenuOpen(false)}
-                className="block px-5 py-3 text-[14px] text-gray-500">
-                Shop-Übersicht
+              <Link href="/shops" onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 border-b border-gray-50 px-5 py-3 text-[15px] text-slate-800">
+                <Store className="h-4 w-4 text-gray-400" strokeWidth={1.75} />
+                <span>Shop-Übersicht</span>
+                <ChevronRight className="ml-auto h-4 w-4 text-gray-300" />
               </Link>
-              <Link href="/" onClick={() => setMobileMenuOpen(false)}
-                className="block px-5 py-3 text-[14px] text-gray-500">
-                Marken-Übersicht
+              <Link href="/brands" onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 border-b border-gray-50 px-5 py-3 text-[15px] text-slate-800">
+                <Tag className="h-4 w-4 text-gray-400" strokeWidth={1.75} />
+                <span>Marken-Übersicht</span>
+                <ChevronRight className="ml-auto h-4 w-4 text-gray-300" />
               </Link>
             </div>
           </nav>
