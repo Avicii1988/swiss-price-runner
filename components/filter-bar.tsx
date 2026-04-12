@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, X, RotateCcw } from "lucide-react";
+import { ChevronDown, RotateCcw } from "lucide-react";
 
 // ── Category-specific filter configs ─────────────────────────
 
@@ -71,8 +71,8 @@ export function FilterBar({
 
   return (
     <div className="mb-5">
-      {/* Filter row — Galaxus style: compact, light bg, inline */}
-      <div className="flex flex-wrap gap-2">
+      {/* Filter grid — Galaxus style: 3 columns on desktop, matches product grid width */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {/* Marke — always shown */}
         <FilterDrop label="Marke" active={selectedBrands.length > 0} count={selectedBrands.length}>
           <div className="max-h-56 overflow-y-auto p-1.5">
@@ -185,13 +185,14 @@ export function FilterBar({
           </div>
         </FilterDrop>
 
-        {/* Reset */}
-        {activeFilterCount > 0 && (
-          <button onClick={onClearAll} className="flex items-center gap-1 px-3 py-2 text-[13px] text-[#0076bd] hover:text-[#005a94]">
-            <RotateCcw className="h-3.5 w-3.5" /> Filter zurücksetzen
-          </button>
-        )}
       </div>
+
+      {/* Reset below grid */}
+      {activeFilterCount > 0 && (
+        <button onClick={onClearAll} className="mt-3 flex items-center gap-1 text-[12px] text-[#0076bd] hover:text-[#005a94]">
+          <RotateCcw className="h-3 w-3" /> Filter zurücksetzen
+        </button>
+      )}
     </div>
   );
 }
@@ -224,22 +225,24 @@ function FilterDrop({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 rounded border px-3 py-[7px] text-[13px] transition ${
+        className={`flex w-full items-center justify-between gap-2 rounded-full border px-4 py-2.5 text-[13px] transition ${
           active
-            ? "border-[#0076bd] bg-white font-medium text-[#0076bd]"
-            : "border-gray-200 bg-[#f5f5f5] text-gray-700 hover:border-gray-300"
+            ? "border-gray-900 bg-white font-medium text-gray-900"
+            : "border-gray-200 bg-white text-gray-700 hover:border-gray-400"
         }`}
       >
-        {label}
-        {count ? (
-          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#0076bd] px-1 text-[10px] font-bold text-white">
-            {count}
-          </span>
-        ) : null}
-        <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition ${open ? "rotate-180" : ""}`} />
+        <span className="flex items-center gap-1.5">
+          {label}
+          {count ? (
+            <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-gray-900 px-1 text-[10px] font-bold text-white">
+              {count}
+            </span>
+          ) : null}
+        </span>
+        <ChevronDown className={`h-4 w-4 text-gray-400 transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 min-w-[200px] rounded-lg border border-gray-200 bg-white shadow-lg">
           {children}
         </div>
       )}
