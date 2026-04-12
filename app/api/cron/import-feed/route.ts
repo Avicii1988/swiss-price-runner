@@ -35,6 +35,12 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Import Parfumerie",
     sourceType: "adtraction_feed",
   },
+  coop_vitality: {
+    id: "coop_vitality",
+    url: "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1937274155&asid=2064719298&gsh=1&pfid=2492&gt=1",
+    shopName: "Coop Vitality",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
@@ -48,6 +54,7 @@ const KNOWN_TOTALS: Record<string, number> = {
   xxl_parfum: 16355,
   parfumsale: 8578,
   import_parfumerie: 10000,
+  coop_vitality: 8000,
 };
 
 export async function GET(req: NextRequest) { return handleRequest(req); }
@@ -168,7 +175,8 @@ async function handleRequest(req: NextRequest) {
 
     // Pre-validate and prepare all items
     interface PreparedItem {
-      gtin: string; priceChf: number; affiliateLink: string;
+      gtin: string; priceChf: number; originalPriceChf: number | null;
+      affiliateLink: string;
       catSlug: string; catName: string; imageUrl: string | null;
       title: string; brand: string;
     }
@@ -181,6 +189,7 @@ async function handleRequest(req: NextRequest) {
       const gtin = rawGtin || rawMpn || `feed_${hashStr(item.link || `${offset + i}`)}`;
 
       const priceChf = parseSwissPrice(item.price);
+      const originalPriceChf = parseSwissPrice(item.originalPrice);
       const affiliateLink = cleanUrl(item.link);
 
       if (!priceChf) {
@@ -194,9 +203,19 @@ async function handleRequest(req: NextRequest) {
         continue;
       }
 
+      // Pharmacy Rx filter: skip prescription-only products (Swiss regulation)
+      const lowerTitle = (item.title || "").toLowerCase();
+      const lowerDesc = (item.description || "").toLowerCase();
+      const isRx = /\b(rx|rezeptpflichtig|verschreibungspflichtig|prescription[- ]only|nur auf rezept)\b/i.test(lowerTitle + " " + lowerDesc);
+      if (isRx) {
+        skipped++;
+        if (skipped <= 3) debugErrors.push(`skip: Rx product gtin=${gtin}`);
+        continue;
+      }
+
       if (prepared.length === 0 && offset === 0) {
         console.log(`[Import ${feed.id}] First item:`, JSON.stringify({
-          gtin: item.gtin, mpn: item.mpn, price: item.price,
+          gtin: item.gtin, mpn: item.mpn, price: item.price, origPrice: item.originalPrice,
           title: (item.title || "").slice(0, 60), brand: item.brand,
         }));
       }
@@ -205,6 +224,8 @@ async function handleRequest(req: NextRequest) {
       prepared.push({
         gtin,
         priceChf,
+        // Only use originalPrice if it's strictly higher (= real discount)
+        originalPriceChf: originalPriceChf && originalPriceChf > priceChf ? originalPriceChf : null,
         affiliateLink,
         catSlug,
         catName,
@@ -282,7 +303,7 @@ function jsonResponse(ok: boolean, data: Record<string, any>) {
 
 /** Process a single product: find/create + write price (all raw SQL) */
 async function processItem(
-  p: { gtin: string; priceChf: number; affiliateLink: string; catSlug: string; catName: string; imageUrl: string | null; title: string; brand: string },
+  p: { gtin: string; priceChf: number; originalPriceChf: number | null; affiliateLink: string; catSlug: string; catName: string; imageUrl: string | null; title: string; brand: string },
   feed: FeedConfig,
   scrub: boolean,
 ) {
@@ -383,6 +404,7 @@ async function decompressZip(data: Uint8Array): Promise<string> {
 interface FeedItem {
   title: string; price: string; link: string; imageLink: string;
   brand: string; gtin: string; mpn: string; productType: string;
+  originalPrice: string; description: string; availability: string;
 }
 
 /** Fast count: counts <item> tags without parsing content (~10x faster than full parse) */
@@ -414,12 +436,15 @@ function parseFeedSlice(xml: string, offset: number, limit: number): FeedItem[] 
       items.push({
         title: tag(b, "g:title") || tag(b, "title") || "",
         price: tag(b, "g:sale_price") || tag(b, "sale_price") || tag(b, "g:price") || tag(b, "price") || "",
+        originalPrice: tag(b, "g:price") || tag(b, "price") || "",
         link: tag(b, "g:link") || tag(b, "link") || "",
         imageLink: tag(b, "g:image_link") || tag(b, "image_link") || "",
         brand: tag(b, "g:brand") || tag(b, "brand") || "",
         gtin: tag(b, "g:gtin") || tag(b, "g:ean") || "",
         mpn: tag(b, "g:mpn") || tag(b, "g:id") || tag(b, "id") || "",
         productType: tag(b, "g:product_type") || tag(b, "g:google_product_category") || "",
+        description: tag(b, "g:description") || tag(b, "description") || "",
+        availability: tag(b, "g:availability") || tag(b, "availability") || "",
       });
     }
     index++;

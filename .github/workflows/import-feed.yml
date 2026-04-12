@@ -12,6 +12,7 @@ on:
           - parfumsale
           - xxl_parfum
           - import_parfumerie
+          - coop_vitality
       limit:
         description: 'Items per batch'
         required: false
