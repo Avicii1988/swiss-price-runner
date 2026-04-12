@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown, Store, Tag } from "lucide-react";
 import { useState } from "react";
 import { CATEGORIES, SIDEBAR_CATEGORIES } from "@/lib/categories";
 import { getCategoryIcon } from "@/lib/category-icons";
@@ -124,12 +124,14 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
         </>
       )}
 
-      {/* Service Links */}
-      <div className="mt-5 border-t border-gray-100 pt-4">
-        <Link href="/" className="block py-[5px] text-[12px] text-gray-400 transition hover:text-gray-600">
+      {/* Service Links — styled like categories */}
+      <div className="mt-5 border-t border-gray-100 pt-3">
+        <Link href="/shops" className="group flex items-center gap-2.5 py-[7px] text-[13px] text-gray-600 transition hover:text-gray-900">
+          <Store className="h-4 w-4 shrink-0 text-gray-400 transition group-hover:text-gray-600" strokeWidth={1.75} />
           Shop-Übersicht
         </Link>
-        <Link href="/" className="block py-[5px] text-[12px] text-gray-400 transition hover:text-gray-600">
+        <Link href="/brands" className="group flex items-center gap-2.5 py-[7px] text-[13px] text-gray-600 transition hover:text-gray-900">
+          <Tag className="h-4 w-4 shrink-0 text-gray-400 transition group-hover:text-gray-600" strokeWidth={1.75} />
           Marken-Übersicht
         </Link>
       </div>

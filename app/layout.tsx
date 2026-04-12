@@ -64,7 +64,8 @@ export default function RootLayout({
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Service</p>
                 <nav className="mt-3 flex flex-col gap-1.5">
                   <Link href="/" className="transition hover:text-gray-600 hover:underline">Preisalarm setzen</Link>
-                  <Link href="/" className="transition hover:text-gray-600 hover:underline">Shop-Übersicht</Link>
+                  <Link href="/shops" className="transition hover:text-gray-600 hover:underline">Shop-Übersicht</Link>
+                  <Link href="/brands" className="transition hover:text-gray-600 hover:underline">Marken-Übersicht</Link>
                   <a href="mailto:bugs@preisalarm.ch" className="transition hover:text-gray-600 hover:underline">Bug melden</a>
                 </nav>
               </div>
