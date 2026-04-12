@@ -48,21 +48,56 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
   };
 
   if (layout === "list") {
+    const categoryLabel = product.categoryName || product.category || "Produkt";
     return (
-      <div className="group relative flex items-center gap-4 border-b border-[#f0f0f2] bg-white p-3 transition-colors duration-200 hover:bg-[#f8f8f9] sm:gap-5 sm:p-4">
-        <Link href={`/product/${product.gtin}`} className="flex flex-1 items-center gap-4 sm:gap-5">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center p-1 sm:h-24 sm:w-24">
+      <div className="group relative border-b border-[#f0f0f2] bg-white px-4 py-4 transition-colors duration-200 hover:bg-[#f8f8f9]">
+        <Link href={`/product/${product.gtin}`} className="flex gap-4">
+          {/* Image — square, left */}
+          <div className="flex h-28 w-28 shrink-0 items-center justify-center p-1 sm:h-32 sm:w-32">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={80} height={80} loading="lazy"
+            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={112} height={112} loading="lazy"
               className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-sm text-gray-600">
-              <span className="font-bold text-gray-900">{product.brand}</span> {product.title.replace(product.brand, "").trim()}
+
+          {/* Info — right */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            {/* Category label (blue, small) */}
+            <p className="text-[13px] font-medium text-[#0076bd]">{categoryLabel}</p>
+
+            {/* Price — bold */}
+            <p className="mt-0.5 text-[18px] font-bold text-gray-900">
+              {hasPrice ? formatPrice(bestPrice.totalChf) : "–"}
             </p>
-            {sources > 0 && <p className="mt-0.5 text-[10px] text-gray-400">{sources} {sources === 1 ? "Angebot" : "Angebote"}</p>}
+
+            {/* Brand bold + title */}
+            <p className="mt-0.5 line-clamp-2 text-[14px] leading-snug text-gray-700">
+              <span className="font-bold text-gray-900">{product.brand}</span>{" "}
+              {product.title.replace(product.brand, "").trim()}
+            </p>
+
+            {/* Bottom row: offers + icons */}
+            <div className="mt-auto flex items-center justify-between pt-2">
+              {sources > 0 ? (
+                <p className="text-[11px] text-gray-400">
+                  {sources > 1 ? `${sources} Angebote` : "1 Angebot"}
+                </p>
+              ) : <span />}
+              <div className="flex items-center gap-2">
+                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
+                  className={`p-1 transition ${pinned ? "text-[#0076bd]" : "text-[#0076bd]/70 hover:text-[#0076bd]"}`}
+                  title="Merken">
+                  <Pin className={`h-4 w-4 ${pinned ? "fill-current" : ""}`} />
+                </button>
+                {onAlert && (
+                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
+                    className="p-1 text-[#0076bd]/70 transition hover:text-[#D81E05]"
+                    title="Preisalarm">
+                    <Bell className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          <span className="shrink-0 text-xl font-bold text-gray-900">{hasPrice ? formatPrice(bestPrice.totalChf) : "–"}</span>
         </Link>
       </div>
     );

@@ -86,7 +86,18 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
               <span className="text-[11px] text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-px bg-[#f0f0f2] sm:grid-cols-3 lg:grid-cols-3">
+            {/* Mobile: list layout (Galaxus style) */}
+            <div className="sm:hidden">
+              {products.map((item) => (
+                <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} layout="list" />
+              ))}
+              {loading && Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                <ProductCardSkeleton key={`skel-${i}`} layout="list" />
+              ))}
+            </div>
+
+            {/* Desktop: grid layout */}
+            <div className="hidden sm:grid sm:grid-cols-3 gap-px bg-[#f0f0f2]">
               {products.map((item) => (
                 <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
               ))}
