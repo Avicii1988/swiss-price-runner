@@ -236,15 +236,6 @@ export default function CategoryClient({
                 Produkte
               </p>
               <div className="flex items-center gap-2">
-                {/* Mobile filter toggle */}
-                <button
-                  onClick={() => setShowMobileFilters(!showMobileFilters)}
-                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-[10px] font-medium text-gray-600 lg:hidden"
-                >
-                  <SlidersHorizontal className="h-3 w-3" />
-                  Filter
-                </button>
-
                 {/* Sort */}
                 <div className="flex items-center gap-1 rounded-md border border-gray-200 px-2.5 py-1.5">
                   <ArrowUpDown className="h-3 w-3 text-gray-400" />
@@ -253,7 +244,7 @@ export default function CategoryClient({
                     onChange={(e) => setSort(e.target.value as SortOption)}
                     className="bg-transparent text-xs font-medium text-gray-600 outline-none"
                   >
-                    <option value="popular">Beliebt</option>
+                    <option value="popular">Relevanz</option>
                     <option value="price_asc">Preis aufsteigend</option>
                     <option value="price_desc">Preis absteigend</option>
                     <option value="drop">Grösster Preisrückgang</option>
@@ -301,7 +292,7 @@ export default function CategoryClient({
               <div
                 className={
                   viewMode === "grid"
-                    ? "grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3"
+                    ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
                     : ""
                 }
               >
@@ -340,7 +331,7 @@ export default function CategoryClient({
               <div
                 className={
                   viewMode === "grid"
-                    ? "grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3"
+                    ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
                     : ""
                 }
               >

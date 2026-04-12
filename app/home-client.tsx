@@ -107,7 +107,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
 
             {/* Product display — respects viewMode on all screens */}
             {viewMode === "grid" ? (
-              <div className="grid grid-cols-2 gap-px bg-[#f0f0f2] sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-px bg-[#f0f0f2] sm:grid-cols-3">
                 {products.map((item) => (
                   <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
                 ))}

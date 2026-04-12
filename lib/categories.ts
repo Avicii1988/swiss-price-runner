@@ -325,9 +325,19 @@ export function parseCategorySlugs(slugs: string[]): {
     return { parentCategory: undefined, activeSubCategory: undefined, breadcrumbs };
   }
 
-  const parentSlug = slugs[0];
-  const parentCategory = getCategoryBySlug(parentSlug);
+  const firstSlug = slugs[0];
+  let parentCategory = getCategoryBySlug(firstSlug);
+
+  // If first slug isn't a master category, check if it's a subcategory
+  // (e.g. /category/damendufte → parent is Parfum & Düfte)
   if (!parentCategory) {
+    const subMatch = getSubCategoryBySlug(firstSlug);
+    if (subMatch) {
+      parentCategory = subMatch.parent;
+      breadcrumbs.push({ label: parentCategory.name, href: `/category/${parentCategory.slug}` });
+      breadcrumbs.push({ label: subMatch.sub.name, href: `/category/${firstSlug}` });
+      return { parentCategory, activeSubCategory: subMatch.sub, breadcrumbs };
+    }
     return { parentCategory: undefined, activeSubCategory: undefined, breadcrumbs };
   }
 
