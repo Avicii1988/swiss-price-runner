@@ -45,8 +45,14 @@ const FEEDS: Record<string, FeedConfig> = {
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
 
-// ── In-memory feed cache: stores RAW XML + total count (not parsed items) ──
-const feedCache = new Map<string, { xml: string; total: number; timestamp: number }>();
+// ── In-memory feed cache: RAW XML + pre-computed item positions for O(1) slicing ──
+interface CachedFeed {
+  xml: string;
+  itemStarts: number[]; // byte positions of each <item> tag — enables direct offset lookup
+  total: number;
+  timestamp: number;
+}
+const feedCache = new Map<string, CachedFeed>();
 const CACHE_TTL = 10 * 60 * 1000; // 10 min
 
 // Known totals for instant progress bar on first request
@@ -115,15 +121,16 @@ async function handleRequest(req: NextRequest) {
 
     // ── 2. Get or download feed XML ────────────────────────
     let feedXml: string;
+    let itemStarts: number[];
     let total: number;
     const cached = feedCache.get(feedKey);
 
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       feedXml = cached.xml;
+      itemStarts = cached.itemStarts;
       total = cached.total;
     } else {
       // First request for this feed — download + decompress
-      // Allow up to 7s for download (leaves ~3s for a small batch)
       const feedRes = await fetch(feed.url, { signal: AbortSignal.timeout(6500) });
       if (!feedRes.ok) {
         return jsonResponse(false, { offset, total: KNOWN_TOTALS[feedKey] ?? 0, message: `Feed HTTP ${feedRes.status}`, durationMs: elapsed() });
@@ -134,9 +141,11 @@ async function handleRequest(req: NextRequest) {
 
       try { feedXml = await decompressZip(bytes); } catch { feedXml = new TextDecoder().decode(bytes); }
 
-      // Use known total if available, otherwise fast count
-      total = KNOWN_TOTALS[feedKey] ?? countItems(feedXml);
-      feedCache.set(feedKey, { xml: feedXml, total, timestamp: Date.now() });
+      // Build position index ONCE (O(n) scan, ~50ms for 41k items)
+      // Subsequent slices are O(1) direct lookup — offset=40000 as fast as offset=0
+      itemStarts = buildItemIndex(feedXml);
+      total = itemStarts.length;
+      feedCache.set(feedKey, { xml: feedXml, itemStarts, total, timestamp: Date.now() });
 
       console.log(`[Import ${feed.id}] Feed ready: ${total} items, ${(feedXml.length / 1024).toFixed(0)} KB, ${elapsed()}ms`);
 
@@ -158,8 +167,8 @@ async function handleRequest(req: NextRequest) {
       return jsonResponse(true, { offset: 0, total: 0, imported: 0, isComplete: true, message: "Feed leer", durationMs: elapsed() });
     }
 
-    // ── 3. Parse ONLY the batch we need (lazy slice) ──────
-    const batch = parseFeedSlice(feedXml, offset, limit);
+    // ── 3. Parse ONLY the batch we need (O(1) direct slice via index) ──
+    const batch = parseFeedSliceIndexed(feedXml, itemStarts, offset, limit);
 
     if (batch.length === 0) {
       await logImport(feed.id, 0, total, 0, 0, "cycle_complete", "Zyklus fertig.");
@@ -301,59 +310,63 @@ function jsonResponse(ok: boolean, data: Record<string, any>) {
   });
 }
 
-/** Process a single product: find/create + write price (all raw SQL) */
+/**
+ * Process a single product: 2 round-trips (was 4) via INSERT ON CONFLICT.
+ * - Product: upsert by gtin with smart enrichment in SQL CASE expressions
+ * - Price: upsert by (productId, sourceId) — single statement, no DELETE+INSERT
+ */
 async function processItem(
   p: { gtin: string; priceChf: number; originalPriceChf: number | null; affiliateLink: string; catSlug: string; catName: string; imageUrl: string | null; title: string; brand: string },
   feed: FeedConfig,
   scrub: boolean,
 ) {
-  const rows = await db.$queryRaw<{ id: string; title: string; imageUrl: string | null; price: number | null; category: string | null }[]>`
-    SELECT id, title, "imageUrl", price::float, category
-    FROM "Product" WHERE gtin = ${p.gtin} LIMIT 1
-  `;
-  const existing = rows[0] ?? null;
-  let productId: string;
+  const newId = generateId();
 
-  if (existing) {
-    if (scrub) {
-      await db.$executeRaw`
-        UPDATE "Product" SET title = ${p.title}, brand = ${p.brand},
-          category = ${p.catSlug}, "categoryName" = ${p.catName},
-          "imageUrl" = COALESCE(${p.imageUrl}, "imageUrl"),
-          price = ${p.priceChf}, "isActive" = true, "updatedAt" = NOW()
-        WHERE gtin = ${p.gtin}
+  // Step 1: UPSERT Product (single round-trip)
+  // - Scrub mode: overwrite everything
+  // - Enrichment mode: longer title wins, lowest price wins, fill missing image/category
+  // - Bypasses pgvector column entirely (not listed in INSERT/UPDATE)
+  const productRows = scrub
+    ? await db.$queryRaw<{ id: string }[]>`
+        INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
+        VALUES (${newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())
+        ON CONFLICT (gtin) DO UPDATE SET
+          title = EXCLUDED.title,
+          brand = EXCLUDED.brand,
+          category = EXCLUDED.category,
+          "categoryName" = EXCLUDED."categoryName",
+          "imageUrl" = COALESCE(EXCLUDED."imageUrl", "Product"."imageUrl"),
+          price = EXCLUDED.price,
+          "isActive" = true,
+          "updatedAt" = NOW()
+        RETURNING id
+      `
+    : await db.$queryRaw<{ id: string }[]>`
+        INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
+        VALUES (${newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())
+        ON CONFLICT (gtin) DO UPDATE SET
+          title = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.title ELSE "Product".title END,
+          brand = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.brand ELSE "Product".brand END,
+          "imageUrl" = COALESCE("Product"."imageUrl", EXCLUDED."imageUrl"),
+          category = COALESCE(NULLIF("Product".category, ''), EXCLUDED.category),
+          "categoryName" = COALESCE(NULLIF("Product"."categoryName", ''), EXCLUDED."categoryName"),
+          price = CASE WHEN EXCLUDED.price < COALESCE("Product".price, 9999999) THEN EXCLUDED.price ELSE "Product".price END,
+          "isActive" = true,
+          "updatedAt" = NOW()
+        RETURNING id
       `;
-    } else {
-      const betterTitle = p.title.length > existing.title.length;
-      const needsImage = !existing.imageUrl && p.imageUrl;
-      const lowerPrice = p.priceChf < (existing.price ?? Infinity);
-      const needsCategory = !existing.category;
-      await db.$executeRaw`
-        UPDATE "Product" SET
-          title = CASE WHEN ${betterTitle} THEN ${p.title} ELSE title END,
-          brand = CASE WHEN ${betterTitle} THEN ${p.brand} ELSE brand END,
-          "imageUrl" = CASE WHEN ${needsImage ?? false} THEN ${p.imageUrl} ELSE "imageUrl" END,
-          category = CASE WHEN ${needsCategory ?? false} THEN ${p.catSlug} ELSE category END,
-          "categoryName" = CASE WHEN ${needsCategory ?? false} THEN ${p.catName} ELSE "categoryName" END,
-          price = CASE WHEN ${lowerPrice} THEN ${p.priceChf} ELSE price END,
-          "isActive" = true, "updatedAt" = NOW()
-        WHERE gtin = ${p.gtin}
-      `;
-    }
-    productId = existing.id;
-  } else {
-    const newId = generateId();
-    await db.$executeRaw`
-      INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
-      VALUES (${newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())
-    `;
-    productId = newId;
-  }
 
-  await db.$executeRaw`DELETE FROM "Price" WHERE "productId" = ${productId} AND "sourceId" = ${feed.id}`;
+  const productId = productRows[0]?.id ?? newId;
+
+  // Step 2: UPSERT Price via unique constraint (productId, sourceId)
   await db.$executeRaw`
     INSERT INTO "Price" (id, "productId", "sourceId", "shopName", "amountChf", "amountEur", url, timestamp)
     VALUES (${generateId()}, ${productId}, ${feed.id}, ${feed.shopName}, ${p.priceChf}, 0, ${p.affiliateLink}, NOW())
+    ON CONFLICT ("productId", "sourceId") DO UPDATE SET
+      "amountChf" = EXCLUDED."amountChf",
+      "shopName" = EXCLUDED."shopName",
+      url = EXCLUDED.url,
+      timestamp = NOW()
   `;
 }
 
@@ -407,49 +420,59 @@ interface FeedItem {
   originalPrice: string; description: string; availability: string;
 }
 
-/** Fast count: counts <item> tags without parsing content (~10x faster than full parse) */
-function countItems(xml: string): number {
-  let count = 0;
+/**
+ * Build a position index of all <item> start positions.
+ * Runs once per feed cache lifetime (~50ms for 41k items).
+ * Enables O(1) offset lookup — offset=40000 is as fast as offset=0.
+ */
+function buildItemIndex(xml: string): number[] {
+  const starts: number[] = [];
   let pos = 0;
   while (true) {
     pos = xml.indexOf("<item>", pos);
     if (pos === -1) break;
-    count++;
+    starts.push(pos);
     pos += 6;
   }
-  return count;
+  return starts;
 }
 
-/** Lazy parser: only fully parses items in [offset, offset+limit] range */
-function parseFeedSlice(xml: string, offset: number, limit: number): FeedItem[] {
+/**
+ * O(1) indexed slice: directly jumps to item N using the pre-computed index.
+ * Only parses the items in [offset, offset+limit].
+ * Streaming-like behavior: other items never touched.
+ */
+function parseFeedSliceIndexed(xml: string, itemStarts: number[], offset: number, limit: number): FeedItem[] {
   const items: FeedItem[] = [];
-  const re = /<item>([\s\S]*?)<\/item>/gi;
-  let m;
-  let index = 0;
-  const end = offset + limit;
+  const end = Math.min(offset + limit, itemStarts.length);
 
-  while ((m = re.exec(xml)) !== null) {
-    if (index >= end) break; // Stop early — we have enough
-    if (index >= offset) {
-      // Only parse items in our window
-      const b = m[1];
-      items.push({
-        title: tag(b, "g:title") || tag(b, "title") || "",
-        price: tag(b, "g:sale_price") || tag(b, "sale_price") || tag(b, "g:price") || tag(b, "price") || "",
-        originalPrice: tag(b, "g:price") || tag(b, "price") || "",
-        link: tag(b, "g:link") || tag(b, "link") || "",
-        imageLink: tag(b, "g:image_link") || tag(b, "image_link") || "",
-        brand: tag(b, "g:brand") || tag(b, "brand") || "",
-        gtin: tag(b, "g:gtin") || tag(b, "g:ean") || "",
-        mpn: tag(b, "g:mpn") || tag(b, "g:id") || tag(b, "id") || "",
-        productType: tag(b, "g:product_type") || tag(b, "g:google_product_category") || "",
-        description: tag(b, "g:description") || tag(b, "description") || "",
-        availability: tag(b, "g:availability") || tag(b, "availability") || "",
-      });
-    }
-    index++;
+  for (let i = offset; i < end; i++) {
+    const start = itemStarts[i] + 6; // skip "<item>"
+    // Find </item> — bounded search (next item's start or end of XML)
+    const limit = i + 1 < itemStarts.length ? itemStarts[i + 1] : xml.length;
+    const closeIdx = xml.indexOf("</item>", start);
+    if (closeIdx === -1 || closeIdx > limit) continue;
+    const block = xml.slice(start, closeIdx);
+    items.push(extractItem(block));
   }
   return items;
+}
+
+/** Extract all fields from a single item block. Handles g: namespace + plain tags. */
+function extractItem(block: string): FeedItem {
+  return {
+    title: tag(block, "g:title") || tag(block, "title") || "",
+    price: tag(block, "g:sale_price") || tag(block, "sale_price") || tag(block, "g:price") || tag(block, "price") || "",
+    originalPrice: tag(block, "g:price") || tag(block, "price") || "",
+    link: tag(block, "g:link") || tag(block, "link") || "",
+    imageLink: tag(block, "g:image_link") || tag(block, "image_link") || "",
+    brand: tag(block, "g:brand") || tag(block, "brand") || "",
+    gtin: tag(block, "g:gtin") || tag(block, "g:ean") || "",
+    mpn: tag(block, "g:mpn") || tag(block, "g:id") || tag(block, "id") || "",
+    productType: tag(block, "g:product_type") || tag(block, "g:google_product_category") || "",
+    description: tag(block, "g:description") || tag(block, "description") || "",
+    availability: tag(block, "g:availability") || tag(block, "availability") || "",
+  };
 }
 
 function tag(xml: string, name: string): string {
