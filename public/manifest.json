@@ -1,0 +1,22 @@
+{
+  "name": "PreisAlarm — Preisvergleich Schweiz",
+  "short_name": "PreisAlarm",
+  "description": "Schweizer Preisvergleich mit Alarmfunktion",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E30613",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

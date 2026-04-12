@@ -24,9 +24,15 @@ export const metadata: Metadata = {
     "Zoll",
   ],
   icons: {
-    icon: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.svg", sizes: "180x180" },
+    ],
+    shortcut: "/favicon.svg",
   },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

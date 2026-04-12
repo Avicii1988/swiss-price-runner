@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   Pin, Heart, Bell, Trash2, LogOut, User, Settings,
@@ -8,7 +8,29 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { SiteHeader } from "@/components/site-header";
-import { getMockProductByGtin } from "@/lib/integrations/mock-service";
+
+interface AccountProduct {
+  gtin: string;
+  title: string;
+  brand: string;
+  category: string;
+  categoryName?: string | null;
+  imageUrl: string | null;
+  shopName?: string | null;
+  price: number | null;
+}
+
+function formatPrice(chf: number | null | undefined): string {
+  if (!chf || chf <= 0) return "–";
+  const rounded = Math.round(chf * 100) / 100;
+  return rounded % 1 === 0 ? `${Math.floor(rounded)}.–` : rounded.toFixed(2);
+}
+
+function proxyUrl(url: string | null | undefined): string {
+  if (!url) return "/placeholder-product.svg";
+  if (url.startsWith("/")) return url;
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
 
 export default function AccountPage() {
   const {
@@ -16,7 +38,23 @@ export default function AccountPage() {
     toggleFavorite, togglePin, updateAlert, removeAlert, setAvatarUrl,
   } = useAuth();
   const [query, setQuery] = useState("");
+  const [productMap, setProductMap] = useState<Record<string, AccountProduct>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch real product data for favorites + pinned from the DB
+  useEffect(() => {
+    if (!user) return;
+    const allGtins = Array.from(new Set([...user.favorites, ...(user.pinned ?? [])]));
+    if (allGtins.length === 0) return;
+    fetch(`/api/products/by-gtins?gtins=${allGtins.join(",")}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const map: Record<string, AccountProduct> = {};
+        for (const p of data.products ?? []) map[p.gtin] = p;
+        setProductMap(map);
+      })
+      .catch(() => {});
+  }, [user]);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -49,8 +87,8 @@ export default function AccountPage() {
     );
   }
 
-  const favoriteProducts = user.favorites.map((gtin) => getMockProductByGtin(gtin)).filter(Boolean);
-  const pinnedProducts = (user.pinned ?? []).map((gtin) => getMockProductByGtin(gtin)).filter(Boolean);
+  const favoriteProducts = user.favorites.map((gtin) => productMap[gtin]).filter(Boolean) as AccountProduct[];
+  const pinnedProducts = (user.pinned ?? []).map((gtin) => productMap[gtin]).filter(Boolean) as AccountProduct[];
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
@@ -131,19 +169,23 @@ export default function AccountPage() {
                 </p>
               ) : (
                 <div className="mt-3 space-y-2">
-                  {pinnedProducts.map((item) => item && (
-                    <Link key={item.product.gtin} href={`/product/${item.product.gtin}`} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 transition hover:bg-gray-100">
-                      <div className="flex items-center gap-3">
+                  {pinnedProducts.map((p) => (
+                    <Link key={p.gtin} href={`/product/${p.gtin}`}
+                      className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 transition hover:bg-gray-100">
+                      <div className="flex items-center gap-3 min-w-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.product.imageUrl} alt="" className="h-10 w-10 rounded-lg object-contain bg-white" />
-                        <div>
-                          <p className="text-xs font-semibold text-gray-900">{item.product.title}</p>
-                          <p className="text-[10px] text-gray-400">CHF {item.bestPrice.totalChf.toFixed(2)}</p>
+                        <img src={proxyUrl(p.imageUrl)} alt="" className="h-10 w-10 shrink-0 rounded-lg object-contain bg-white" />
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-gray-900">
+                            <span className="font-bold">{p.brand}</span> {p.title.replace(p.brand, "").trim()}
+                          </p>
+                          <p className="text-[10px] text-gray-400">{formatPrice(p.price)} {p.shopName ? `· ${p.shopName}` : ""}</p>
                         </div>
                       </div>
                       <button
-                        onClick={(e) => { e.preventDefault(); togglePin(item.product.gtin); }}
-                        className="text-gray-400 hover:text-red-500"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(p.gtin); }}
+                        className="shrink-0 text-gray-400 hover:text-red-500"
+                        title="Aus Merkliste entfernen"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -165,19 +207,23 @@ export default function AccountPage() {
                 </p>
               ) : (
                 <div className="mt-3 space-y-2">
-                  {favoriteProducts.map((item) => item && (
-                    <Link key={item.product.gtin} href={`/product/${item.product.gtin}`} className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 transition hover:bg-gray-100">
-                      <div className="flex items-center gap-3">
+                  {favoriteProducts.map((p) => (
+                    <Link key={p.gtin} href={`/product/${p.gtin}`}
+                      className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2.5 transition hover:bg-gray-100">
+                      <div className="flex items-center gap-3 min-w-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.product.imageUrl} alt="" className="h-10 w-10 rounded-lg object-contain bg-white" />
-                        <div>
-                          <p className="text-xs font-semibold text-gray-900">{item.product.title}</p>
-                          <p className="text-[10px] text-gray-400">CHF {item.bestPrice.totalChf.toFixed(2)} · {item.bestSource}</p>
+                        <img src={proxyUrl(p.imageUrl)} alt="" className="h-10 w-10 shrink-0 rounded-lg object-contain bg-white" />
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-gray-900">
+                            <span className="font-bold">{p.brand}</span> {p.title.replace(p.brand, "").trim()}
+                          </p>
+                          <p className="text-[10px] text-gray-400">{formatPrice(p.price)} {p.shopName ? `· ${p.shopName}` : ""}</p>
                         </div>
                       </div>
                       <button
-                        onClick={(e) => { e.preventDefault(); toggleFavorite(item.product.gtin); }}
-                        className="text-gray-400 hover:text-red-500"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(p.gtin); }}
+                        className="shrink-0 text-gray-400 hover:text-red-500"
+                        title="Aus Favoriten entfernen"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

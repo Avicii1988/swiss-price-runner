@@ -20,7 +20,6 @@ import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { FilterBar } from "@/components/filter-bar";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { LiveSearchGrid } from "@/components/live-search-grid";
 
 interface SerializedCategory {
   slug: string;
@@ -251,26 +250,16 @@ export default function CategoryClient({
                   </select>
                 </div>
 
-                {/* View mode — visible on all screens */}
-                <div className="flex items-center gap-0.5 rounded-md border border-gray-200 p-0.5">
-                  <button
-                    onClick={() => setViewMode("grid")}
-                    className={`rounded-md p-1 ${
-                      viewMode === "grid"
-                        ? "bg-gray-900 text-white"
-                        : "text-gray-400"
-                    }`}
-                  >
+                {/* View mode — same style as homepage */}
+                <div className="flex overflow-hidden rounded-md border border-[#e1e1e3]">
+                  <button onClick={() => setViewMode("grid")}
+                    className={`flex h-7 w-8 items-center justify-center transition ${viewMode === "grid" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
+                    title="Raster">
                     <Grid3X3 className="h-3.5 w-3.5" />
                   </button>
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className={`rounded-md p-1 ${
-                      viewMode === "list"
-                        ? "bg-gray-900 text-white"
-                        : "text-gray-400"
-                    }`}
-                  >
+                  <button onClick={() => setViewMode("list")}
+                    className={`flex h-7 w-8 items-center justify-center border-l border-[#e1e1e3] transition ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
+                    title="Liste">
                     <List className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -342,17 +331,6 @@ export default function CategoryClient({
             )}
 
             {/* Live Search Results from SearchApi */}
-            {pageTitle && (
-              <div className="mt-8 border-t border-gray-100 pt-6">
-                <h2 className="mb-4 text-base font-bold text-slate-900">
-                  Live-Preise für «{pageTitle}»
-                </h2>
-                <LiveSearchGrid
-                  query={`${pageTitle} Schweiz kaufen`}
-                  layout={viewMode}
-                />
-              </div>
-            )}
           </main>
 
           {/* RIGHT SIDEBAR — Tagesangebot */}
