@@ -58,7 +58,11 @@ export default function CategoryClient({
   const [alertProduct, setAlertProduct] =
     useState<MockProductWithHistory | null>(null);
   const [sort, setSort] = useState<SortOption>("popular");
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    // Mobile default: list, desktop default: grid
+    if (typeof window !== "undefined" && window.innerWidth < 640) return "list";
+    return "grid";
+  });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -256,8 +260,8 @@ export default function CategoryClient({
                   </select>
                 </div>
 
-                {/* View mode */}
-                <div className="hidden items-center gap-0.5 rounded-md border border-gray-200 p-0.5 sm:flex">
+                {/* View mode — visible on all screens */}
+                <div className="flex items-center gap-0.5 rounded-md border border-gray-200 p-0.5">
                   <button
                     onClick={() => setViewMode("grid")}
                     className={`rounded-md p-1 ${
@@ -297,8 +301,8 @@ export default function CategoryClient({
               <div
                 className={
                   viewMode === "grid"
-                    ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
-                    : "space-y-3"
+                    ? "grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3"
+                    : ""
                 }
               >
                 {filtered.map((item) => (
@@ -336,8 +340,8 @@ export default function CategoryClient({
               <div
                 className={
                   viewMode === "grid"
-                    ? "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
-                    : "space-y-3"
+                    ? "grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3"
+                    : ""
                 }
               >
                 {Array.from({ length: 6 }).map((_, i) => (

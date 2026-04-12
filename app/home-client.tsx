@@ -33,7 +33,10 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
   const [products, setProducts] = useState(initialProducts);
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(PAGE_SIZE);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 640) return "list";
+    return "grid";
+  });
   const hasMore = offset < totalProducts;
   const { isLoggedIn, setShowAuthModal } = useAuth();
   const handleAlert = useCallback((item: MockProductWithHistory) => setAlertProduct(item), []);
@@ -86,8 +89,8 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
               </h2>
               <div className="flex items-center gap-3">
                 <span className="text-[11px] text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
-                {/* Grid/List toggle (desktop only — mobile is always list) */}
-                <div className="hidden overflow-hidden rounded-md border border-[#e1e1e3] sm:flex">
+                {/* Grid/List toggle — visible on all screens */}
+                <div className="flex overflow-hidden rounded-md border border-[#e1e1e3]">
                   <button onClick={() => setViewMode("grid")}
                     className={`flex h-7 w-8 items-center justify-center transition ${viewMode === "grid" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
                     title="Raster">
@@ -102,19 +105,9 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
               </div>
             </div>
 
-            {/* Mobile: always list layout */}
-            <div className="sm:hidden">
-              {products.map((item) => (
-                <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} layout="list" />
-              ))}
-              {loading && Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                <ProductCardSkeleton key={`skel-${i}`} layout="list" />
-              ))}
-            </div>
-
-            {/* Desktop: grid or list based on toggle */}
+            {/* Product display — respects viewMode on all screens */}
             {viewMode === "grid" ? (
-              <div className="hidden sm:grid sm:grid-cols-3 gap-px bg-[#f0f0f2]">
+              <div className="grid grid-cols-2 gap-px bg-[#f0f0f2] sm:grid-cols-3">
                 {products.map((item) => (
                   <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
                 ))}
@@ -123,7 +116,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
                 ))}
               </div>
             ) : (
-              <div className="hidden sm:block">
+              <div>
                 {products.map((item) => (
                   <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} layout="list" />
                 ))}
