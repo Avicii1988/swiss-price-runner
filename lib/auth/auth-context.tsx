@@ -13,6 +13,7 @@ export interface User {
   email: string;
   name: string;
   avatarInitials: string;
+  avatarUrl?: string;
   favorites: string[]; // GTINs — Heart
   pinned: string[];    // GTINs — Pin (Merkliste)
   savedSearches: SavedSearch[];
@@ -57,6 +58,7 @@ interface AuthContextType {
   addAlert: (alert: Omit<PriceAlert, "id" | "createdAt" | "isActive">) => void;
   updateAlert: (id: string, updates: Partial<PriceAlert>) => void;
   removeAlert: (id: string) => void;
+  setAvatarUrl: (url: string | undefined) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +252,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setAvatarUrl = useCallback((url: string | undefined) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, avatarUrl: url };
+      try { localStorage.setItem(`pa_avatar_${prev.id}`, url || ""); } catch { /* ignore */ }
+      return updated;
+    });
+  }, []);
+
+  // Load persisted avatar on login
+  useEffect(() => {
+    if (!user?.id || user.avatarUrl) return;
+    try {
+      const saved = localStorage.getItem(`pa_avatar_${user.id}`);
+      if (saved) setUser((prev) => prev ? { ...prev, avatarUrl: saved } : prev);
+    } catch { /* ignore */ }
+  }, [user?.id, user?.avatarUrl]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -269,6 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         addAlert,
         updateAlert,
         removeAlert,
+        setAvatarUrl,
       }}
     >
       {children}

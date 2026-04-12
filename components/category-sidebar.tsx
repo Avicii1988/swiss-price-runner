@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { useState } from "react";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, SIDEBAR_CATEGORIES } from "@/lib/categories";
 import { getCategoryIcon } from "@/lib/category-icons";
 
 interface DynamicCategory {
@@ -56,7 +56,7 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
 
   return (
     <nav>
-      {CATEGORIES.map((cat) => {
+      {SIDEBAR_CATEGORIES.map((cat) => {
         const Icon = cat.icon;
         const isExpanded = expandedSlug === cat.slug;
 

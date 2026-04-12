@@ -28,7 +28,7 @@ export function PreisAlarmLogo({ className = "", size = "md", linkHome = true }:
         {/* Bell highlight — subtle shine */}
         <path d="M12 11C12 8.5 14 6 17 5.2" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
       </svg>
-      <span className={`${s.text} font-black tracking-tight`} style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" }}>
+      <span className={`${s.text} font-black tracking-tight text-black`} style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif" }}>
         Preis<span className="text-[#E30613]">Alarm</span>
       </span>
     </span>

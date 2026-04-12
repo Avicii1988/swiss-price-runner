@@ -270,6 +270,32 @@ export function getCategoryBySlug(slug: string): Category | undefined {
   return CATEGORIES.find((c) => c.slug === slug);
 }
 
+/**
+ * Sorted display order for the sidebar:
+ * Main content first (Parfum, Mode, Schuhe), then Lifestyle,
+ * then Tech, then niche categories.
+ */
+const SIDEBAR_ORDER = [
+  "parfum",       // Main content — most products
+  "mode",         // Lifestyle
+  "schuhe",
+  "uhren",
+  "sport",
+  "haushalt",
+  "baby",
+  "smartphones", // Tech (lower traffic on beauty site)
+  "laptops",
+  "kopfhoerer",
+  "tv-audio",
+  "foto",
+  "gaming",
+  "buecher",     // Niche
+];
+
+export const SIDEBAR_CATEGORIES: Category[] = SIDEBAR_ORDER
+  .map((slug) => CATEGORIES.find((c) => c.slug === slug))
+  .filter((c): c is Category => c !== undefined);
+
 export function getAllCategorySlugs(): string[] {
   return CATEGORIES.map((c) => c.slug);
 }

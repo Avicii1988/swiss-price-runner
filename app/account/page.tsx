@@ -1,53 +1,47 @@
 "use client";
 
+import { useState, useRef } from "react";
 import Link from "next/link";
 import {
-  Pin,
-  Heart,
-  Bell,
-  Search,
-  Trash2,
-  LogOut,
-  User,
-  Settings,
-  ToggleLeft,
-  ToggleRight,
+  Pin, Heart, Bell, Trash2, LogOut, User, Settings,
+  ToggleLeft, ToggleRight, Camera,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { SiteHeader } from "@/components/site-header";
 import { getMockProductByGtin } from "@/lib/integrations/mock-service";
 
 export default function AccountPage() {
   const {
-    user,
-    isLoggedIn,
-    setShowAuthModal,
-    logout,
-    toggleFavorite,
-    togglePin,
-    updateAlert,
-    removeAlert,
+    user, isLoggedIn, setShowAuthModal, logout,
+    toggleFavorite, togglePin, updateAlert, removeAlert, setAvatarUrl,
   } = useAuth();
+  const [query, setQuery] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Bild zu gross (max. 2 MB)");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setAvatarUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   if (!isLoggedIn || !user) {
     return (
-      <div className="min-h-screen bg-[#fafafa]">
-        <header className="border-b border-gray-100 bg-white">
-          <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-            <Link href="/" className="text-lg font-bold tracking-tight">
-              Preis<span className="text-red-600">Alarm</span>
-            </Link>
-          </div>
-        </header>
+      <div className="min-h-screen bg-white">
+        <SiteHeader query={query} onQueryChange={setQuery} />
         <div className="mx-auto max-w-md px-4 py-32 text-center">
           <User className="mx-auto h-12 w-12 text-gray-300" />
           <h1 className="mt-4 text-xl font-bold text-gray-900">Konto erforderlich</h1>
           <p className="mt-2 text-sm text-gray-500">
             Melde dich an, um deine Favoriten, Preisalarme und gespeicherten Suchen zu verwalten.
           </p>
-          <button
-            onClick={() => setShowAuthModal(true)}
-            className="mt-6 rounded-xl bg-red-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
-          >
+          <button onClick={() => setShowAuthModal(true)}
+            className="mt-6 rounded-xl bg-red-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700">
             Jetzt anmelden
           </button>
         </div>
@@ -55,47 +49,47 @@ export default function AccountPage() {
     );
   }
 
-  const favoriteProducts = user.favorites
-    .map((gtin) => getMockProductByGtin(gtin))
-    .filter(Boolean);
-
-  const pinnedProducts = (user.pinned ?? [])
-    .map((gtin) => getMockProductByGtin(gtin))
-    .filter(Boolean);
+  const favoriteProducts = user.favorites.map((gtin) => getMockProductByGtin(gtin)).filter(Boolean);
+  const pinnedProducts = (user.pinned ?? []).map((gtin) => getMockProductByGtin(gtin)).filter(Boolean);
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      {/* Header */}
-      <header className="border-b border-gray-100 bg-white">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="text-lg font-bold tracking-tight">
-            Preis<span className="text-red-600">Alarm</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
-              {user.avatarInitials}
-            </div>
-            <button
-              onClick={logout}
-              className="flex items-center gap-1 text-xs text-gray-500 transition hover:text-gray-700"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Abmelden
-            </button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader query={query} onQueryChange={setQuery} />
 
       <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {/* Profile header */}
+        {/* Profile header with editable avatar */}
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-lg font-bold text-white">
-            {user.avatarInitials}
+          <div className="group relative">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-red-600 text-lg font-bold text-white transition hover:opacity-90"
+              title="Profilbild ändern"
+            >
+              {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+              ) : (
+                <span>{user.avatarInitials}</span>
+              )}
+              <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+                <Camera className="h-5 w-5 text-white" />
+              </span>
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold text-gray-900">{user.name}</h1>
             <p className="text-sm text-gray-400">{user.email}</p>
+            {user.avatarUrl && (
+              <button onClick={() => setAvatarUrl(undefined)} className="mt-1 text-[11px] text-gray-400 hover:text-gray-600">
+                Profilbild entfernen
+              </button>
+            )}
           </div>
+          <button onClick={logout}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 transition hover:border-gray-300 hover:text-gray-900">
+            <LogOut className="h-3.5 w-3.5" /> Abmelden
+          </button>
         </div>
 
         <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -242,7 +236,6 @@ export default function AccountPage() {
               )}
             </section>
 
-            {/* Gespeicherte Suchen removed — only Merkliste + Favoriten remain */}
           </div>
         </div>
       </main>
