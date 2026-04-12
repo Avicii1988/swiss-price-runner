@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { Bell, ShoppingBag, Store, Tag, Package } from "lucide-react";
+import { Bell, ShoppingBag, Store, Tag, Package, LayoutGrid, List as ListIcon } from "lucide-react";
 import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
@@ -33,6 +33,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
   const [products, setProducts] = useState(initialProducts);
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(PAGE_SIZE);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const hasMore = offset < totalProducts;
   const { isLoggedIn, setShowAuthModal } = useAuth();
   const handleAlert = useCallback((item: MockProductWithHistory) => setAlertProduct(item), []);
@@ -83,10 +84,25 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
               <h2 className="flex items-center gap-2 text-base font-bold text-gray-900">
                 <ShoppingBag className="h-4 w-4 text-gray-400" /> Alle Angebote
               </h2>
-              <span className="text-[11px] text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
+                {/* Grid/List toggle (desktop only — mobile is always list) */}
+                <div className="hidden overflow-hidden rounded-md border border-[#e1e1e3] sm:flex">
+                  <button onClick={() => setViewMode("grid")}
+                    className={`flex h-7 w-8 items-center justify-center transition ${viewMode === "grid" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
+                    title="Raster">
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => setViewMode("list")}
+                    className={`flex h-7 w-8 items-center justify-center border-l border-[#e1e1e3] transition ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
+                    title="Liste">
+                    <ListIcon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Mobile: list layout (Galaxus style) */}
+            {/* Mobile: always list layout */}
             <div className="sm:hidden">
               {products.map((item) => (
                 <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} layout="list" />
@@ -96,15 +112,26 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
               ))}
             </div>
 
-            {/* Desktop: grid layout */}
-            <div className="hidden sm:grid sm:grid-cols-3 gap-px bg-[#f0f0f2]">
-              {products.map((item) => (
-                <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
-              ))}
-              {loading && Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                <ProductCardSkeleton key={`skel-${i}`} />
-              ))}
-            </div>
+            {/* Desktop: grid or list based on toggle */}
+            {viewMode === "grid" ? (
+              <div className="hidden sm:grid sm:grid-cols-3 gap-px bg-[#f0f0f2]">
+                {products.map((item) => (
+                  <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} />
+                ))}
+                {loading && Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                  <ProductCardSkeleton key={`skel-${i}`} />
+                ))}
+              </div>
+            ) : (
+              <div className="hidden sm:block">
+                {products.map((item) => (
+                  <ProductCard key={item.product.gtin} item={item} onAlert={handleAlert} layout="list" />
+                ))}
+                {loading && Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                  <ProductCardSkeleton key={`skel-${i}`} layout="list" />
+                ))}
+              </div>
+            )}
 
             {hasMore && !loading && (
               <div className="mt-8 flex justify-center">

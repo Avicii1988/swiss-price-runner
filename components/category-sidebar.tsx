@@ -60,13 +60,11 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
         const Icon = cat.icon;
         const isExpanded = expandedSlug === cat.slug;
 
-        // Enrich subcategories with real counts from feed
+        // Enrich subcategories with real counts (show all master-defined subs, even without DB matches)
         const enrichedSubs = cat.subcategories
-          .map((sub) => ({ ...sub, productCount: feedCounts.get(sub.slug) ?? sub.productCount }))
-          .filter((sub) => sub.productCount > 0 || feedCounts.has(sub.slug));
+          .map((sub) => ({ ...sub, productCount: feedCounts.get(sub.slug) ?? 0 }));
 
         const hasSubs = enrichedSubs.length > 0;
-        const totalCount = enrichedSubs.reduce((s, sub) => s + sub.productCount, 0) || (feedCounts.get(cat.slug) ?? 0);
 
         return (
           <div key={cat.slug}>

@@ -99,9 +99,52 @@ function fromSupabaseUser(su: SupabaseUser): User {
   };
 }
 
+/** Merge Supabase user with locally-persisted user data */
+function hydrateUser(su: SupabaseUser): User {
+  const base = fromSupabaseUser(su);
+  const stored = loadFromStorage(base.id);
+  return {
+    ...base,
+    favorites: stored.favorites ?? base.favorites,
+    pinned: stored.pinned ?? base.pinned,
+    savedSearches: stored.savedSearches ?? base.savedSearches,
+    alerts: stored.alerts ?? base.alerts,
+    avatarUrl: stored.avatarUrl ?? base.avatarUrl,
+  };
+}
+
+// ── localStorage helpers for per-user data persistence ──
+const STORAGE_KEY = (uid: string) => `pa_user_${uid}`;
+
+function loadFromStorage(uid: string): Partial<User> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY(uid));
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch { return {}; }
+}
+
+function saveToStorage(user: User) {
+  try {
+    const data = {
+      favorites: user.favorites,
+      pinned: user.pinned,
+      alerts: user.alerts,
+      savedSearches: user.savedSearches,
+      avatarUrl: user.avatarUrl,
+    };
+    localStorage.setItem(STORAGE_KEY(user.id), JSON.stringify(data));
+  } catch { /* ignore quota errors */ }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Persist user data on every change
+  useEffect(() => {
+    if (user) saveToStorage(user);
+  }, [user]);
 
   // ── Supabase session listener ──────────────────────────────
   useEffect(() => {
@@ -110,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check existing session on mount
     supabase.auth.getUser().then(({ data: { user: su } }) => {
       if (su) {
-        setUser(fromSupabaseUser(su));
+        setUser(hydrateUser(su));
       }
     });
 
@@ -119,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser(fromSupabaseUser(session.user));
+        setUser(hydrateUser(session.user));
         setShowAuthModal(false);
       } else {
         setUser(null);
