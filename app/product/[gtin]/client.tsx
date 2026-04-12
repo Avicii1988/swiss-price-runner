@@ -26,6 +26,7 @@ import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 import { getCategoryBySlug } from "@/lib/categories";
+import { getShopSource } from "@/lib/shop-sources";
 
 const SOURCE_COLORS: Record<string, string> = {
   amazon_de: "#FF9900",
@@ -275,13 +276,19 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                 <div className="mt-6 border-t border-gray-200 pt-5">
                   <h2 className="text-sm font-bold text-gray-900">Preisvergleich – alle Quellen</h2>
                   <div className="mt-3 space-y-2">
-                    {sourceBreakdowns.sort((a, b) => a.breakdown.totalChf - b.breakdown.totalChf).map((s) => (
+                    {sourceBreakdowns.sort((a, b) => a.breakdown.totalChf - b.breakdown.totalChf).map((s) => {
+                      const shop = getShopSource(s.sourceId);
+                      return (
                       <div key={s.sourceId} className={`flex flex-col gap-2 rounded-lg px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${s.isBest ? "border-2 border-green-200 bg-green-50" : "border border-gray-100 bg-gray-50"}`}>
                         <div className="flex items-center gap-3">
-                          <span className="inline-block h-3 w-3 rounded-full" style={{ background: SOURCE_COLORS[s.sourceId] ?? "#888" }} />
+                          {/* Shop wordmark logo */}
+                          <span className="inline-flex h-7 min-w-[90px] items-center justify-center rounded border border-gray-200 bg-white px-2.5 text-[10px] tracking-wider"
+                            style={{ color: shop.wordmark.color, fontWeight: shop.wordmark.weight }}>
+                            {shop.wordmark.text}
+                          </span>
                           <div>
                             <p className="text-sm font-semibold text-gray-900">
-                              {s.sourceName}
+                              {shop.name}
                               {s.isBest && <span className="ml-2 rounded bg-green-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Bester Preis</span>}
                             </p>
                             <p className="text-[11px] text-gray-400">EUR {s.currentPriceEur.toFixed(2)}</p>
@@ -300,7 +307,8 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                           </a>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
                 ) : product.affiliateUrl ? (

@@ -6,6 +6,7 @@ import {
   TrendingDown, CheckCircle2, Zap, Clock, Target,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { SHOP_SOURCE_LIST } from "@/lib/shop-sources";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface PriceAlertModalProps {
@@ -15,9 +16,7 @@ interface PriceAlertModalProps {
 
 const SOURCE_OPTIONS = [
   { id: null, label: "Alle Quellen" },
-  { id: "amazon_de", label: "Amazon.de" },
-  { id: "galaxus_ch", label: "Galaxus" },
-  { id: "zalando_de", label: "Zalando" },
+  ...SHOP_SOURCE_LIST.map((s) => ({ id: s.id, label: s.name })),
 ];
 
 export function PriceAlertModal({ item, onClose }: PriceAlertModalProps) {
