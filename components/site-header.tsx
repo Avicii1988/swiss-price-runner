@@ -7,7 +7,7 @@ import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRi
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { useAuth } from "@/lib/auth/auth-context";
-import { CATEGORIES } from "@/lib/categories";
+import { SIDEBAR_CATEGORIES } from "@/lib/categories";
 import { useLang } from "@/lib/i18n-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -228,7 +228,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400"><X className="h-4 w-4" /></button>
           </div>
           <nav>
-            {CATEGORIES.map((cat) => {
+            {SIDEBAR_CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const isExpanded = expandedMenu === cat.slug;
               const hasSubs = cat.subcategories.length > 0;
@@ -280,6 +280,17 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                 </div>
               );
             })}
+            {/* Service Links (analog Desktop-Sidebar) */}
+            <div className="mt-2 border-t border-gray-100 pt-2">
+              <Link href="/" onClick={() => setMobileMenuOpen(false)}
+                className="block px-5 py-3 text-[14px] text-gray-500">
+                Shop-Übersicht
+              </Link>
+              <Link href="/" onClick={() => setMobileMenuOpen(false)}
+                className="block px-5 py-3 text-[14px] text-gray-500">
+                Marken-Übersicht
+              </Link>
+            </div>
           </nav>
         </div>
       )}

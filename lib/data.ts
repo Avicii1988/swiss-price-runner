@@ -143,18 +143,52 @@ export async function getProductByGtin(gtin: string): Promise<MockProductWithHis
 }
 
 export async function getFeatured(): Promise<MockProductWithHistory[]> {
-  const all = await getProducts();
-  return all.filter((p) => p.product.featured).slice(0, 3);
+  // Featured products are only in seed data — no DB query needed
+  return SEED_PRODUCTS.filter((p) => p.featured).slice(0, 3).map(enrichProduct);
 }
 
 export async function getProductsByCategory(slug: string): Promise<MockProductWithHistory[]> {
-  const all = await getProducts();
-  return all.filter((p) => p.product.category === slug);
+  try {
+    // Direct DB query with WHERE filter + LIMIT (was loading all 16k+ products!)
+    const dbProducts = await db.product.findMany({
+      where: {
+        isActive: true,
+        price: { gt: 0 },
+        OR: [
+          { category: slug },
+          // Also match Parfum & Düfte subcategories under parent "parfum"
+          ...(slug === "parfum"
+            ? [{ category: { in: ["herrendufte", "damendufte", "unisex-dufte", "geschenksets", "pflege", "make-up", "haarpflege", "koerperpflege", "sonnenpflege"] } }]
+            : []),
+        ],
+      },
+      select: {
+        id: true, gtin: true, title: true, brand: true, category: true,
+        categoryName: true, imageUrl: true, shopName: true, sourceType: true,
+        affiliateUrl: true, price: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 500, // Cap at 500 for category pages
+    });
+    return dbProducts.map((p) => buildFromDb({ ...p, prices: [] }));
+  } catch {
+    const all = SEED_PRODUCTS.filter((p) => p.category === slug);
+    return all.map(enrichProduct);
+  }
 }
 
 export async function getDistinctCategories(): Promise<string[]> {
-  const all = await getProducts();
-  return [...new Set(all.map((p) => p.product.category))];
+  try {
+    // Direct DB: groupBy instead of loading all products
+    const groups = await db.product.groupBy({
+      by: ["category"],
+      where: { isActive: true },
+      _count: true,
+    });
+    return groups.map((g) => g.category);
+  } catch {
+    return [...new Set(SEED_PRODUCTS.map((p) => p.category))];
+  }
 }
 
 export async function getAllGtinsFromDb(): Promise<string[]> {
