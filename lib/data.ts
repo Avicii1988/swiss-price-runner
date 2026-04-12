@@ -215,12 +215,17 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     ? bestChf / EXCHANGE_RATE
     : 0;
 
-  const sources = Array.from(sourceMap.entries()).map(([sid, { eur, url, shopName: sName }]) => ({
-    sourceId: sid,
-    sourceName: sName || SOURCE_NAMES[sid] || sid,
-    url,
-    currentPriceEur: isFeedProduct && bestChf > 0 ? effectiveEur : eur,
-  }));
+  const sources = Array.from(sourceMap.entries()).map(([sid, { chf, eur, url, shopName: sName }]) => {
+    // Per-shop price: use each source's OWN CHF amount (not the global lowest)
+    // Reverse-convert CHF → EUR for feed products so calculateSwissPrice produces the right totalChf
+    const perShopEur = isFeedProduct && chf > 0 ? chf / EXCHANGE_RATE : eur;
+    return {
+      sourceId: sid,
+      sourceName: sName || SOURCE_NAMES[sid] || sid,
+      url,
+      currentPriceEur: perShopEur,
+    };
+  });
 
   // Feed product without Price records: create a virtual source from Product fields
   if (sources.length === 0 && isFeedProduct) {
