@@ -1,7 +1,13 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+
+interface RelatedLink {
+  label: string;
+  href: string;
+  description?: string;
+}
 
 const ARTICLES: Record<string, Article> = {
   "top-5-spring-scents-2026": {
@@ -10,6 +16,15 @@ const ARTICLES: Record<string, Article> = {
     date: "8. April 2026",
     readTime: "4 Min.",
     image: "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=1200&h=600&fit=crop",
+    relatedLinks: [
+      { label: "Dior Parfum", href: "/brands?q=Dior", description: "Sauvage, J'adore, Miss Dior" },
+      { label: "Chanel", href: "/brands?q=Chanel", description: "N°5, Coco Mademoiselle, Bleu" },
+      { label: "Lancôme", href: "/brands?q=Lanc%C3%B4me", description: "La Vie Est Belle, Idôle" },
+      { label: "YSL", href: "/brands?q=Yves+Saint+Laurent", description: "Libre, Black Opium, MYSLF" },
+      { label: "Tom Ford", href: "/brands?q=Tom+Ford", description: "Oud Wood, Tobacco Vanille" },
+      { label: "Alle Damendüfte", href: "/category/damendufte" },
+      { label: "Alle Herrendüfte", href: "/category/herrendufte" },
+    ],
     content: `
 Der Frühling 2026 bringt eine neue Welle an exquisiten Düften, die von den grössten Parfümhäusern der Welt kreiert wurden. Von blumig-frischen Noten bis hin zu sinnlichen Holzdüften — hier sind die fünf Parfums, die du diesen Frühling kennen musst.
 
@@ -44,6 +59,13 @@ Alle fünf Düfte sind über PreisAlarm.ch im Preisvergleich verfügbar — inkl
     date: "5. April 2026",
     readTime: "6 Min.",
     image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=1200&h=600&fit=crop",
+    relatedLinks: [
+      { label: "On Running", href: "/brands?q=On", description: "Cloud 5, Cloudmonster, Cloudnova" },
+      { label: "Laufschuhe", href: "/category/schuhe", description: "Alle Laufschuhe im Vergleich" },
+      { label: "Nike", href: "/brands?q=Nike" },
+      { label: "Adidas", href: "/brands?q=Adidas" },
+      { label: "Sport & Outdoor", href: "/category/sport" },
+    ],
     content: `
 On Running ist die Erfolgsgeschichte der Schweizer Sportindustrie. Gegründet 2010 in Zürich, hat die Marke die Laufschuh-Welt revolutioniert — und ist mittlerweile an der New Yorker Börse kotiert. Welcher On-Schuh passt zu dir?
 
@@ -82,6 +104,12 @@ Der Schweizer UVP liegt oft 20–30% über dem EU-Preis. Über Amazon.de oder Za
     date: "3. April 2026",
     readTime: "5 Min.",
     image: "https://images.unsplash.com/photo-1678685888221-cda773a3dcdb?w=1200&h=600&fit=crop",
+    relatedLinks: [
+      { label: "Apple", href: "/brands?q=Apple", description: "iPhone, iPad, MacBook" },
+      { label: "Smartphones", href: "/category/smartphones" },
+      { label: "Samsung", href: "/brands?q=Samsung" },
+      { label: "Google Pixel", href: "/brands?q=Google" },
+    ],
     content: `
 Apple steht kurz vor der Ankündigung der nächsten iPhone-Generation. Wir fassen zusammen, was bisher bekannt ist — und was das für Schweizer Preise bedeutet.
 
@@ -125,6 +153,7 @@ interface Article {
   readTime: string;
   image: string;
   content: string;
+  relatedLinks?: RelatedLink[];
 }
 
 export default function BlogArticlePage({
@@ -202,8 +231,34 @@ export default function BlogArticlePage({
           })}
         </article>
 
+        {/* Related Products — direct links to mentioned brands/categories */}
+        {article.relatedLinks && article.relatedLinks.length > 0 && (
+          <div className="mt-12 border-t border-gray-100 pt-8">
+            <h3 className="mb-4 text-base font-bold text-slate-900">
+              Im Artikel erwähnt — direkt vergleichen
+            </h3>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {article.relatedLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href as Route}
+                  className="group flex items-center justify-between rounded-lg border border-[#e1e1e3] bg-white px-4 py-3 transition hover:border-gray-400"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{link.label}</p>
+                    {link.description && (
+                      <p className="mt-0.5 text-[11px] text-gray-500">{link.description}</p>
+                    )}
+                  </div>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-600" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* CTA */}
-        <div className="mt-12 rounded-xl border border-gray-100 bg-gray-50 p-6 text-center">
+        <div className="mt-10 rounded-xl border border-gray-100 bg-gray-50 p-6 text-center">
           <p className="text-sm font-bold text-slate-900">
             Preise vergleichen auf PreisAlarm.ch
           </p>

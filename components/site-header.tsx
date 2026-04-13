@@ -75,29 +75,69 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
-  const suggestions = useMemo(() => {
-    // Client-side filtering removed — now handled by debounced API call
-    return [] as { gtin: string; title: string; brand: string; imageUrl: string | null; price: number | null }[];
-  }, []);
-
-  // Debounced API search
-  const [apiResults, setApiResults] = useState<{ gtin: string; title: string; brand: string; imageUrl: string | null; price: number | null }[]>([]);
+  // Smart search state
+  type ApiProduct = { gtin: string; title: string; brand: string; imageUrl: string | null; price: number | null };
+  type BrandSuggestion = { name: string; count: number };
+  type CategoryHint = { brand: string; category: string; categoryName: string | null; count: number };
+  const [apiResults, setApiResults] = useState<ApiProduct[]>([]);
+  const [brandSuggestions, setBrandSuggestions] = useState<BrandSuggestion[]>([]);
+  const [categoryHints, setCategoryHints] = useState<CategoryHint[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // Load recent searches from localStorage on mount
   useEffect(() => {
-    if (!query.trim() || query.length < 2) { setApiResults([]); return; }
+    try {
+      const stored = localStorage.getItem("pa_recent_searches");
+      if (stored) setRecentSearches(JSON.parse(stored).slice(0, 6));
+    } catch { /* ignore */ }
+  }, []);
+
+  // Save a term to recent searches
+  const saveRecentSearch = useCallback((term: string) => {
+    const t = term.trim();
+    if (!t || t.length < 2) return;
+    try {
+      const stored = localStorage.getItem("pa_recent_searches");
+      const arr: string[] = stored ? JSON.parse(stored) : [];
+      const filtered = arr.filter((s) => s.toLowerCase() !== t.toLowerCase());
+      const updated = [t, ...filtered].slice(0, 6);
+      localStorage.setItem("pa_recent_searches", JSON.stringify(updated));
+      setRecentSearches(updated);
+    } catch { /* ignore */ }
+  }, []);
+
+  const clearRecentSearches = useCallback(() => {
+    try { localStorage.removeItem("pa_recent_searches"); } catch { /* ignore */ }
+    setRecentSearches([]);
+  }, []);
+
+  // Debounced API search: products + brand suggestions in parallel
+  useEffect(() => {
+    if (!query.trim() || query.length < 1) {
+      setApiResults([]); setBrandSuggestions([]); setCategoryHints([]);
+      return;
+    }
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/products/search?q=${encodeURIComponent(query)}&limit=8`);
-        const data = await res.json();
-        setApiResults(data.results ?? []);
-      } catch { setApiResults([]); }
-    }, 250);
+        const [suggestRes, searchRes] = await Promise.all([
+          fetch(`/api/products/suggest?q=${encodeURIComponent(query)}&limit=6`).then((r) => r.json()),
+          query.length >= 2
+            ? fetch(`/api/products/search?q=${encodeURIComponent(query)}&limit=4`).then((r) => r.json())
+            : Promise.resolve({ results: [] }),
+        ]);
+        setBrandSuggestions(suggestRes.brands ?? []);
+        setCategoryHints(suggestRes.categoryHints ?? []);
+        setApiResults(searchRes.results ?? []);
+      } catch {
+        setApiResults([]); setBrandSuggestions([]); setCategoryHints([]);
+      }
+    }, 200);
     return () => clearTimeout(debounceRef.current);
   }, [query]);
 
-  const showDropdown = searchFocused && query.length >= 2;
+  const showDropdown = searchFocused && (query.length >= 1 || recentSearches.length > 0);
 
   const goToProduct = useCallback((gtin: string) => {
     setSearchFocused(false);
@@ -107,29 +147,99 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   }, [onQueryChange]);
 
   const searchResultsDropdown = showDropdown ? (
-    apiResults.length > 0 ? (
-      <div className="absolute left-0 right-0 top-full z-[60] mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
-        {apiResults.map((item) => (
-          <div key={item.gtin} role="button" tabIndex={0}
-            onMouseDown={() => goToProduct(item.gtin)}
-            className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left transition hover:bg-gray-50">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.imageUrl || ""} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-lg bg-gray-50 object-contain" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-gray-900">{item.title}</p>
-              <p className="text-[11px] text-gray-400">{item.brand}</p>
-            </div>
-            {item.price && item.price > 0 && (
-              <span className="shrink-0 text-sm font-bold text-gray-900">{Math.floor(item.price)}.–</span>
-            )}
+    <div className="absolute left-0 right-0 top-full z-[60] mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+      {/* Recent searches — only when input is empty */}
+      {query.length === 0 && recentSearches.length > 0 && (
+        <div className="border-b border-gray-100">
+          <div className="flex items-center justify-between px-4 pt-3 pb-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Zuletzt gesucht</p>
+            <button onMouseDown={(e) => { e.preventDefault(); clearRecentSearches(); }}
+              className="text-[11px] text-[#0076bd] hover:underline">Verlauf löschen</button>
           </div>
-        ))}
-      </div>
-    ) : query.length >= 2 ? (
-      <div className="absolute left-0 right-0 top-full z-[60] mt-1 rounded-xl border border-gray-200 bg-white p-4 text-center shadow-xl">
-        <p className="text-sm text-gray-500">Keine Ergebnisse für &ldquo;{query}&rdquo;</p>
-      </div>
-    ) : null
+          {recentSearches.map((term) => (
+            <div key={term} role="button" tabIndex={0}
+              onMouseDown={() => { onQueryChange(term); saveRecentSearch(term); }}
+              className="flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+              <Search className="h-3.5 w-3.5 text-gray-300" />
+              {term}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Brand autocomplete (Galaxus-style) */}
+      {brandSuggestions.length > 0 && (
+        <div className="border-b border-gray-100 py-1">
+          {brandSuggestions.map((b) => {
+            const q = query.toLowerCase();
+            const bLower = b.name.toLowerCase();
+            const idx = bLower.indexOf(q);
+            const before = idx >= 0 ? b.name.slice(0, idx) : b.name;
+            const match = idx >= 0 ? b.name.slice(idx, idx + q.length) : "";
+            const after = idx >= 0 ? b.name.slice(idx + q.length) : "";
+            return (
+              <a key={b.name} href={`/brands?q=${encodeURIComponent(b.name)}`}
+                onMouseDown={() => saveRecentSearch(b.name)}
+                className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-[14px] text-gray-500 hover:bg-gray-50">
+                <span className="truncate">
+                  {before}<span className="font-bold text-gray-900">{match}</span>{after}
+                </span>
+                <span className="shrink-0 text-[10px] text-gray-400">{b.count}</span>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Category hints — "Brand in Category" */}
+      {categoryHints.length > 0 && (
+        <div className="border-b border-gray-100 py-1">
+          {categoryHints.map((h) => (
+            <a key={`${h.brand}-${h.category}`} href={`/category/${h.category}`}
+              onMouseDown={() => saveRecentSearch(h.brand)}
+              className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-[13px] text-gray-500 hover:bg-gray-50">
+              <span className="truncate">
+                <span className="font-semibold text-gray-900">{h.brand}</span>
+                {" "}in{" "}
+                <span className="text-gray-500">{h.categoryName || h.category}</span>
+              </span>
+              <span className="shrink-0 text-[10px] text-gray-400">{h.count}</span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* Product preview */}
+      {apiResults.length > 0 && (
+        <div className="py-1">
+          <p className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Produkte</p>
+          {apiResults.map((item) => (
+            <div key={item.gtin} role="button" tabIndex={0}
+              onMouseDown={() => { saveRecentSearch(query); goToProduct(item.gtin); }}
+              className="flex w-full cursor-pointer items-center gap-3 px-4 py-2 text-left hover:bg-gray-50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.imageUrl || "/placeholder-product.svg"} alt="" width={40} height={40}
+                className="h-10 w-10 shrink-0 rounded bg-gray-50 object-contain" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm text-gray-900">
+                  <span className="font-bold">{item.brand}</span> {item.title.replace(item.brand, "").trim()}
+                </p>
+              </div>
+              {item.price && item.price > 0 && (
+                <span className="shrink-0 text-sm font-bold text-gray-900">{Math.floor(item.price)}.–</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* No results */}
+      {query.length >= 2 && apiResults.length === 0 && brandSuggestions.length === 0 && (
+        <div className="p-4 text-center">
+          <p className="text-sm text-gray-500">Keine Ergebnisse für &ldquo;{query}&rdquo;</p>
+        </div>
+      )}
+    </div>
   ) : null;
 
   return (
