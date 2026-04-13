@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User, Store, Tag } from "lucide-react";
+import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, ArrowLeft, User, Store, Tag } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { BrandLogo } from "@/components/brand-logo";
@@ -32,12 +32,21 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
   }, []);
 
   const [searchFocused, setSearchFocused] = useState(false);
+  // Lock body scroll when mobile fullscreen search is open
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (searchFocused && window.innerWidth < 1024) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [searchFocused]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [hideTopRow, setHideTopRow] = useState(false);
 
-  const searchRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLFormElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const lastScrollY = useRef(0);
   const { user, isLoggedIn, setShowAuthModal } = useAuth();
@@ -146,6 +155,26 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
     // Use window.location for guaranteed navigation
     window.location.href = `/product/${gtin}`;
   }, [onQueryChange]);
+
+  // Form submit (Enter key / mobile keyboard search button)
+  const handleSearchSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    saveRecentSearch(q);
+    setSearchFocused(false);
+    // If a single product matches exactly, jump to it; else navigate to brand search
+    if (apiResults.length > 0) {
+      window.location.href = `/product/${apiResults[0].gtin}`;
+      return;
+    }
+    if (brandSuggestions.length > 0) {
+      window.location.href = `/brands?q=${encodeURIComponent(brandSuggestions[0].name)}`;
+      return;
+    }
+    // Generic fallback: brand directory filter
+    window.location.href = `/brands?q=${encodeURIComponent(q)}`;
+  }, [query, apiResults, brandSuggestions, saveRecentSearch, onQueryChange]);
 
   const searchResultsDropdown = showDropdown ? (
     <div className="absolute left-0 right-0 top-full z-[60] mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
@@ -257,12 +286,12 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           <div className="mx-auto flex h-[100px] max-w-[1600px] items-center px-10">
             <PreisAlarmLogo size="lg" />
             <div className="flex-1" />
-            <div ref={searchRef} className="search-shine relative w-[45%]">
+            <form ref={searchRef} onSubmit={handleSearchSubmit} className="search-shine relative w-[45%]">
               <div className="flex items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg">
                 <Search className="ml-5 h-5 w-5 shrink-0 text-gray-400" />
-                <input type="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
+                <input type="search" enterKeyHint="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
                   placeholder={t("searchPlaceholder")} className="min-w-0 flex-1 bg-transparent px-3 py-3 text-[16px] outline-none placeholder:text-gray-400" />
-                <button onClick={() => showVision?.()} className="group/cam relative mr-2 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <button type="button" onClick={() => showVision?.()} className="group/cam relative mr-2 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                   <Camera className="h-5 w-5" />
                   <span className="pointer-events-none absolute -bottom-14 left-1/2 z-50 w-72 -translate-x-1/2 rounded-lg bg-white px-3 py-2.5 text-xs leading-relaxed text-slate-700 opacity-0 shadow-lg ring-1 ring-gray-200 transition group-hover/cam:opacity-100">
                     <strong className="text-slate-800">KI-Bildsuche</strong> — Lade ein Foto hoch und finde das günstigste Angebot in der Schweiz. Powered by OpenAI Vision.
@@ -270,7 +299,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                 </button>
               </div>
               {searchResultsDropdown}
-            </div>
+            </form>
             <div className="flex-1" />
             {/* Right: Pin + Heart + Lang + Auth */}
             <div className="flex shrink-0 items-center gap-0.5">
@@ -324,21 +353,142 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               {t("menu")}
             </button>
-            <div ref={searchRef} className="search-shine relative flex-1">
-              <div className="flex items-center rounded-full border border-gray-300 bg-white focus-within:border-transparent">
-                <Search className="ml-3 h-4 w-4 text-gray-400" />
-                <input type="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
-                  placeholder={t("searchPlaceholder")} className="min-w-0 flex-1 bg-transparent px-2 py-2 text-base outline-none placeholder:text-gray-400" />
-                <button onClick={() => showVision?.()} className="mr-1 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:text-gray-600" title="KI-Bildsuche — Lade ein Foto hoch und finde das günstigste Angebot in der Schweiz. Powered by OpenAI Vision.">
-                  <Camera className="h-4 w-4" />
-                </button>
-              </div>
-              {searchResultsDropdown}
-            </div>
+            <button
+              onClick={() => setSearchFocused(true)}
+              className="flex flex-1 items-center rounded-full border border-gray-300 bg-white px-3 py-2 text-left"
+              type="button"
+            >
+              <Search className="h-4 w-4 shrink-0 text-gray-400" />
+              <span className="ml-2 flex-1 truncate text-base text-gray-400">
+                {query || t("searchPlaceholder")}
+              </span>
+            </button>
           </div>
           <div className="border-b border-gray-200" />
         </div>
       </header>
+
+      {/* ═══ Mobile Fullscreen Search Overlay ═══ */}
+      {searchFocused && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-white lg:hidden">
+          <div className="rainbow-bar shrink-0" />
+          <form onSubmit={handleSearchSubmit} className="flex shrink-0 items-center gap-2 px-3 py-3">
+            <button type="button" onClick={() => setSearchFocused(false)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="flex flex-1 items-center rounded-full border border-gray-300 bg-white px-3">
+              <Search className="h-4 w-4 shrink-0 text-gray-400" />
+              <input type="search" enterKeyHint="search" autoFocus
+                value={query} onChange={(e) => onQueryChange(e.target.value)}
+                placeholder={t("searchPlaceholder")}
+                className="min-w-0 flex-1 bg-transparent px-2 py-2.5 text-base outline-none placeholder:text-gray-400" />
+              {query && (
+                <button type="button" onClick={() => onQueryChange("")}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* Suggestions content fills the rest of the viewport */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Recent searches when input is empty */}
+            {query.length === 0 && recentSearches.length > 0 && (
+              <div className="border-b border-gray-100">
+                <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                  <p className="text-[12px] font-semibold uppercase tracking-wider text-gray-500">Zuletzt gesucht</p>
+                  <button onClick={clearRecentSearches}
+                    className="text-[12px] text-[#0076bd]">Verlauf löschen</button>
+                </div>
+                {recentSearches.map((term) => (
+                  <button key={term} type="button"
+                    onClick={() => { onQueryChange(term); saveRecentSearch(term); }}
+                    className="flex w-full items-center gap-3 px-5 py-3 text-left text-[15px] text-gray-700 hover:bg-gray-50">
+                    <Search className="h-4 w-4 text-gray-300" />
+                    {term}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Brand autocomplete with logos */}
+            {brandSuggestions.length > 0 && (
+              <div className="border-b border-gray-100 py-1">
+                {brandSuggestions.map((b) => {
+                  const q = query.toLowerCase();
+                  const bLower = b.name.toLowerCase();
+                  const idx = bLower.indexOf(q);
+                  const before = idx >= 0 ? b.name.slice(0, idx) : b.name;
+                  const match = idx >= 0 ? b.name.slice(idx, idx + q.length) : "";
+                  const after = idx >= 0 ? b.name.slice(idx + q.length) : "";
+                  return (
+                    <a key={b.name} href={`/brands?q=${encodeURIComponent(b.name)}`}
+                      onClick={() => saveRecentSearch(b.name)}
+                      className="flex items-center gap-3 px-5 py-2.5 text-[15px] text-gray-500 hover:bg-gray-50">
+                      <span className="shrink-0"><BrandLogo name={b.name} size="sm" shape="circle" /></span>
+                      <span className="flex-1 truncate">
+                        {before}<span className="font-bold text-gray-900">{match}</span>{after}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-gray-400">{b.count}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Category hints */}
+            {categoryHints.length > 0 && (
+              <div className="border-b border-gray-100 py-1">
+                {categoryHints.map((h) => (
+                  <a key={`${h.brand}-${h.category}`} href={`/category/${h.category}`}
+                    onClick={() => saveRecentSearch(h.brand)}
+                    className="flex items-center justify-between gap-3 px-5 py-2.5 text-[14px] text-gray-500 hover:bg-gray-50">
+                    <span className="truncate">
+                      <span className="font-semibold text-gray-900">{h.brand}</span>
+                      {" "}in{" "}
+                      <span className="text-gray-500">{h.categoryName || h.category}</span>
+                    </span>
+                    <span className="shrink-0 text-[11px] text-gray-400">{h.count}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {/* Product preview */}
+            {apiResults.length > 0 && (
+              <div className="py-1">
+                <p className="px-5 pt-3 pb-2 text-[12px] font-semibold uppercase tracking-wider text-gray-500">Produkte</p>
+                {apiResults.map((item) => (
+                  <button key={item.gtin} type="button"
+                    onClick={() => { saveRecentSearch(query); goToProduct(item.gtin); }}
+                    className="flex w-full items-center gap-3 px-5 py-2.5 text-left hover:bg-gray-50">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.imageUrl || "/placeholder-product.svg"} alt="" width={48} height={48}
+                      className="h-12 w-12 shrink-0 rounded bg-gray-50 object-contain" />
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm text-gray-900">
+                        <span className="font-bold">{item.brand}</span> {item.title.replace(item.brand, "").trim()}
+                      </p>
+                    </div>
+                    {item.price && item.price > 0 && (
+                      <span className="shrink-0 text-sm font-bold text-gray-900">{Math.floor(item.price)}.–</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* No results */}
+            {query.length >= 2 && apiResults.length === 0 && brandSuggestions.length === 0 && (
+              <div className="p-6 text-center">
+                <p className="text-sm text-gray-500">Keine Ergebnisse für &ldquo;{query}&rdquo;</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Mobile menu — uses master CATEGORIES list directly */}
       {mobileMenuOpen && (
