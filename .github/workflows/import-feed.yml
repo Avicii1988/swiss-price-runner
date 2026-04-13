@@ -14,6 +14,7 @@ on:
           - import_parfumerie
           - coop_vitality
           - new_balance
+          - parfum_ch
       limit:
         description: 'Items per batch'
         required: false
@@ -54,3 +55,4 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          PARFUM_CH_FEED_URL: ${{ secrets.PARFUM_CH_FEED_URL }}
