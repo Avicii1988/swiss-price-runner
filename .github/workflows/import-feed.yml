@@ -6,7 +6,7 @@ on:
       feed:
         description: 'Feed key'
         required: true
-        default: 'parfumsale'
+        default: 'new_balance'
         type: choice
         options:
           - parfumsale
@@ -17,7 +17,7 @@ on:
       limit:
         description: 'Items per batch'
         required: false
-        default: '50'
+        default: '100'
       scrub:
         description: 'Scrub mode (overwrite all fields)'
         required: false
@@ -29,103 +29,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Run batch import loop
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
         env:
-          SITE_URL: https://www.preisalarm.ch
-          IMPORT_SECRET: ${{ secrets.IMPORT_SECRET }}
-          FEED: ${{ inputs.feed }}
-          LIMIT: ${{ inputs.limit }}
-          SCRUB: ${{ inputs.scrub }}
-        run: |
-          set -euo pipefail
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
 
-          OFFSET=0
-          TOTAL=0
-          IMPORTED=0
-          ERRORS=0
-          BATCH=0
-          RETRIES=0
-          MAX_RETRIES=5
-          SCRUB_PARAM=""
-          if [ "$SCRUB" = "true" ]; then SCRUB_PARAM="&scrub=true"; fi
-
-          CURL_OPTS="-sS -L --max-time 300 -H 'User-Agent: Mozilla/5.0 (GitHub-Actions; PreisAlarm-Import)'"
-
-          echo "🚀 Starting import: feed=$FEED limit=$LIMIT scrub=$SCRUB"
-
-          # Init: get total + last offset
-          INIT=$(eval curl $CURL_OPTS \
-            "'$SITE_URL/api/cron/import-feed?secret=$IMPORT_SECRET&feed=$FEED&limit=$LIMIT&init=true'" \
-            || echo '{"total":0,"nextOffset":0}')
-          TOTAL=$(echo "$INIT" | jq -r '.total // 0')
-          OFFSET=$(echo "$INIT" | jq -r '.nextOffset // 0')
-          echo "📦 Total: $TOTAL items, resuming at offset $OFFSET"
-
-          while true; do
-            BATCH=$((BATCH + 1))
-
-            RESULT=$(eval curl $CURL_OPTS \
-              "'$SITE_URL/api/cron/import-feed?secret=$IMPORT_SECRET&feed=$FEED&limit=$LIMIT&offset=$OFFSET$SCRUB_PARAM'" \
-              2>&1 || true)
-
-            # Check if we got valid JSON
-            if ! echo "$RESULT" | jq -e '.ok' > /dev/null 2>&1; then
-              RETRIES=$((RETRIES + 1))
-              echo "[$BATCH] ⚠️  No valid response (attempt $RETRIES/$MAX_RETRIES)"
-              if [ "$RETRIES" -ge "$MAX_RETRIES" ]; then
-                echo "⛔ Too many consecutive failures. Stopping."
-                break
-              fi
-              BACKOFF=$((RETRIES * 10))
-              echo "    Waiting ${BACKOFF}s before retry..."
-              sleep $BACKOFF
-              continue
-            fi
-
-            RETRIES=0
-            OK=$(echo "$RESULT" | jq -r '.ok')
-            BATCH_IMPORTED=$(echo "$RESULT" | jq -r '.imported // 0')
-            BATCH_ERRORS=$(echo "$RESULT" | jq -r '.errors // 0')
-            BATCH_SKIPPED=$(echo "$RESULT" | jq -r '.skipped // 0')
-            NEXT=$(echo "$RESULT" | jq -r '.nextOffset // 0')
-            PCT=$(echo "$RESULT" | jq -r '.percent // 0')
-            DURATION=$(echo "$RESULT" | jq -r '.durationMs // 0')
-            IS_COMPLETE=$(echo "$RESULT" | jq -r '.isComplete')
-            MSG=$(echo "$RESULT" | jq -r '.message // ""')
-            REAL_TOTAL=$(echo "$RESULT" | jq -r '.total // 0')
-
-            # Update total if server returns a real count
-            if [ "$REAL_TOTAL" -gt 0 ] 2>/dev/null; then
-              TOTAL=$REAL_TOTAL
-            fi
-
-            IMPORTED=$((IMPORTED + BATCH_IMPORTED))
-            ERRORS=$((ERRORS + BATCH_ERRORS))
-
-            DURATION_S=$(echo "scale=1; $DURATION / 1000" | bc 2>/dev/null || echo "$DURATION")
-            echo "[$BATCH] $PCT% | +$BATCH_IMPORTED ok, $BATCH_SKIPPED skip, $BATCH_ERRORS err | offset=$OFFSET→$NEXT | ${DURATION_S}s | $MSG"
-
-            if [ "$IS_COMPLETE" = "true" ]; then
-              echo ""
-              echo "🎉 Import complete! $IMPORTED imported, $ERRORS errors out of $TOTAL items."
-              break
-            fi
-
-            if [ "$OK" != "true" ]; then
-              RETRIES=$((RETRIES + 1))
-              BACKOFF=$((RETRIES * 5))
-              echo "    Retrying in ${BACKOFF}s..."
-              sleep $BACKOFF
-              continue
-            fi
-
-            OFFSET=$NEXT
-
-            if [ "$BATCH" -ge 5000 ]; then
-              echo "⛔ Safety limit reached (5000 batches). Stopping."
-              break
-            fi
-          done
-
-          echo ""
-          echo "📊 Summary: $IMPORTED imported, $ERRORS errors, $BATCH batches, total=$TOTAL"
+      - name: Run import
+        run: npx tsx scripts/import-runner.ts --feed ${{ inputs.feed }} --limit ${{ inputs.limit }} ${{ inputs.scrub == true && '--scrub' || '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
