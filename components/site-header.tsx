@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Search, Camera, Heart, Pin, Menu, X, ChevronRight, ChevronDown, ArrowRight, User, Store, Tag } from "lucide-react";
 import { LanguageSwitcher, type LangCode } from "@/components/language-switcher";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
+import { BrandLogo } from "@/components/brand-logo";
 import { useAuth } from "@/lib/auth/auth-context";
 import { SIDEBAR_CATEGORIES } from "@/lib/categories";
 import { useLang } from "@/lib/i18n-context";
@@ -180,8 +181,9 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             return (
               <a key={b.name} href={`/brands?q=${encodeURIComponent(b.name)}`}
                 onMouseDown={() => saveRecentSearch(b.name)}
-                className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-[14px] text-gray-500 hover:bg-gray-50">
-                <span className="truncate">
+                className="flex cursor-pointer items-center gap-3 px-4 py-2 text-[14px] text-gray-500 hover:bg-gray-50">
+                <span className="shrink-0"><BrandLogo name={b.name} size="sm" shape="circle" /></span>
+                <span className="flex-1 truncate">
                   {before}<span className="font-bold text-gray-900">{match}</span>{after}
                 </span>
                 <span className="shrink-0 text-[10px] text-gray-400">{b.count}</span>

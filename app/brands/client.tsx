@@ -4,21 +4,15 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
+import { BrandLogo } from "@/components/brand-logo";
 
 interface Brand {
   name: string;
   productCount: number;
 }
 
-function getInitial(name: string): string {
+function getLetter(name: string): string {
   return name.trim().charAt(0).toUpperCase();
-}
-
-function brandColor(name: string): string {
-  const colors = ["#E30613", "#0076bd", "#f39200", "#1a1a1a", "#6a2382", "#009e60"];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  return colors[Math.abs(hash) % colors.length];
 }
 
 export default function BrandsClient({ brands }: { brands: Brand[] }) {
@@ -35,7 +29,7 @@ export default function BrandsClient({ brands }: { brands: Brand[] }) {
   const grouped = useMemo(() => {
     const groups: Record<string, Brand[]> = {};
     for (const b of filtered) {
-      const letter = getInitial(b.name);
+      const letter = getLetter(b.name);
       const key = /[A-Z]/.test(letter) ? letter : "#";
       if (!groups[key]) groups[key] = [];
       groups[key].push(b);
@@ -76,13 +70,7 @@ export default function BrandsClient({ brands }: { brands: Brand[] }) {
               {items.map((brand) => (
                 <Link key={brand.name} href={`/category/parfum?brand=${encodeURIComponent(brand.name)}`}
                   className="group flex flex-col items-center rounded-xl border border-[#e1e1e3] bg-white p-4 transition hover:border-gray-300 hover:shadow-sm">
-                  {/* Brand circle with initial */}
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-100 bg-white">
-                    <span className="text-xl font-black"
-                      style={{ color: brandColor(brand.name) }}>
-                      {getInitial(brand.name)}
-                    </span>
-                  </div>
+                  <BrandLogo name={brand.name} size="md" shape="circle" />
                   <p className="mt-3 line-clamp-1 text-center text-[13px] font-bold text-gray-900">{brand.name}</p>
                   <p className="mt-0.5 text-[10px] text-gray-400">{brand.productCount.toLocaleString("de-CH")}</p>
                 </Link>
