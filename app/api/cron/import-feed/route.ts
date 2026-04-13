@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { isAuthorized, rateLimit, safeErrorMessage } from "@/lib/api-utils";
 
@@ -82,6 +83,8 @@ async function handleRequest(req: NextRequest) {
   }
 
   const startMs = Date.now();
+  const runId = `import-${Date.now().toString(36)}`;
+  console.time(runId);
   const elapsed = () => Date.now() - startMs;
 
   // ── Parse query params ──────────────────────────────────
@@ -251,25 +254,18 @@ async function handleRequest(req: NextRequest) {
       });
     }
 
-    // Process all prepared items in parallel (Promise.allSettled)
-    const PARALLEL_CHUNK = 10; // process 10 at a time to avoid overwhelming Supabase
-    for (let c = 0; c < prepared.length; c += PARALLEL_CHUNK) {
-      if (elapsed() > SAFETY_TIMEOUT_MS) break;
-
-      const chunk = prepared.slice(c, c + PARALLEL_CHUNK);
-      const results = await Promise.allSettled(
-        chunk.map((p) => processItem(p, feed, scrub))
-      );
-
-      for (const r of results) {
-        if (r.status === "fulfilled") {
-          imported++;
-        } else {
-          errors++;
-          const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
-          debugErrors.push(`err: ${msg.slice(0, 100)}`);
-          if (errors <= 5) console.error(`[Import ${feed.id}]`, msg.slice(0, 200));
-        }
+    // Bulk upsert: single multi-row INSERT ON CONFLICT per 50-item batch
+    // Replaces 50 individual processItem() calls → 2 SQL statements total
+    if (prepared.length > 0 && elapsed() <= SAFETY_TIMEOUT_MS) {
+      try {
+        const { imported: bulkImported, errors: bulkErrors } = await bulkUpsertBatch(prepared, feed, scrub);
+        imported += bulkImported;
+        errors += bulkErrors;
+      } catch (err) {
+        errors += prepared.length;
+        const msg = err instanceof Error ? err.message : String(err);
+        debugErrors.push(`bulk err: ${msg.slice(0, 150)}`);
+        console.error(`[Import ${feed.id}] bulk upsert failed:`, msg.slice(0, 200));
       }
     }
 
@@ -302,6 +298,8 @@ async function handleRequest(req: NextRequest) {
     console.error("[import-feed]", internalMsg);
     await logImport(feed.id, 0, 0, 0, 0, "error", internalMsg.slice(0, 500));
     return jsonResponse(false, { offset: 0, total: 0, message: safeErrorMessage(error), durationMs: elapsed() });
+  } finally {
+    console.timeEnd(runId);
   }
 }
 
@@ -318,63 +316,81 @@ function jsonResponse(ok: boolean, data: Record<string, any>) {
 }
 
 /**
- * Process a single product: 2 round-trips (was 4) via INSERT ON CONFLICT.
- * - Product: upsert by gtin with smart enrichment in SQL CASE expressions
- * - Price: upsert by (productId, sourceId) — single statement, no DELETE+INSERT
+ * Bulk upsert: 1 INSERT for N products + 1 INSERT for N prices.
+ * Replaces the previous loop of 50 × processItem() (100+ round-trips) with
+ * just 2 SQL statements per batch — 50-100x fewer DB round-trips.
+ *
+ * Strategy:
+ *   - Generate product IDs client-side (cuid-like)
+ *   - Build multi-row VALUES lists via Prisma.join
+ *   - ON CONFLICT (gtin) DO UPDATE with smart enrichment
+ *   - Then second INSERT for prices using ON CONFLICT (productId, sourceId)
  */
-async function processItem(
-  p: { gtin: string; priceChf: number; originalPriceChf: number | null; affiliateLink: string; catSlug: string; catName: string; imageUrl: string | null; title: string; brand: string },
+async function bulkUpsertBatch(
+  prepared: { gtin: string; priceChf: number; originalPriceChf: number | null; affiliateLink: string; catSlug: string; catName: string; imageUrl: string | null; title: string; brand: string }[],
   feed: FeedConfig,
   scrub: boolean,
-) {
-  const newId = generateId();
+): Promise<{ imported: number; errors: number }> {
+  if (prepared.length === 0) return { imported: 0, errors: 0 };
 
-  // Step 1: UPSERT Product (single round-trip)
-  // - Scrub mode: overwrite everything
-  // - Enrichment mode: longer title wins, lowest price wins, fill missing image/category
-  // - Bypasses pgvector column entirely (not listed in INSERT/UPDATE)
-  const productRows = scrub
-    ? await db.$queryRaw<{ id: string }[]>`
-        INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
-        VALUES (${newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())
-        ON CONFLICT (gtin) DO UPDATE SET
-          title = EXCLUDED.title,
-          brand = EXCLUDED.brand,
-          category = EXCLUDED.category,
-          "categoryName" = EXCLUDED."categoryName",
-          "imageUrl" = COALESCE(EXCLUDED."imageUrl", "Product"."imageUrl"),
-          price = EXCLUDED.price,
-          "isActive" = true,
-          "updatedAt" = NOW()
-        RETURNING id
-      `
-    : await db.$queryRaw<{ id: string }[]>`
-        INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
-        VALUES (${newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())
-        ON CONFLICT (gtin) DO UPDATE SET
-          title = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.title ELSE "Product".title END,
-          brand = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.brand ELSE "Product".brand END,
-          "imageUrl" = COALESCE("Product"."imageUrl", EXCLUDED."imageUrl"),
-          category = COALESCE(NULLIF("Product".category, ''), EXCLUDED.category),
-          "categoryName" = COALESCE(NULLIF("Product"."categoryName", ''), EXCLUDED."categoryName"),
-          price = CASE WHEN EXCLUDED.price < COALESCE("Product".price, 9999999) THEN EXCLUDED.price ELSE "Product".price END,
-          "isActive" = true,
-          "updatedAt" = NOW()
-        RETURNING id
-      `;
+  // Pre-generate IDs so we can use them in BOTH the Product insert and Price insert
+  const withIds = prepared.map((p) => ({ ...p, newId: generateId() }));
 
-  const productId = productRows[0]?.id ?? newId;
+  // ── Step 1: Bulk Product UPSERT ──
+  const productRows = Prisma.join(
+    withIds.map((p) => Prisma.sql`(${p.newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())`),
+  );
 
-  // Step 2: UPSERT Price via unique constraint (productId, sourceId)
+  const updateClause = scrub
+    ? Prisma.sql`
+        title = EXCLUDED.title,
+        brand = EXCLUDED.brand,
+        category = EXCLUDED.category,
+        "categoryName" = EXCLUDED."categoryName",
+        "imageUrl" = COALESCE(EXCLUDED."imageUrl", "Product"."imageUrl"),
+        price = EXCLUDED.price,
+        "isActive" = true,
+        "updatedAt" = NOW()`
+    : Prisma.sql`
+        title = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.title ELSE "Product".title END,
+        brand = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.brand ELSE "Product".brand END,
+        "imageUrl" = COALESCE("Product"."imageUrl", EXCLUDED."imageUrl"),
+        category = COALESCE(NULLIF("Product".category, ''), EXCLUDED.category),
+        "categoryName" = COALESCE(NULLIF("Product"."categoryName", ''), EXCLUDED."categoryName"),
+        price = CASE WHEN EXCLUDED.price < COALESCE("Product".price, 9999999) THEN EXCLUDED.price ELSE "Product".price END,
+        "isActive" = true,
+        "updatedAt" = NOW()`;
+
+  const productResults = await db.$queryRaw<{ id: string; gtin: string }[]>`
+    INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
+    VALUES ${productRows}
+    ON CONFLICT (gtin) DO UPDATE SET ${updateClause}
+    RETURNING id, gtin
+  `;
+
+  // Map gtin → actual productId (returned IDs are either the new ones or existing ones)
+  const idByGtin = new Map(productResults.map((r) => [r.gtin, r.id]));
+
+  // ── Step 2: Bulk Price UPSERT ──
+  const priceRows = Prisma.join(
+    withIds.flatMap((p) => {
+      const productId = idByGtin.get(p.gtin);
+      if (!productId) return [];
+      return [Prisma.sql`(${generateId()}, ${productId}, ${feed.id}, ${feed.shopName}, ${p.priceChf}, 0, ${p.affiliateLink}, NOW())`];
+    }),
+  );
+
   await db.$executeRaw`
     INSERT INTO "Price" (id, "productId", "sourceId", "shopName", "amountChf", "amountEur", url, timestamp)
-    VALUES (${generateId()}, ${productId}, ${feed.id}, ${feed.shopName}, ${p.priceChf}, 0, ${p.affiliateLink}, NOW())
+    VALUES ${priceRows}
     ON CONFLICT ("productId", "sourceId") DO UPDATE SET
       "amountChf" = EXCLUDED."amountChf",
       "shopName" = EXCLUDED."shopName",
       url = EXCLUDED.url,
       timestamp = NOW()
   `;
+
+  return { imported: productResults.length, errors: prepared.length - productResults.length };
 }
 
 async function logImport(feedId: string, skip: number, total: number, imported: number, errors: number, status: string, message: string) {

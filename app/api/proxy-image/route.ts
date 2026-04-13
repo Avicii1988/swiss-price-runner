@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400, s-maxage=86400",
+        "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
         "X-Proxy": "preisalarm",
       },
     });
