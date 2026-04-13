@@ -270,6 +270,7 @@ function ImportDashboard() {
                 { key: "parfumsale", label: "Parfumsale" },
                 { key: "import_parfumerie", label: "Import Parfumerie" },
                 { key: "coop_vitality", label: "Coop Vitality" },
+                { key: "new_balance", label: "New Balance" },
               ].map((f) => (
                 <button key={f.key} onClick={() => setFeedKey(f.key)}
                   style={{

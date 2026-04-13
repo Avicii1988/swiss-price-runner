@@ -13,6 +13,7 @@ on:
           - xxl_parfum
           - import_parfumerie
           - coop_vitality
+          - new_balance
       limit:
         description: 'Items per batch'
         required: false

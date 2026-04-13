@@ -41,6 +41,12 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Coop Vitality",
     sourceType: "adtraction_feed",
   },
+  new_balance: {
+    id: "new_balance",
+    url: "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1654928248&asid=2064719298&gsh=1&pfid=683&gt=1",
+    shopName: "New Balance",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
@@ -61,6 +67,7 @@ const KNOWN_TOTALS: Record<string, number> = {
   parfumsale: 8578,
   import_parfumerie: 10000,
   coop_vitality: 8000,
+  new_balance: 3000,
 };
 
 export async function GET(req: NextRequest) { return handleRequest(req); }
@@ -229,7 +236,7 @@ async function handleRequest(req: NextRequest) {
         }));
       }
 
-      const { slug: catSlug, name: catName } = mapCategory(item.productType);
+      const { slug: catSlug, name: catName } = mapCategory(item.productType, feed.id);
       prepared.push({
         gtin,
         priceChf,
@@ -550,10 +557,51 @@ const CATEGORY_MAP: { pattern: string; slug: string; name: string }[] = [
   { pattern: "set", slug: "geschenksets", name: "Geschenksets" },
   { pattern: "sun", slug: "sonnenpflege", name: "Sonnenpflege" },
   { pattern: "spf", slug: "sonnenpflege", name: "Sonnenpflege" },
+  // ── Schuhe & Mode (New Balance, Nike, etc.) ──
+  { pattern: "sneaker", slug: "schuhe", name: "Schuhe" },
+  { pattern: "running shoe", slug: "schuhe", name: "Schuhe" },
+  { pattern: "laufschuh", slug: "schuhe", name: "Schuhe" },
+  { pattern: "wanderschuh", slug: "schuhe", name: "Schuhe" },
+  { pattern: "hiking shoe", slug: "schuhe", name: "Schuhe" },
+  { pattern: "trail shoe", slug: "schuhe", name: "Schuhe" },
+  { pattern: "training shoe", slug: "schuhe", name: "Schuhe" },
+  { pattern: "footwear", slug: "schuhe", name: "Schuhe" },
+  { pattern: "shoes", slug: "schuhe", name: "Schuhe" },
+  { pattern: "schuhe", slug: "schuhe", name: "Schuhe" },
+  { pattern: "stiefel", slug: "schuhe", name: "Schuhe" },
+  { pattern: "sandalen", slug: "schuhe", name: "Schuhe" },
+  { pattern: "sandals", slug: "schuhe", name: "Schuhe" },
+  { pattern: "boots", slug: "schuhe", name: "Schuhe" },
+  // Mode / Bekleidung
+  { pattern: "apparel", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "clothing", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "bekleidung", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "jacke", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "jacket", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "t-shirt", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "hose", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "pants", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "shorts", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "pullover", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "hoodie", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "sweatshirt", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "accessories", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "socken", slug: "mode", name: "Mode & Bekleidung" },
+  { pattern: "socks", slug: "mode", name: "Mode & Bekleidung" },
 ];
 
-function mapCategory(productType: string | undefined): { slug: string; name: string } {
-  if (!productType) return { slug: "parfum", name: "Parfum & Düfte" };
+/** Feed-specific defaults when productType is unknown or empty */
+const FEED_CATEGORY_DEFAULTS: Record<string, { slug: string; name: string }> = {
+  xxl_parfum: { slug: "parfum", name: "Parfum & Düfte" },
+  parfumsale: { slug: "parfum", name: "Parfum & Düfte" },
+  import_parfumerie: { slug: "parfum", name: "Parfum & Düfte" },
+  coop_vitality: { slug: "parfum", name: "Parfum & Düfte" },
+  new_balance: { slug: "schuhe", name: "Schuhe" },
+};
+
+function mapCategory(productType: string | undefined, feedId?: string): { slug: string; name: string } {
+  const fallback = (feedId && FEED_CATEGORY_DEFAULTS[feedId]) || { slug: "parfum", name: "Parfum & Düfte" };
+  if (!productType) return fallback;
   const lower = productType.toLowerCase();
   for (const entry of CATEGORY_MAP) {
     if (lower.includes(entry.pattern)) return { slug: entry.slug, name: entry.name };
@@ -564,8 +612,8 @@ function mapCategory(productType: string | undefined): { slug: string; name: str
     const name = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
     return { slug: slugify(firstPart), name };
   }
-  // Numeric IDs or unknown → default to parfum
-  return { slug: "parfum", name: "Parfum & Düfte" };
+  // Numeric IDs or unknown → feed-specific fallback
+  return fallback;
 }
 
 function slugify(s: string): string {
