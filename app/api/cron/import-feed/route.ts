@@ -48,6 +48,13 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "New Balance",
     sourceType: "adtraction_feed",
   },
+  parfum_ch: {
+    id: "parfum_ch",
+    url: process.env.PARFUM_CH_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1551177423&asid=2064719298&gsh=1&pfid=871&gt=1",
+    shopName: "Parfum.ch",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
@@ -69,6 +76,7 @@ const KNOWN_TOTALS: Record<string, number> = {
   import_parfumerie: 10000,
   coop_vitality: 8000,
   new_balance: 3000,
+  parfum_ch: 12000,
 };
 
 export async function GET(req: NextRequest) { return handleRequest(req); }
@@ -239,7 +247,16 @@ async function handleRequest(req: NextRequest) {
         }));
       }
 
-      const { slug: catSlug, name: catName } = mapCategory(item.productType, feed.id);
+      // Title + description keyword fallback + source-specific default.
+      // Pure in-memory scan — runs per item in this loop, BEFORE any DB write.
+      const decodedTitle = decodeHtml(item.title || gtin);
+      const decodedDescription = decodeHtml(item.description || "");
+      const { slug: catSlug, name: catName } = resolveCategory(
+        item.productType,
+        decodedTitle,
+        decodedDescription,
+        feed.id,
+      );
       prepared.push({
         gtin,
         priceChf,
@@ -249,7 +266,7 @@ async function handleRequest(req: NextRequest) {
         catSlug,
         catName,
         imageUrl: item.imageLink ? cleanUrl(item.imageLink) : null,
-        title: decodeHtml(item.title || gtin).slice(0, 500),
+        title: decodedTitle.slice(0, 500),
         brand: decodeHtml(item.brand || feed.shopName).slice(0, 200),
       });
     }
@@ -258,6 +275,9 @@ async function handleRequest(req: NextRequest) {
     // Replaces 50 individual processItem() calls → 2 SQL statements total
     if (prepared.length > 0 && elapsed() <= SAFETY_TIMEOUT_MS) {
       try {
+        // Guarantee every referenced Category row exists before the Product upsert —
+        // runs once per batch so products are always born linked to a category slug.
+        await ensureCategories(prepared.map((p) => ({ slug: p.catSlug, name: p.catName })));
         const { imported: bulkImported, errors: bulkErrors } = await bulkUpsertBatch(prepared, feed, scrub);
         imported += bulkImported;
         errors += bulkErrors;
@@ -613,6 +633,8 @@ const FEED_CATEGORY_DEFAULTS: Record<string, { slug: string; name: string }> = {
   import_parfumerie: { slug: "parfum", name: "Parfum & Düfte" },
   coop_vitality: { slug: "parfum", name: "Parfum & Düfte" },
   new_balance: { slug: "schuhe", name: "Schuhe" },
+  // Parfum.ch is a pure beauty shop — everything defaults to Parfum & Düfte.
+  parfum_ch: { slug: "parfum", name: "Parfum & Düfte" },
 };
 
 function mapCategory(productType: string | undefined, feedId?: string): { slug: string; name: string } {
@@ -630,6 +652,74 @@ function mapCategory(productType: string | undefined, feedId?: string): { slug: 
   }
   // Numeric IDs or unknown → feed-specific fallback
   return fallback;
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Beauty keyword fallback (title + description scan)
+// In-memory per item — zero DB overhead, runs BEFORE bulkUpsertBatch.
+// Mirrors scripts/import-runner.ts so both import paths behave identically.
+// ───────────────────────────────────────────────────────────────────
+
+const BEAUTY_KEYWORD_RULES: { keywords: string[]; slug: string; name: string }[] = [
+  { keywords: ["eau de parfum", "edp"], slug: "damendufte", name: "Damendüfte" },
+  { keywords: ["eau de toilette", "edt"], slug: "damendufte", name: "Damendüfte" },
+  { keywords: ["duftset", "geschenkset", "gift set"], slug: "geschenksets", name: "Geschenksets" },
+  { keywords: ["after shave", "aftershave"], slug: "herrendufte", name: "Herrendüfte" },
+  { keywords: ["mascara", "lippenstift", "lipstick", "make-up", "makeup"], slug: "make-up", name: "Make-Up" },
+  { keywords: ["gesichtspflege", "gesichtscreme", "serum"], slug: "pflege", name: "Pflege" },
+  { keywords: ["body lotion", "körperlotion", "koerperlotion", "body milk"], slug: "koerperpflege", name: "Körperpflege" },
+  { keywords: ["shampoo", "conditioner", "haarpflege"], slug: "haarpflege", name: "Haarpflege" },
+  { keywords: ["parfum", "perfume", "duft", "fragrance"], slug: "parfum", name: "Parfum & Düfte" },
+];
+
+function matchBeautyKeywords(title: string, description: string): { slug: string; name: string } | null {
+  const haystack = (title + " " + description).toLowerCase();
+  for (const rule of BEAUTY_KEYWORD_RULES) {
+    for (const kw of rule.keywords) if (haystack.includes(kw)) return { slug: rule.slug, name: rule.name };
+  }
+  return null;
+}
+
+/**
+ * Resolve a category with priority: productType → keyword scan → feed default.
+ * Parfum.ch (source parfum_ch) always lands in Parfum & Düfte when nothing else matches.
+ */
+function resolveCategory(
+  productType: string | undefined,
+  title: string,
+  description: string,
+  feedId: string,
+): { slug: string; name: string } {
+  if (productType) {
+    const lower = productType.toLowerCase();
+    for (const entry of CATEGORY_MAP) {
+      if (lower.includes(entry.pattern)) return { slug: entry.slug, name: entry.name };
+    }
+  }
+  const kw = matchBeautyKeywords(title, description);
+  if (kw) return kw;
+  return FEED_CATEGORY_DEFAULTS[feedId] || { slug: "parfum", name: "Parfum & Düfte" };
+}
+
+/**
+ * Upsert Category rows for every unique slug in the prepared batch.
+ * Runs once per batch (tiny, <1 KB) → products are always linked to a
+ * valid `Category.slug` (the de-facto unique category key in this schema).
+ */
+async function ensureCategories(pairs: Iterable<{ slug: string; name: string }>): Promise<void> {
+  const seen = new Map<string, string>();
+  for (const p of pairs) if (!seen.has(p.slug)) seen.set(p.slug, p.name);
+  if (seen.size === 0) return;
+  const rows = Prisma.join(
+    Array.from(seen.entries()).map(([slug, name]) =>
+      Prisma.sql`(${generateId()}, ${name}, ${slug}, 0, NOW())`,
+    ),
+  );
+  await db.$executeRaw`
+    INSERT INTO "Category" (id, name, slug, "sortOrder", "createdAt")
+    VALUES ${rows}
+    ON CONFLICT (slug) DO NOTHING
+  `;
 }
 
 function slugify(s: string): string {

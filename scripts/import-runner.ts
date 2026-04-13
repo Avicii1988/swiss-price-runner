@@ -54,6 +54,14 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "New Balance",
     sourceType: "adtraction_feed",
   },
+  parfum_ch: {
+    id: "parfum_ch",
+    // Parfum.ch — Adtraction feed. URL can be overridden at runtime via PARFUM_CH_FEED_URL env var.
+    url: process.env.PARFUM_CH_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1551177423&asid=2064719298&gsh=1&pfid=871&gt=1",
+    shopName: "Parfum.ch",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const FEED_CATEGORY_DEFAULTS: Record<string, { slug: string; name: string }> = {
@@ -62,6 +70,8 @@ const FEED_CATEGORY_DEFAULTS: Record<string, { slug: string; name: string }> = {
   import_parfumerie: { slug: "parfum", name: "Parfum & Düfte" },
   coop_vitality: { slug: "parfum", name: "Parfum & Düfte" },
   new_balance: { slug: "schuhe", name: "Schuhe" },
+  // Parfum.ch is a pure beauty shop — everything defaults to Parfum & Düfte.
+  parfum_ch: { slug: "parfum", name: "Parfum & Düfte" },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -257,6 +267,96 @@ function mapCategory(productType: string, feedId: string): { slug: string; name:
   return fallback;
 }
 
+// ───────────────────────────────────────────────────────────────────
+// Beauty keyword mapping (title + description fallback)
+// Runs in-memory per item BEFORE the bulk-upsert, so zero DB overhead.
+// ───────────────────────────────────────────────────────────────────
+
+interface KeywordRule {
+  keywords: string[];      // lowercase substrings to match in title/description
+  slug: string;
+  name: string;
+}
+
+/** Beauty-related keyword rules — title/description scanning. */
+const BEAUTY_KEYWORD_RULES: KeywordRule[] = [
+  { keywords: ["eau de parfum", "edp"], slug: "damendufte", name: "Damendüfte" },
+  { keywords: ["eau de toilette", "edt"], slug: "damendufte", name: "Damendüfte" },
+  { keywords: ["duftset", "geschenkset", "gift set"], slug: "geschenksets", name: "Geschenksets" },
+  { keywords: ["after shave", "aftershave"], slug: "herrendufte", name: "Herrendüfte" },
+  { keywords: ["mascara", "lippenstift", "lipstick", "make-up", "makeup"], slug: "make-up", name: "Make-Up" },
+  { keywords: ["gesichtspflege", "gesichtscreme", "serum"], slug: "pflege", name: "Pflege" },
+  { keywords: ["body lotion", "körperlotion", "koerperlotion", "body milk"], slug: "koerperpflege", name: "Körperpflege" },
+  { keywords: ["shampoo", "conditioner", "haarpflege"], slug: "haarpflege", name: "Haarpflege" },
+  // Generic catch-alls — checked last so more specific rules win.
+  { keywords: ["parfum", "perfume", "duft", "fragrance"], slug: "parfum", name: "Parfum & Düfte" },
+];
+
+/**
+ * Returns a category by scanning title + description for beauty keywords.
+ * Used as a fallback when mapCategory() yielded only the feed default.
+ */
+function matchBeautyKeywords(title: string, description: string): { slug: string; name: string } | null {
+  const haystack = (title + " " + description).toLowerCase();
+  for (const rule of BEAUTY_KEYWORD_RULES) {
+    for (const kw of rule.keywords) {
+      if (haystack.includes(kw)) return { slug: rule.slug, name: rule.name };
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the category for a feed item.
+ *  1. productType → existing CATEGORY_MAP (highest signal)
+ *  2. title/description → BEAUTY_KEYWORD_RULES
+ *  3. feed-specific default (parfum_ch always falls back to Parfum & Düfte)
+ */
+function resolveCategory(
+  productType: string,
+  title: string,
+  description: string,
+  feedId: string,
+): { slug: string; name: string } {
+  // 1. productType match
+  if (productType) {
+    const lower = productType.toLowerCase();
+    for (const entry of CATEGORY_MAP) {
+      if (lower.includes(entry.pattern)) return { slug: entry.slug, name: entry.name };
+    }
+  }
+  // 2. title/description keyword match (beauty heuristic)
+  const kw = matchBeautyKeywords(title, description);
+  if (kw) return kw;
+  // 3. feed default
+  return FEED_CATEGORY_DEFAULTS[feedId] || { slug: "parfum", name: "Parfum & Düfte" };
+}
+
+/**
+ * Upsert Category rows for every unique slug used in this batch.
+ * Ensures `Category` table always contains referenced categories — products
+ * are effectively "born with a category" via the unique `Category.slug` key,
+ * which is the de-facto category identifier in this schema.
+ */
+async function ensureCategories(
+  db: PrismaClient,
+  pairs: Iterable<{ slug: string; name: string }>,
+): Promise<void> {
+  const seen = new Map<string, string>();
+  for (const p of pairs) if (!seen.has(p.slug)) seen.set(p.slug, p.name);
+  if (seen.size === 0) return;
+  const rows = Prisma.join(
+    Array.from(seen.entries()).map(([slug, name]) =>
+      Prisma.sql`(${generateId()}, ${name}, ${slug}, 0, NOW())`,
+    ),
+  );
+  await db.$executeRaw`
+    INSERT INTO "Category" (id, name, slug, "sortOrder", "createdAt")
+    VALUES ${rows}
+    ON CONFLICT (slug) DO NOTHING
+  `;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Bulk upsert
 // ═══════════════════════════════════════════════════════════════════
@@ -375,7 +475,16 @@ async function main() {
           continue;
         }
 
-        const { slug: catSlug, name: catName } = mapCategory(item.productType, feed.id);
+        // Title + description keyword fallback + source-specific default.
+        // In-memory per item — happens BEFORE the DB write so no I/O overhead.
+        const decodedTitle = decodeHtml(item.title || gtin);
+        const decodedDescription = decodeHtml(item.description || "");
+        const { slug: catSlug, name: catName } = resolveCategory(
+          item.productType,
+          decodedTitle,
+          decodedDescription,
+          feed.id,
+        );
         prepared.push({
           newId: generateId(),
           gtin,
@@ -384,10 +493,14 @@ async function main() {
           catSlug,
           catName,
           imageUrl: item.imageLink ? cleanUrl(item.imageLink) : null,
-          title: decodeHtml(item.title || gtin).slice(0, 500),
+          title: decodedTitle.slice(0, 500),
           brand: decodeHtml(item.brand || feed.shopName).slice(0, 200),
         });
       }
+
+      // Guarantee every referenced Category row exists before the Product upsert —
+      // so products are born linked to a valid category slug (the @unique identifier).
+      await ensureCategories(db, prepared.map((p) => ({ slug: p.catSlug, name: p.catName })));
 
       const t0 = Date.now();
       const { imported, errors } = await bulkUpsertBatch(db, prepared, feed, scrub);

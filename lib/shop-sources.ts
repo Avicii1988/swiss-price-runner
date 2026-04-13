@@ -42,6 +42,12 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     color: "#d2002e",
     wordmark: { text: "new balance", color: "#d2002e", weight: 800 },
   },
+  parfum_ch: {
+    id: "parfum_ch",
+    name: "Parfum.ch",
+    color: "#111111",
+    wordmark: { text: "parfum.ch", color: "#111111", weight: 800 },
+  },
   adtraction_xxl_parfum: {
     id: "adtraction_xxl_parfum",
     name: "XXL Parfum",
@@ -66,4 +72,5 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES.import_parfumerie,
   SHOP_SOURCES.coop_vitality,
   SHOP_SOURCES.new_balance,
+  SHOP_SOURCES.parfum_ch,
 ];
