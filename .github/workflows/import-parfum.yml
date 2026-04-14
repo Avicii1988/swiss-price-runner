@@ -4,6 +4,10 @@ name: Import Parfum.ch
 # Runs the standalone import-runner with the parfum_ch feed key.
 # The feed URL can be overridden via the PARFUM_CH_FEED_URL secret/env —
 # otherwise the baked-in default in scripts/import-runner.ts is used.
+#
+# The "Normalize DB URL" step prevents "prepared statement s0 already
+# exists" by preferring the direct non-pooled URL and auto-applying
+# ?pgbouncer=true&connection_limit=1 when only the pooler is available.
 
 on:
   workflow_dispatch:
@@ -21,6 +25,11 @@ on:
         description: "Override Adtraction feed URL (optional)"
         required: false
         default: ""
+      force_pooled:
+        description: "Force use of the pooled DATABASE_URL (auto-adds ?pgbouncer=true)"
+        required: false
+        default: "false"
+        type: boolean
   schedule:
     # Daily at 03:30 UTC (05:30 CEST) — off-peak for Adtraction
     - cron: "30 3 * * *"
@@ -42,17 +51,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Normalize DB URL
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          FORCE_POOLED:   ${{ inputs.force_pooled }}
+        run: node .github/scripts/normalize-db-url.js
+
       - name: Generate Prisma Client
         run: npx prisma generate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
 
       - name: Run Parfum.ch import
         run: npx tsx scripts/import-runner.ts --feed parfum_ch --limit ${{ inputs.limit || '100' }} ${{ inputs.scrub == true && '--scrub' || '' }}
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
           PARFUM_CH_FEED_URL: ${{ inputs.feed_url != '' && inputs.feed_url || secrets.PARFUM_CH_FEED_URL }}
