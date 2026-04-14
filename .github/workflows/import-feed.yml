@@ -15,6 +15,7 @@ on:
           - coop_vitality
           - new_balance
           - parfum_ch
+          - ackermann_ch
       limit:
         description: 'Items per batch'
         required: false
@@ -56,3 +57,4 @@ jobs:
           POSTGRES_URL: ${{ secrets.DATABASE_URL }}
           POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
           PARFUM_CH_FEED_URL: ${{ secrets.PARFUM_CH_FEED_URL }}
+          ACKERMANN_FEED_URL: ${{ secrets.ACKERMANN_FEED_URL }}

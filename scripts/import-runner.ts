@@ -62,6 +62,14 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Parfum.ch",
     sourceType: "adtraction_feed",
   },
+  ackermann_ch: {
+    id: "ackermann_ch",
+    // Ackermann Technik — Adtraction feed. URL can be overridden at runtime via ACKERMANN_FEED_URL env var.
+    url: process.env.ACKERMANN_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1703604881&asid=2064719298&gsh=1&pfid=1994&gt=1",
+    shopName: "Ackermann Technik",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const FEED_CATEGORY_DEFAULTS: Record<string, { slug: string; name: string }> = {
@@ -72,6 +80,10 @@ const FEED_CATEGORY_DEFAULTS: Record<string, { slug: string; name: string }> = {
   new_balance: { slug: "schuhe", name: "Schuhe" },
   // Parfum.ch is a pure beauty shop — everything defaults to Parfum & Düfte.
   parfum_ch: { slug: "parfum", name: "Parfum & Düfte" },
+  // Ackermann Technik = consumer electronics / household tech.
+  // Use Haushalt as the umbrella fallback; productType-based mapping still
+  // routes specific items to smartphones/laptops/tv-audio/kopfhoerer/etc.
+  ackermann_ch: { slug: "haushalt", name: "Haushalt & Küche" },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -149,39 +161,61 @@ interface FeedItem {
   brand: string; gtin: string; mpn: string; productType: string; description: string; availability: string;
 }
 
-function buildItemIndex(xml: string): number[] {
+/** Container tag — most Adtraction feeds use <item>, some use <product>. */
+type ContainerTag = "item" | "product";
+
+interface FeedIndex {
+  starts: number[];
+  container: ContainerTag;
+}
+
+/**
+ * Build an index of item/product container start positions.
+ * Tries <item> first (Google Merchant standard), falls back to <product>.
+ */
+function buildItemIndex(xml: string): FeedIndex {
+  const itemStarts = scanContainer(xml, "<item>");
+  if (itemStarts.length > 0) return { starts: itemStarts, container: "item" };
+  const productStarts = scanContainer(xml, "<product>");
+  return { starts: productStarts, container: "product" };
+}
+
+function scanContainer(xml: string, openTag: string): number[] {
   const starts: number[] = [];
   let pos = 0;
   while (true) {
-    pos = xml.indexOf("<item>", pos);
+    pos = xml.indexOf(openTag, pos);
     if (pos === -1) break;
     starts.push(pos);
-    pos += 6;
+    pos += openTag.length;
   }
   return starts;
 }
 
-function parseFeedSlice(xml: string, itemStarts: number[], offset: number, limit: number): FeedItem[] {
+function parseFeedSlice(xml: string, idx: FeedIndex, offset: number, limit: number): FeedItem[] {
   const items: FeedItem[] = [];
-  const end = Math.min(offset + limit, itemStarts.length);
+  const openLen = idx.container.length + 2;            // "<item>" / "<product>"
+  const closeTag = `</${idx.container}>`;
+  const end = Math.min(offset + limit, idx.starts.length);
   for (let i = offset; i < end; i++) {
-    const start = itemStarts[i] + 6;
-    const bound = i + 1 < itemStarts.length ? itemStarts[i + 1] : xml.length;
-    const closeIdx = xml.indexOf("</item>", start);
+    const start = idx.starts[i] + openLen;
+    const bound = i + 1 < idx.starts.length ? idx.starts[i + 1] : xml.length;
+    const closeIdx = xml.indexOf(closeTag, start);
     if (closeIdx === -1 || closeIdx > bound) continue;
     const block = xml.slice(start, closeIdx);
     items.push({
-      title: tag(block, "g:title") || tag(block, "title") || "",
-      price: tag(block, "g:sale_price") || tag(block, "sale_price") || tag(block, "g:price") || tag(block, "price") || "",
-      originalPrice: tag(block, "g:price") || tag(block, "price") || "",
-      link: tag(block, "g:link") || tag(block, "link") || "",
-      imageLink: tag(block, "g:image_link") || tag(block, "image_link") || "",
-      brand: tag(block, "g:brand") || tag(block, "brand") || "",
-      gtin: tag(block, "g:gtin") || tag(block, "g:ean") || "",
-      mpn: tag(block, "g:mpn") || tag(block, "g:id") || tag(block, "id") || "",
-      productType: tag(block, "g:product_type") || tag(block, "g:google_product_category") || "",
+      // Title aliases: Google Merchant <g:title>, plain <title>, Adtraction <name> / <productName>.
+      title: tag(block, "g:title") || tag(block, "title") || tag(block, "name") || tag(block, "productName") || "",
+      price: tag(block, "g:sale_price") || tag(block, "sale_price") || tag(block, "g:price") || tag(block, "price") || tag(block, "salePrice") || "",
+      originalPrice: tag(block, "g:price") || tag(block, "price") || tag(block, "originalPrice") || "",
+      link: tag(block, "g:link") || tag(block, "link") || tag(block, "productUrl") || tag(block, "url") || "",
+      imageLink: tag(block, "g:image_link") || tag(block, "image_link") || tag(block, "productImage") || tag(block, "imageUrl") || "",
+      brand: tag(block, "g:brand") || tag(block, "brand") || tag(block, "manufacturer") || "",
+      gtin: tag(block, "g:gtin") || tag(block, "g:ean") || tag(block, "ean") || tag(block, "EAN") || tag(block, "gtin") || "",
+      mpn: tag(block, "g:mpn") || tag(block, "g:id") || tag(block, "id") || tag(block, "sku") || tag(block, "productId") || "",
+      productType: tag(block, "g:product_type") || tag(block, "g:google_product_category") || tag(block, "category") || tag(block, "categoryName") || "",
       description: tag(block, "g:description") || tag(block, "description") || "",
-      availability: tag(block, "g:availability") || tag(block, "availability") || "",
+      availability: tag(block, "g:availability") || tag(block, "availability") || tag(block, "inStock") || "",
     });
   }
   return items;
@@ -255,6 +289,48 @@ const CATEGORY_MAP: { pattern: string; slug: string; name: string }[] = [
   { pattern: "clothing", slug: "mode", name: "Mode & Bekleidung" },
   { pattern: "jacket", slug: "mode", name: "Mode & Bekleidung" },
   { pattern: "t-shirt", slug: "mode", name: "Mode & Bekleidung" },
+  // Tech / Electronics (mainly used by Ackermann Technik)
+  { pattern: "smartphone", slug: "smartphones", name: "Smartphones" },
+  { pattern: "handy", slug: "smartphones", name: "Smartphones" },
+  { pattern: "iphone", slug: "smartphones", name: "Smartphones" },
+  { pattern: "tablet", slug: "smartphones", name: "Smartphones" },
+  { pattern: "laptop", slug: "laptops", name: "Laptops & Computer" },
+  { pattern: "notebook", slug: "laptops", name: "Laptops & Computer" },
+  { pattern: "macbook", slug: "laptops", name: "Laptops & Computer" },
+  { pattern: "monitor", slug: "laptops", name: "Laptops & Computer" },
+  { pattern: "desktop", slug: "laptops", name: "Laptops & Computer" },
+  { pattern: "kopfhörer", slug: "kopfhoerer", name: "Kopfhörer & Audio" },
+  { pattern: "kopfhoerer", slug: "kopfhoerer", name: "Kopfhörer & Audio" },
+  { pattern: "headphone", slug: "kopfhoerer", name: "Kopfhörer & Audio" },
+  { pattern: "earbud", slug: "kopfhoerer", name: "Kopfhörer & Audio" },
+  { pattern: "lautsprecher", slug: "kopfhoerer", name: "Kopfhörer & Audio" },
+  { pattern: "speaker", slug: "kopfhoerer", name: "Kopfhörer & Audio" },
+  { pattern: "fernseher", slug: "tv-audio", name: "TV & Audio" },
+  { pattern: "fernsehgerät", slug: "tv-audio", name: "TV & Audio" },
+  { pattern: "television", slug: "tv-audio", name: "TV & Audio" },
+  { pattern: "soundbar", slug: "tv-audio", name: "TV & Audio" },
+  { pattern: "beamer", slug: "tv-audio", name: "TV & Audio" },
+  { pattern: "projector", slug: "tv-audio", name: "TV & Audio" },
+  { pattern: "kamera", slug: "foto", name: "Foto & Video" },
+  { pattern: "camera", slug: "foto", name: "Foto & Video" },
+  { pattern: "objektiv", slug: "foto", name: "Foto & Video" },
+  { pattern: "drohne", slug: "foto", name: "Foto & Video" },
+  { pattern: "drone", slug: "foto", name: "Foto & Video" },
+  { pattern: "konsole", slug: "gaming", name: "Gaming & Entertainment" },
+  { pattern: "playstation", slug: "gaming", name: "Gaming & Entertainment" },
+  { pattern: "xbox", slug: "gaming", name: "Gaming & Entertainment" },
+  { pattern: "nintendo", slug: "gaming", name: "Gaming & Entertainment" },
+  { pattern: "smartwatch", slug: "uhren", name: "Uhren & Schmuck" },
+  { pattern: "fitness tracker", slug: "uhren", name: "Uhren & Schmuck" },
+  // Haushalt
+  { pattern: "staubsauger", slug: "haushalt", name: "Haushalt & Küche" },
+  { pattern: "vacuum", slug: "haushalt", name: "Haushalt & Küche" },
+  { pattern: "kaffeemaschine", slug: "haushalt", name: "Haushalt & Küche" },
+  { pattern: "küche", slug: "haushalt", name: "Haushalt & Küche" },
+  { pattern: "kuechengerät", slug: "haushalt", name: "Haushalt & Küche" },
+  { pattern: "luftreiniger", slug: "haushalt", name: "Haushalt & Küche" },
+  { pattern: "mixer", slug: "haushalt", name: "Haushalt & Küche" },
+  { pattern: "haushalt", slug: "haushalt", name: "Haushalt & Küche" },
 ];
 
 function mapCategory(productType: string, feedId: string): { slug: string; name: string } {
@@ -445,9 +521,9 @@ async function main() {
   try {
     // 1. Download + index
     const xml = await downloadFeed(feed.url);
-    const itemStarts = buildItemIndex(xml);
-    const total = itemStarts.length;
-    console.log(`📦 ${total.toLocaleString()} items in feed`);
+    const feedIdx = buildItemIndex(xml);
+    const total = feedIdx.starts.length;
+    console.log(`📦 ${total.toLocaleString()} items in feed (container=<${feedIdx.container}>)`);
 
     // 2. Resume from last offset (unless explicit --offset)
     let offset = startOffset >= 0 ? startOffset : 0;
@@ -469,7 +545,7 @@ async function main() {
 
     while (offset < total) {
       batch++;
-      const slice = parseFeedSlice(xml, itemStarts, offset, limit);
+      const slice = parseFeedSlice(xml, feedIdx, offset, limit);
       if (slice.length === 0) break;
 
       const prepared: PreparedItem[] = [];

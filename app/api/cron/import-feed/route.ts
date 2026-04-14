@@ -55,6 +55,13 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Parfum.ch",
     sourceType: "adtraction_feed",
   },
+  ackermann_ch: {
+    id: "ackermann_ch",
+    url: process.env.ACKERMANN_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1703604881&asid=2064719298&gsh=1&pfid=1994&gt=1",
+    shopName: "Ackermann Technik",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
@@ -77,6 +84,7 @@ const KNOWN_TOTALS: Record<string, number> = {
   coop_vitality: 8000,
   new_balance: 3000,
   parfum_ch: 12000,
+  ackermann_ch: 5000,
 };
 
 export async function GET(req: NextRequest) { return handleRequest(req); }
@@ -650,6 +658,8 @@ const FEED_CATEGORY_DEFAULTS: Record<string, { slug: string; name: string }> = {
   new_balance: { slug: "schuhe", name: "Schuhe" },
   // Parfum.ch is a pure beauty shop — everything defaults to Parfum & Düfte.
   parfum_ch: { slug: "parfum", name: "Parfum & Düfte" },
+  // Ackermann Technik = consumer electronics / household tech.
+  ackermann_ch: { slug: "haushalt", name: "Haushalt & Küche" },
 };
 
 function mapCategory(productType: string | undefined, feedId?: string): { slug: string; name: string } {
