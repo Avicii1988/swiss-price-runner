@@ -1,0 +1,84 @@
+name: DB Push (Prisma Schema Sync)
+
+# One-shot manual workflow to sync prisma/schema.prisma with Supabase
+# via `npx prisma db push`.
+#
+# Safety flow:
+#   1. Always prints the SQL diff first (migrate diff --script) so the
+#      pending changes are visible in the Actions log.
+#   2. If dry_run=true → stop after the diff. No writes.
+#   3. Else             → run prisma db push (with --accept-data-loss
+#                          only when explicitly opted in).
+#
+# Secrets used (already configured for the import workflows):
+#   DATABASE_URL              — pooled connection (mirrored to POSTGRES_URL)
+#   POSTGRES_URL_NON_POOLING  — direct connection used by Prisma for DDL
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — show diff only, don't push"
+        required: false
+        default: "false"
+        type: boolean
+      accept_data_loss:
+        description: "Allow potentially destructive changes (column drops, type narrows)"
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+
+      - name: Show pending SQL diff
+        run: |
+          echo "─── SQL diff (DB → schema.prisma) ────────────────────────"
+          npx prisma migrate diff \
+            --from-url "$POSTGRES_URL_NON_POOLING" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script || true
+          echo "──────────────────────────────────────────────────────────"
+        env:
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+
+      - name: Dry run — skip push
+        if: ${{ inputs.dry_run == true }}
+        run: |
+          echo "🟡 dry_run=true → stopping before any writes."
+          echo "   Re-run this workflow with dry_run=false to apply the diff."
+
+      - name: Run prisma db push
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          FLAGS="--skip-generate"
+          if [ "${{ inputs.accept_data_loss }}" = "true" ]; then
+            FLAGS="$FLAGS --accept-data-loss"
+          fi
+          echo "Running: npx prisma db push $FLAGS"
+          npx prisma db push $FLAGS
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
