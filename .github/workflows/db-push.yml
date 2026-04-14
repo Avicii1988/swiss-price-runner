@@ -3,16 +3,22 @@ name: DB Push (Prisma Schema Sync)
 # One-shot manual workflow to sync prisma/schema.prisma with Supabase
 # via `npx prisma db push`.
 #
-# Safety flow:
-#   1. Always prints the SQL diff first (migrate diff --script) so the
-#      pending changes are visible in the Actions log.
-#   2. If dry_run=true → stop after the diff. No writes.
-#   3. Else             → run prisma db push (with --accept-data-loss
-#                          only when explicitly opted in).
+# P1013 troubleshooting:
+#   Prisma 5+ strictly requires postgresql:// scheme. Supabase often hands
+#   out connection strings with the legacy postgres:// prefix, which
+#   throws P1013 ("The provided database string is invalid."). This
+#   workflow auto-rewrites the scheme and falls back between
+#   POSTGRES_URL_NON_POOLING and DATABASE_URL if one is malformed.
 #
-# Secrets used (already configured for the import workflows):
-#   DATABASE_URL              — pooled connection (mirrored to POSTGRES_URL)
-#   POSTGRES_URL_NON_POOLING  — direct connection used by Prisma for DDL
+# Secrets (already set for the import workflows):
+#   POSTGRES_URL_NON_POOLING  — preferred: direct (non-pooled) connection
+#   DATABASE_URL              — fallback: pooled connection
+#
+# Safety flow:
+#   1. Normalize URL (scheme + fallback) + log masked protocol/host.
+#   2. Print pending SQL diff.
+#   3. If dry_run=true → stop.
+#   4. Else → `npx prisma db push --skip-generate`.
 
 on:
   workflow_dispatch:
@@ -23,7 +29,12 @@ on:
         default: "false"
         type: boolean
       accept_data_loss:
-        description: "Allow potentially destructive changes (column drops, type narrows)"
+        description: "Allow potentially destructive changes"
+        required: false
+        default: "false"
+        type: boolean
+      prefer_pooled:
+        description: "Use pooled DATABASE_URL even if POSTGRES_URL_NON_POOLING is set"
         required: false
         default: "false"
         type: boolean
@@ -45,12 +56,97 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ─────────────────────────────────────────────────────────────
+      # Normalize DB URL: pick secret, rewrite scheme, export to env.
+      # All downstream steps inherit DATABASE_URL, POSTGRES_URL and
+      # POSTGRES_URL_NON_POOLING from $GITHUB_ENV automatically. The
+      # raw secret value is auto-masked by Actions in any log output.
+      # ─────────────────────────────────────────────────────────────
+      - name: Normalize DB URL
+        id: normalize
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          PREFER_POOLED:  ${{ inputs.prefer_pooled }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          const raw = {
+            non_pooled: (process.env.RAW_NON_POOLED || "").trim(),
+            database:   (process.env.RAW_DATABASE   || "").trim(),
+          };
+          const preferPooled = process.env.PREFER_POOLED === "true";
+
+          function normalize(url) {
+            if (!url) return null;
+            // Prisma 5+ requires postgresql://. Rewrite the legacy scheme.
+            if (url.startsWith("postgres://")) {
+              url = "postgresql://" + url.slice("postgres://".length);
+            }
+            try {
+              const u = new URL(url);
+              if (u.protocol !== "postgresql:") {
+                console.log(`  ↳ unexpected protocol: ${u.protocol} (expected postgresql:)`);
+                return null;
+              }
+              return { url, parsed: u };
+            } catch (e) {
+              console.log(`  ↳ URL parse error: ${e.message}`);
+              return null;
+            }
+          }
+
+          console.log("─── Candidate secrets ───────────────────────────────────");
+          console.log(`POSTGRES_URL_NON_POOLING set: ${raw.non_pooled ? "yes" : "no"}`);
+          console.log(`DATABASE_URL set:             ${raw.database   ? "yes" : "no"}`);
+
+          const candidates = preferPooled
+            ? [raw.database, raw.non_pooled]
+            : [raw.non_pooled, raw.database];
+
+          let chosen = null;
+          for (const c of candidates) {
+            console.log(`\nTrying candidate (${c === raw.non_pooled ? "non-pooled" : "database"})…`);
+            const n = normalize(c);
+            if (n) { chosen = n; break; }
+          }
+
+          if (!chosen) {
+            console.error("\n💥 No valid database URL found in secrets.");
+            console.error("   Check that POSTGRES_URL_NON_POOLING or DATABASE_URL is set,");
+            console.error("   uses postgres:// or postgresql:// scheme, and is well-formed.");
+            process.exit(1);
+          }
+
+          // ── Masked debug output — never print the password ──
+          const p = chosen.parsed;
+          console.log("\n─── Using normalized URL ────────────────────────────────");
+          console.log(`  protocol : ${p.protocol}`);
+          console.log(`  host     : ${p.hostname}`);
+          console.log(`  port     : ${p.port || "(default)"}`);
+          console.log(`  database : ${p.pathname.replace(/^\//, "") || "(none)"}`);
+          console.log(`  user     : ${p.username ? p.username.slice(0, 3) + "***" : "(none)"}`);
+          console.log(`  password : ${p.password ? "***" + p.password.length + " chars***" : "(none)"}`);
+          console.log(`  params   : ${p.search || "(none)"}`);
+
+          // Pooler vs. direct hint
+          if (p.hostname.includes("pooler") && chosen === normalize(raw.non_pooled)) {
+            console.log("\n  ⚠️  POSTGRES_URL_NON_POOLING points to a *pooler* host.");
+            console.log("      DDL (db push) works best against the direct host.");
+          }
+
+          // Export to subsequent steps
+          fs.appendFileSync(process.env.GITHUB_ENV,
+            `POSTGRES_URL_NON_POOLING=${chosen.url}\n` +
+            `POSTGRES_URL=${chosen.url}\n` +
+            `DATABASE_URL=${chosen.url}\n`,
+          );
+          console.log("\n✓ Exported normalized URL to POSTGRES_URL_NON_POOLING / POSTGRES_URL / DATABASE_URL");
+          NODE
+
       - name: Generate Prisma Client
         run: npx prisma generate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
 
       - name: Show pending SQL diff
         run: |
@@ -58,16 +154,14 @@ jobs:
           npx prisma migrate diff \
             --from-url "$POSTGRES_URL_NON_POOLING" \
             --to-schema-datamodel prisma/schema.prisma \
-            --script || true
+            --script || echo "(diff step failed — continuing so the push step can surface its own error)"
           echo "──────────────────────────────────────────────────────────"
-        env:
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
 
       - name: Dry run — skip push
         if: ${{ inputs.dry_run == true }}
         run: |
           echo "🟡 dry_run=true → stopping before any writes."
-          echo "   Re-run this workflow with dry_run=false to apply the diff."
+          echo "   Re-run with dry_run=false to apply the diff."
 
       - name: Run prisma db push
         if: ${{ inputs.dry_run != true }}
@@ -78,7 +172,3 @@ jobs:
           fi
           echo "Running: npx prisma db push $FLAGS"
           npx prisma db push $FLAGS
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
