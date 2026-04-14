@@ -2,11 +2,12 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { Bell, ShoppingBag, Store, Tag, Package, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Bell, ShoppingBag, Store, Tag, Package } from "lucide-react";
 import { ProductCard, ProductCardSkeleton } from "@/components/product-card";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
+import { ViewModeToggle, type ViewMode } from "@/components/view-mode-toggle";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -33,7 +34,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
   const [products, setProducts] = useState(initialProducts);
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(PAGE_SIZE);
-  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== "undefined" && window.innerWidth < 640) return "list";
     return "grid";
   });
@@ -79,7 +80,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
       <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
         <div className="flex gap-6 lg:gap-8">
           <aside className="hidden w-[180px] shrink-0 lg:block">
-            <div className="sticky top-[120px]"><CategorySidebar dynamicCategories={dynamicCategories} /></div>
+            <div className="sticky top-[76px]"><CategorySidebar dynamicCategories={dynamicCategories} /></div>
           </aside>
 
           <main className="min-w-0 flex-1">
@@ -89,19 +90,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
               </h2>
               <div className="flex items-center gap-3">
                 <span className="text-[11px] text-gray-400">{totalProducts.toLocaleString("de-CH")} Produkte</span>
-                {/* Grid/List toggle — visible on all screens */}
-                <div className="flex overflow-hidden rounded-md border border-[#e1e1e3]">
-                  <button onClick={() => setViewMode("grid")}
-                    className={`flex h-7 w-8 items-center justify-center transition ${viewMode === "grid" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
-                    title="Raster">
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => setViewMode("list")}
-                    className={`flex h-7 w-8 items-center justify-center border-l border-[#e1e1e3] transition ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
-                    title="Liste">
-                    <ListIcon className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <ViewModeToggle value={viewMode} onChange={setViewMode} />
               </div>
             </div>
 
@@ -140,7 +129,7 @@ export default function HomeClient({ initialProducts, totalProducts, featured, d
           </main>
 
           <aside className="hidden w-72 shrink-0 border-l border-[#e1e1e3] pl-8 xl:block">
-            <div className="sticky top-[120px] max-h-[calc(100vh-140px)] overflow-y-auto">
+            <div className="sticky top-[76px] max-h-[calc(100vh-100px)] overflow-y-auto">
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">News & Trends</p>
               <div className="mt-4 space-y-5">
                 {BLOG_ARTICLES.map((article, i) => (

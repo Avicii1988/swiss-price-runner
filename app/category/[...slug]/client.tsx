@@ -4,8 +4,6 @@ import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowUpDown,
-  Grid3X3,
-  List,
   SlidersHorizontal,
   ArrowRight,
   Bell,
@@ -18,6 +16,7 @@ import { ProductDetailModal } from "@/components/product-detail-modal";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
+import { ViewModeToggle, type ViewMode } from "@/components/view-mode-toggle";
 import { FilterBar } from "@/components/filter-bar";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 
@@ -41,7 +40,7 @@ interface PageProps {
 }
 
 type SortOption = "popular" | "price_asc" | "price_desc" | "drop";
-type ViewMode = "grid" | "list";
+// ViewMode type is imported from components/view-mode-toggle
 
 export default function CategoryClient({
   slugs,
@@ -180,7 +179,7 @@ export default function CategoryClient({
         <div className="flex gap-6 lg:gap-8">
           {/* LEFT SIDEBAR — drill-down navigation */}
           <aside className="hidden w-[180px] shrink-0 lg:block">
-            <div className="sticky top-[120px]">
+            <div className="sticky top-[76px]">
               <CategorySidebar
                 activeCategorySlug={activeCategorySlug}
                 activeSubSlug={activeSubSlug}
@@ -250,19 +249,8 @@ export default function CategoryClient({
                   </select>
                 </div>
 
-                {/* View mode — same style as homepage */}
-                <div className="flex overflow-hidden rounded-md border border-[#e1e1e3]">
-                  <button onClick={() => setViewMode("grid")}
-                    className={`flex h-7 w-8 items-center justify-center transition ${viewMode === "grid" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
-                    title="Raster">
-                    <Grid3X3 className="h-3.5 w-3.5" />
-                  </button>
-                  <button onClick={() => setViewMode("list")}
-                    className={`flex h-7 w-8 items-center justify-center border-l border-[#e1e1e3] transition ${viewMode === "list" ? "bg-gray-100 text-gray-900" : "bg-white text-gray-400 hover:text-gray-600"}`}
-                    title="Liste">
-                    <List className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                {/* View mode — shared component, identical across home + category */}
+                <ViewModeToggle value={viewMode} onChange={setViewMode} />
               </div>
             </div>
 
@@ -336,7 +324,7 @@ export default function CategoryClient({
           {/* RIGHT SIDEBAR — Tagesangebot */}
           {tagesangebot && (
             <aside className="hidden w-72 shrink-0 pl-8 xl:block">
-              <div className="sticky top-[120px]">
+              <div className="sticky top-[76px]">
                 <div className="flex items-center justify-between">
                   <h2 className="flex items-center gap-1.5 text-base font-bold text-gray-900">
                     <Flame className="h-4 w-4 text-orange-500" />

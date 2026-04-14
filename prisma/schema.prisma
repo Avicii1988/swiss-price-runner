@@ -21,6 +21,9 @@ model Product {
   affiliateUrl  String?
   isActive      Boolean   @default(true)
   price         Decimal?  @db.Decimal(10, 2)
+  /// Original (pre-discount) price in CHF — e.g. <g:price> vs <g:sale_price>.
+  /// Used to compute discount % for the "Price Drops" homepage section.
+  originalPriceChf Decimal? @db.Decimal(10, 2)
   embedding     String?   @db.Text
   /// The vector column exists in DB but is managed via raw SQL only.
   /// Prisma cannot serialize pgvector types, so we exclude it from the model.
@@ -41,6 +44,7 @@ model Product {
   @@index([updatedAt])
   @@index([isActive, category])
   @@index([isActive, price])
+  @@index([originalPriceChf])
 }
 
 model Category {

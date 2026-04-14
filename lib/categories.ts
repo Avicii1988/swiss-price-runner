@@ -16,31 +16,55 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// ---------------------------------------------------------------------------
-// Master Category List — Galaxus-standard order (14 categories)
-// This is the SINGLE SOURCE OF TRUTH for all navigation across the site.
-// ---------------------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════════
+// Category taxonomy — 3-level tree (single source of truth).
+// Level 1 = root (14 categories, matches sidebar).
+// Level 2 = existing subcategories (flat or prefixed slugs).
+// Level 3 = brand/concept buckets (NEW — only where meaningful).
+// ═══════════════════════════════════════════════════════════════════
 
-export interface SubCategory {
+export interface CategoryNode {
+  /** Leaf slug — unique across the whole tree. Matches Product.category. */
   slug: string;
   name: string;
+  description?: string;
+  icon?: LucideIcon;
+  /** Depth: 0 = root, 1 = L2, 2 = L3. */
+  depth: number;
+  /** Slug of the direct parent (null for roots). */
+  parentSlug: string | null;
+  children: CategoryNode[];
   productCount: number;
 }
 
-export interface Category {
+/** Input shape for declaring the tree. Depth + parentSlug are computed. */
+interface NodeSpec {
   slug: string;
   name: string;
-  icon: LucideIcon;
-  description: string;
-  subcategories: SubCategory[];
-  productCount: number;
+  description?: string;
+  icon?: LucideIcon;
+  productCount?: number;
+  children?: NodeSpec[];
 }
 
-/**
- * Master list — exact order used everywhere:
- * Sidebar, Mobile Menu, Footer, Breadcrumbs.
- */
-export const CATEGORIES: Category[] = [
+function buildTree(specs: NodeSpec[], parentSlug: string | null = null, depth = 0): CategoryNode[] {
+  return specs.map((s) => ({
+    slug: s.slug,
+    name: s.name,
+    description: s.description,
+    icon: s.icon,
+    depth,
+    parentSlug,
+    productCount: s.productCount ?? 0,
+    children: buildTree(s.children ?? [], s.slug, depth + 1),
+  }));
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Tree definition
+// ───────────────────────────────────────────────────────────────────
+
+const TREE_SPEC: NodeSpec[] = [
   // 1. Smartphones
   {
     slug: "smartphones",
@@ -48,9 +72,22 @@ export const CATEGORIES: Category[] = [
     icon: Smartphone,
     description: "Handys & Zubehör – iPhone, Samsung, Pixel und mehr",
     productCount: 847,
-    subcategories: [
-      { slug: "smartphones-apple", name: "Apple iPhone", productCount: 124 },
-      { slug: "smartphones-samsung", name: "Samsung Galaxy", productCount: 198 },
+    children: [
+      {
+        slug: "smartphones-apple",
+        name: "Apple iPhone",
+        productCount: 124,
+        children: [
+          { slug: "iphone", name: "iPhone Modelle" },
+          { slug: "ipad", name: "iPad" },
+        ],
+      },
+      {
+        slug: "smartphones-samsung",
+        name: "Samsung Galaxy",
+        productCount: 198,
+        children: [{ slug: "samsung-galaxy", name: "Galaxy Serie" }],
+      },
       { slug: "smartphones-google", name: "Google Pixel", productCount: 45 },
       { slug: "smartphones-xiaomi", name: "Xiaomi", productCount: 156 },
       { slug: "smartphones-cases", name: "Hüllen & Schutzfolien", productCount: 324 },
@@ -63,10 +100,14 @@ export const CATEGORIES: Category[] = [
     icon: Laptop,
     description: "Notebooks, Desktops, Monitore und Peripherie",
     productCount: 1243,
-    subcategories: [
+    children: [
       { slug: "laptops-macbook", name: "Apple MacBook", productCount: 34 },
-      { slug: "laptops-windows", name: "Windows Laptops", productCount: 456 },
-      { slug: "laptops-gaming", name: "Gaming Laptops", productCount: 123 },
+      {
+        slug: "laptops-windows",
+        name: "Windows Laptops",
+        productCount: 456,
+        children: [{ slug: "laptops-gaming", name: "Gaming Laptops", productCount: 123 }],
+      },
       { slug: "laptops-chromebook", name: "Chromebooks", productCount: 67 },
       { slug: "laptops-monitors", name: "Monitore", productCount: 234 },
       { slug: "laptops-accessories", name: "Zubehör", productCount: 329 },
@@ -79,7 +120,7 @@ export const CATEGORIES: Category[] = [
     icon: Headphones,
     description: "Bluetooth, Noise Cancelling, In-Ear und Over-Ear",
     productCount: 632,
-    subcategories: [
+    children: [
       { slug: "kopfhoerer-over-ear", name: "Over-Ear", productCount: 145 },
       { slug: "kopfhoerer-in-ear", name: "In-Ear / Earbuds", productCount: 234 },
       { slug: "kopfhoerer-nc", name: "Noise Cancelling", productCount: 89 },
@@ -94,13 +135,31 @@ export const CATEGORIES: Category[] = [
     icon: ShoppingBag,
     description: "Sneakers, Laufschuhe, Wanderschuhe und mehr",
     productCount: 1567,
-    subcategories: [
-      { slug: "schuhe-sneakers", name: "Sneakers", productCount: 456 },
-      { slug: "schuhe-laufschuhe", name: "Laufschuhe", productCount: 234 },
+    children: [
+      {
+        slug: "schuhe-sneakers",
+        name: "Sneakers",
+        productCount: 456,
+        children: [
+          { slug: "sneakers-nike", name: "Nike" },
+          { slug: "sneakers-adidas", name: "Adidas" },
+          { slug: "sneakers-newbalance", name: "New Balance" },
+          { slug: "sneakers-onrunning", name: "On Running" },
+        ],
+      },
+      {
+        slug: "schuhe-laufschuhe",
+        name: "Laufschuhe",
+        productCount: 234,
+        children: [
+          { slug: "laufschuhe-nike", name: "Nike" },
+          { slug: "laufschuhe-onrunning", name: "On Running" },
+          { slug: "laufschuhe-asics", name: "Asics" },
+        ],
+      },
       { slug: "schuhe-wandern", name: "Wanderschuhe", productCount: 178 },
-      { slug: "schuhe-on-running", name: "On Running", productCount: 89 },
-      { slug: "schuhe-nike", name: "Nike", productCount: 312 },
-      { slug: "schuhe-adidas", name: "Adidas", productCount: 298 },
+      { slug: "schuhe-damen", name: "Damenschuhe", productCount: 0 },
+      { slug: "schuhe-herren", name: "Herrenschuhe", productCount: 0 },
     ],
   },
   // 5. Gaming & Entertainment
@@ -110,7 +169,7 @@ export const CATEGORIES: Category[] = [
     icon: Gamepad2,
     description: "Konsolen, Spiele, VR-Headsets und Zubehör",
     productCount: 934,
-    subcategories: [
+    children: [
       { slug: "gaming-konsolen", name: "Konsolen", productCount: 23 },
       { slug: "gaming-ps5", name: "PlayStation 5", productCount: 145 },
       { slug: "gaming-xbox", name: "Xbox Series", productCount: 134 },
@@ -127,7 +186,7 @@ export const CATEGORIES: Category[] = [
     icon: Home,
     description: "Staubsauger, Küchengeräte, Kaffeemaschinen",
     productCount: 1876,
-    subcategories: [
+    children: [
       { slug: "haushalt-staubsauger", name: "Staubsauger", productCount: 234 },
       { slug: "haushalt-kaffee", name: "Kaffeemaschinen", productCount: 189 },
       { slug: "haushalt-kuechengeraete", name: "Küchengeräte", productCount: 345 },
@@ -143,7 +202,7 @@ export const CATEGORIES: Category[] = [
     icon: Shirt,
     description: "Damen, Herren, Kinder – Markenmode zum besten Preis",
     productCount: 4523,
-    subcategories: [
+    children: [
       { slug: "mode-damen", name: "Damenmode", productCount: 1567 },
       { slug: "mode-herren", name: "Herrenmode", productCount: 1234 },
       { slug: "mode-kinder", name: "Kindermode", productCount: 567 },
@@ -151,16 +210,34 @@ export const CATEGORIES: Category[] = [
       { slug: "mode-taschen", name: "Taschen & Accessoires", productCount: 366 },
     ],
   },
-  // 8. Parfum & Düfte (subcategories match actual feed slugs from DB)
+  // 8. Parfum & Düfte
   {
     slug: "parfum",
     name: "Parfum & Düfte",
     icon: Droplets,
     description: "Herren- und Damendüfte, Beauty und Pflege",
     productCount: 16000,
-    subcategories: [
-      { slug: "damendufte", name: "Damenparfum", productCount: 0 },
-      { slug: "herrendufte", name: "Herrenparfum", productCount: 0 },
+    children: [
+      {
+        slug: "damendufte",
+        name: "Damendüfte",
+        productCount: 0,
+        children: [
+          { slug: "damendufte-floral", name: "Floral" },
+          { slug: "damendufte-oriental", name: "Oriental" },
+          { slug: "damendufte-zitrus", name: "Zitrus & Frisch" },
+        ],
+      },
+      {
+        slug: "herrendufte",
+        name: "Herrendüfte",
+        productCount: 0,
+        children: [
+          { slug: "herrendufte-woody", name: "Woody" },
+          { slug: "herrendufte-fresh", name: "Frisch" },
+          { slug: "herrendufte-oriental", name: "Oriental" },
+        ],
+      },
       { slug: "unisex-dufte", name: "Unisex", productCount: 0 },
       { slug: "geschenksets", name: "Geschenksets", productCount: 0 },
       { slug: "pflege", name: "Gesichts- & Körperpflege", productCount: 0 },
@@ -177,7 +254,7 @@ export const CATEGORIES: Category[] = [
     icon: Watch,
     description: "Smartwatches, Luxusuhren und Schmuck",
     productCount: 876,
-    subcategories: [
+    children: [
       { slug: "uhren-smartwatch", name: "Smartwatches", productCount: 234 },
       { slug: "uhren-luxus", name: "Luxusuhren", productCount: 145 },
       { slug: "uhren-sport", name: "Sportuhren", productCount: 167 },
@@ -191,7 +268,7 @@ export const CATEGORIES: Category[] = [
     icon: Tv,
     description: "Fernseher, Soundbars, Streaming und Hi-Fi",
     productCount: 543,
-    subcategories: [
+    children: [
       { slug: "tv-oled", name: "OLED TVs", productCount: 89 },
       { slug: "tv-qled", name: "QLED TVs", productCount: 78 },
       { slug: "tv-soundbar", name: "Soundbars", productCount: 134 },
@@ -207,7 +284,7 @@ export const CATEGORIES: Category[] = [
     icon: Camera,
     description: "Kameras, Objektive, Drohnen und Zubehör",
     productCount: 678,
-    subcategories: [
+    children: [
       { slug: "foto-dslr", name: "Spiegelreflex", productCount: 123 },
       { slug: "foto-mirrorless", name: "Systemkameras", productCount: 156 },
       { slug: "foto-drohnen", name: "Drohnen", productCount: 67 },
@@ -222,7 +299,7 @@ export const CATEGORIES: Category[] = [
     icon: Dumbbell,
     description: "Fitness, Velo, Wandern, Ski und Outdoor",
     productCount: 2134,
-    subcategories: [
+    children: [
       { slug: "sport-fitness", name: "Fitnessgeräte", productCount: 345 },
       { slug: "sport-velo", name: "Velos & E-Bikes", productCount: 234 },
       { slug: "sport-wandern", name: "Wandern & Trekking", productCount: 345 },
@@ -238,7 +315,7 @@ export const CATEGORIES: Category[] = [
     icon: Baby,
     description: "Kinderwagen, Spielzeug, Babyausstattung",
     productCount: 1234,
-    subcategories: [
+    children: [
       { slug: "baby-kinderwagen", name: "Kinderwagen", productCount: 189 },
       { slug: "baby-spielzeug", name: "Spielzeug", productCount: 456 },
       { slug: "baby-moebel", name: "Kindermöbel", productCount: 234 },
@@ -253,7 +330,7 @@ export const CATEGORIES: Category[] = [
     icon: BookOpen,
     description: "Bücher, eBooks, Hörbücher und Filme",
     productCount: 5678,
-    subcategories: [
+    children: [
       { slug: "buecher-belletristik", name: "Belletristik", productCount: 1234 },
       { slug: "buecher-sachbuch", name: "Sachbücher", productCount: 987 },
       { slug: "buecher-kinderbuch", name: "Kinderbücher", productCount: 567 },
@@ -264,32 +341,103 @@ export const CATEGORIES: Category[] = [
   },
 ];
 
+/** Built tree — primary export for navigation, breadcrumbs, importer. */
+export const CATEGORY_TREE: CategoryNode[] = buildTree(TREE_SPEC);
+
+// ───────────────────────────────────────────────────────────────────
+// Tree walkers
+// ───────────────────────────────────────────────────────────────────
+
+/** Depth-first search. Returns the first node whose slug matches. */
+export function findCategoryNode(slug: string): CategoryNode | undefined {
+  const stack: CategoryNode[] = [...CATEGORY_TREE];
+  while (stack.length > 0) {
+    const n = stack.pop()!;
+    if (n.slug === slug) return n;
+    for (const c of n.children) stack.push(c);
+  }
+  return undefined;
+}
+
+/** Return the chain root → … → node (inclusive). Empty array if slug unknown. */
+export function getAncestors(slug: string): CategoryNode[] {
+  const node = findCategoryNode(slug);
+  if (!node) return [];
+  const chain: CategoryNode[] = [node];
+  let current = node;
+  while (current.parentSlug) {
+    const parent = findCategoryNode(current.parentSlug);
+    if (!parent) break;
+    chain.unshift(parent);
+    current = parent;
+  }
+  return chain;
+}
+
+/** Full path as slug list, root-first. e.g. ["schuhe","schuhe-sneakers","sneakers-nike"]. */
+export function getCategoryPath(slug: string): string[] {
+  return getAncestors(slug).map((n) => n.slug);
+}
+
+/** Flat list of every node in the tree. */
+export function getAllCategoryNodes(): CategoryNode[] {
+  const out: CategoryNode[] = [];
+  const walk = (nodes: CategoryNode[]) => {
+    for (const n of nodes) { out.push(n); walk(n.children); }
+  };
+  walk(CATEGORY_TREE);
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Legacy-compatible exports (2-level Category + SubCategory)
+// Keeps the existing UI components working without change.
+// ═══════════════════════════════════════════════════════════════════
+
+export interface SubCategory {
+  slug: string;
+  name: string;
+  productCount: number;
+}
+
+export interface Category {
+  slug: string;
+  name: string;
+  icon: LucideIcon;
+  description: string;
+  /** Flattened L2 + L3 combined, ordered depth-first. */
+  subcategories: SubCategory[];
+  productCount: number;
+}
+
+/**
+ * Legacy view — L2 subcategories ONLY. L3 is hidden from sidebars/menus to
+ * keep the UI compact; L3 nodes are still reachable via direct URL
+ * (parseCategorySlugs resolves them) and via findCategoryNode(l2).children.
+ */
+export const CATEGORIES: Category[] = CATEGORY_TREE.map((root) => ({
+  slug: root.slug,
+  name: root.name,
+  icon: root.icon ?? ShoppingBag,
+  description: root.description ?? "",
+  productCount: root.productCount,
+  subcategories: root.children.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    productCount: c.productCount,
+  })),
+}));
+
 export function getCategoryBySlug(slug: string): Category | undefined {
-  // Also match legacy "beauty" slug to "parfum"
+  // Legacy "beauty" alias
   if (slug === "beauty") return CATEGORIES.find((c) => c.slug === "parfum");
   return CATEGORIES.find((c) => c.slug === slug);
 }
 
-/**
- * Sorted display order for the sidebar:
- * Main content first (Parfum, Mode, Schuhe), then Lifestyle,
- * then Tech, then niche categories.
- */
+/** Sidebar display order — main content first, tech later, niche last. */
 const SIDEBAR_ORDER = [
-  "parfum",       // Main content — most products
-  "mode",         // Lifestyle
-  "schuhe",
-  "uhren",
-  "sport",
-  "haushalt",
-  "baby",
-  "smartphones", // Tech (lower traffic on beauty site)
-  "laptops",
-  "kopfhoerer",
-  "tv-audio",
-  "foto",
-  "gaming",
-  "buecher",     // Niche
+  "parfum", "mode", "schuhe", "uhren", "sport", "haushalt", "baby",
+  "smartphones", "laptops", "kopfhoerer", "tv-audio", "foto", "gaming", "buecher",
 ];
 
 export const SIDEBAR_CATEGORIES: Category[] = SIDEBAR_ORDER
@@ -300,7 +448,7 @@ export function getAllCategorySlugs(): string[] {
   return CATEGORIES.map((c) => c.slug);
 }
 
-/** Find a subcategory by its slug, returning both parent and sub */
+/** Legacy lookup — finds parent+sub for a given (non-root) subcategory slug. */
 export function getSubCategoryBySlug(
   subSlug: string,
 ): { parent: Category; sub: SubCategory } | undefined {
@@ -311,52 +459,84 @@ export function getSubCategoryBySlug(
   return undefined;
 }
 
-/** Parse a [...slug] array into category context */
-export function parseCategorySlugs(slugs: string[]): {
+// ═══════════════════════════════════════════════════════════════════
+// URL resolution — /category/[...slug] → breadcrumb + active nodes
+// Supports 1, 2, and 3-level paths, plus "flat" legacy URLs where only
+// a leaf slug is given (e.g. /category/damendufte).
+// ═══════════════════════════════════════════════════════════════════
+
+export interface CategoryResolution {
+  /** Top-level (depth=0) category — always set if any match found. */
   parentCategory: Category | undefined;
+  /** The currently-viewed sub or sub-sub (depth 1+), or undefined for root. */
   activeSubCategory: SubCategory | undefined;
+  /** Active L3 node (depth=2) if URL is 3-level, else undefined. */
+  activeLeafNode: CategoryNode | undefined;
   breadcrumbs: { label: string; href: string }[];
-} {
+}
+
+export function parseCategorySlugs(slugs: string[]): CategoryResolution {
   const breadcrumbs: { label: string; href: string }[] = [
     { label: "Gesamtsortiment", href: "/" },
   ];
 
   if (slugs.length === 0) {
-    return { parentCategory: undefined, activeSubCategory: undefined, breadcrumbs };
+    return {
+      parentCategory: undefined,
+      activeSubCategory: undefined,
+      activeLeafNode: undefined,
+      breadcrumbs,
+    };
   }
 
-  const firstSlug = slugs[0];
-  let parentCategory = getCategoryBySlug(firstSlug);
-
-  // If first slug isn't a master category, check if it's a subcategory
-  // (e.g. /category/damendufte → parent is Parfum & Düfte)
-  if (!parentCategory) {
-    const subMatch = getSubCategoryBySlug(firstSlug);
-    if (subMatch) {
-      parentCategory = subMatch.parent;
-      breadcrumbs.push({ label: parentCategory.name, href: `/category/${parentCategory.slug}` });
-      breadcrumbs.push({ label: subMatch.sub.name, href: `/category/${firstSlug}` });
-      return { parentCategory, activeSubCategory: subMatch.sub, breadcrumbs };
-    }
-    return { parentCategory: undefined, activeSubCategory: undefined, breadcrumbs };
+  // Walk slugs greedily against the tree. Each slug can be:
+  //   a) a direct child of the previous one (hierarchical URL)
+  //   b) a leaf slug anywhere in the tree (legacy flat URL)
+  const resolved: CategoryNode[] = [];
+  let current: CategoryNode | undefined;
+  for (const slug of slugs) {
+    const next = current
+      ? current.children.find((c) => c.slug === slug) ?? findCategoryNode(slug)
+      : findCategoryNode(slug);
+    if (!next) break;
+    resolved.push(next);
+    current = next;
   }
 
-  breadcrumbs.push({ label: parentCategory.name, href: `/category/${parentCategory.slug}` });
-
-  if (slugs.length < 2) {
-    return { parentCategory, activeSubCategory: undefined, breadcrumbs };
+  if (resolved.length === 0) {
+    return {
+      parentCategory: undefined,
+      activeSubCategory: undefined,
+      activeLeafNode: undefined,
+      breadcrumbs,
+    };
   }
 
-  const subSlug = slugs[1];
-  const activeSubCategory = parentCategory.subcategories.find(
-    (s) => s.slug === subSlug,
-  );
-  if (activeSubCategory) {
-    breadcrumbs.push({
-      label: activeSubCategory.name,
-      href: `/category/${parentCategory.slug}/${subSlug}`,
-    });
+  // If the first resolved node is not a root, walk its ancestors for breadcrumbs.
+  const rootChain = getAncestors(resolved[0].slug);
+  const fullChain: CategoryNode[] = [];
+  const seen = new Set<string>();
+  for (const n of [...rootChain, ...resolved]) {
+    if (!seen.has(n.slug)) { fullChain.push(n); seen.add(n.slug); }
   }
 
-  return { parentCategory, activeSubCategory, breadcrumbs };
+  // Build breadcrumbs — each segment links to its canonical hierarchical URL.
+  let href = "";
+  for (const n of fullChain) {
+    href += `/${n.slug}`;
+    breadcrumbs.push({ label: n.name, href: `/category${href}` });
+  }
+
+  const parentNode = fullChain[0];
+  const parentCategory = getCategoryBySlug(parentNode.slug);
+  const last = fullChain[fullChain.length - 1];
+
+  const activeSubCategory =
+    last.depth >= 1
+      ? { slug: last.slug, name: last.name, productCount: last.productCount }
+      : undefined;
+
+  const activeLeafNode = last.depth === 2 ? last : undefined;
+
+  return { parentCategory, activeSubCategory, activeLeafNode, breadcrumbs };
 }
