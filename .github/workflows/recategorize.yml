@@ -3,6 +3,21 @@ name: Recategorize Products
 # One-shot (manual-dispatch) recategorization against the live DB.
 # Runs scripts/recategorize-runner.ts which re-maps every Product.category
 # to the new 3-level taxonomy based on lib/category-rules.ts.
+#
+# ─── "prepared statement s0 already exists" troubleshooting ────
+# The runner issues many $queryRaw / $executeRaw calls in sequence. When
+# POSTGRES_URL points to the Supabase pooler on port 6543 (pgbouncer in
+# transaction mode), prepared statements don't persist across queries and
+# Prisma's auto-named s0/s1/… collide → P2010 errors.
+#
+# Fix strategy (applied in the "Normalize DB URL" step below):
+#   1. Prefer POSTGRES_URL_NON_POOLING (direct connection, port 5432) —
+#      bypasses pgbouncer entirely. This is the right call for a
+#      single-node bulk script.
+#   2. If only a pooled URL is available, auto-append
+#      `?pgbouncer=true&connection_limit=1` so Prisma skips prepared
+#      statements and serialises connections (slower but correct).
+#   3. Rewrite postgres:// → postgresql:// (Prisma 5+ strict scheme).
 
 on:
   workflow_dispatch:
@@ -24,6 +39,11 @@ on:
         required: false
         default: "false"
         type: boolean
+      force_pooled:
+        description: "Force use of the pooled DATABASE_URL (auto-adds ?pgbouncer=true)"
+        required: false
+        default: "false"
+        type: boolean
 
 jobs:
   recategorize:
@@ -42,12 +62,125 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ─────────────────────────────────────────────────────────────
+      # Normalize DB URL (picks direct vs pooled, rewrites scheme,
+      # auto-appends pgbouncer flags). Exports via $GITHUB_ENV so
+      # every downstream step inherits the cleaned value.
+      # ─────────────────────────────────────────────────────────────
+      - name: Normalize DB URL
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          FORCE_POOLED:   ${{ inputs.force_pooled }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          const raw = {
+            non_pooled: (process.env.RAW_NON_POOLED || "").trim(),
+            database:   (process.env.RAW_DATABASE   || "").trim(),
+          };
+          const forcePooled = process.env.FORCE_POOLED === "true";
+
+          function normalize(url) {
+            if (!url) return null;
+            if (url.startsWith("postgres://")) {
+              url = "postgresql://" + url.slice("postgres://".length);
+            }
+            try {
+              const u = new URL(url);
+              if (u.protocol !== "postgresql:") return null;
+              return { url, parsed: u };
+            } catch {
+              return null;
+            }
+          }
+
+          function isPooler(u) {
+            // Supabase pooler hosts contain "pooler." (eg aws-0-eu-central-1.pooler.supabase.com)
+            // and historically listen on 6543 (transaction mode).
+            return /pooler\./i.test(u.hostname) || u.port === "6543";
+          }
+
+          function applyPgBouncerParams(url, parsed) {
+            // Re-parse so we can mutate searchParams safely.
+            const u = new URL(url);
+            if (!u.searchParams.has("pgbouncer")) u.searchParams.set("pgbouncer", "true");
+            if (!u.searchParams.has("connection_limit")) u.searchParams.set("connection_limit", "1");
+            return u.toString();
+          }
+
+          console.log("─── Candidate secrets ───────────────────────────────────");
+          console.log(`POSTGRES_URL_NON_POOLING set: ${raw.non_pooled ? "yes" : "no"}`);
+          console.log(`DATABASE_URL set:             ${raw.database   ? "yes" : "no"}`);
+          console.log(`force_pooled input:           ${forcePooled}`);
+
+          // Preference order:
+          //   default:      non_pooled → database  (direct first, bypasses pgbouncer)
+          //   force_pooled: database   → non_pooled
+          const candidates = forcePooled
+            ? [["pooled (forced)", raw.database], ["direct", raw.non_pooled]]
+            : [["direct", raw.non_pooled], ["pooled", raw.database]];
+
+          let chosen = null;
+          let chosenLabel = "";
+          for (const [label, c] of candidates) {
+            if (!c) continue;
+            const n = normalize(c);
+            if (!n) {
+              console.log(`  ↳ ${label}: invalid URL, skipping`);
+              continue;
+            }
+            chosen = n;
+            chosenLabel = label;
+            break;
+          }
+
+          if (!chosen) {
+            console.error("\n💥 No valid database URL found. Check your GitHub Secrets.");
+            process.exit(1);
+          }
+
+          // If the chosen URL is a pooler, append pgbouncer flags so Prisma
+          // skips prepared statements (fixes "prepared statement s0 already exists").
+          let finalUrl = chosen.url;
+          const p = chosen.parsed;
+          const pooler = isPooler(p);
+          if (pooler) {
+            const before = finalUrl;
+            finalUrl = applyPgBouncerParams(finalUrl, p);
+            if (before !== finalUrl) {
+              console.log("  ↳ pooler detected → auto-appended ?pgbouncer=true&connection_limit=1");
+            } else {
+              console.log("  ↳ pooler detected (pgbouncer params already present)");
+            }
+          }
+
+          // Masked debug output
+          const pf = new URL(finalUrl);
+          console.log("\n─── Using normalized URL ────────────────────────────────");
+          console.log(`  mode     : ${chosenLabel}`);
+          console.log(`  protocol : ${pf.protocol}`);
+          console.log(`  host     : ${pf.hostname}`);
+          console.log(`  port     : ${pf.port || "(default 5432)"}`);
+          console.log(`  database : ${pf.pathname.replace(/^\//, "") || "(none)"}`);
+          console.log(`  user     : ${pf.username ? pf.username.slice(0, 3) + "***" : "(none)"}`);
+          console.log(`  password : ${pf.password ? "***" + pf.password.length + " chars***" : "(none)"}`);
+          console.log(`  params   : ${pf.search || "(none)"}`);
+          console.log(`  pooler   : ${pooler ? "yes (pgbouncer flags applied)" : "no (direct)"}`);
+
+          // Export normalized URL to env for subsequent steps.
+          // PrismaClient in the runner reads POSTGRES_URL via prisma/schema.prisma.
+          fs.appendFileSync(process.env.GITHUB_ENV,
+            `POSTGRES_URL=${finalUrl}\n` +
+            `POSTGRES_URL_NON_POOLING=${finalUrl}\n` +
+            `DATABASE_URL=${finalUrl}\n`,
+          );
+          console.log("\n✓ Exported POSTGRES_URL / POSTGRES_URL_NON_POOLING / DATABASE_URL");
+          NODE
+
       - name: Generate Prisma Client
         run: npx prisma generate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
 
       - name: Run recategorize
         run: |
@@ -63,7 +196,3 @@ jobs:
           fi
           echo "Running: npx tsx scripts/recategorize-runner.ts $ARGS"
           npx tsx scripts/recategorize-runner.ts $ARGS
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL: ${{ secrets.DATABASE_URL }}
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}

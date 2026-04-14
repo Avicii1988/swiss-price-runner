@@ -320,49 +320,35 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
           <div className="border-b border-gray-200" />
         </div>
 
-        {/* ── MOBILE (<lg): scroll-directional ── */}
+        {/* ── MOBILE (<lg) — Galaxus-compact: 2 rows, 44px touch targets ── */}
         <div className="lg:hidden">
-          {/* Row 1: Logo + icons — hides on scroll down */}
-          <div className={`flex items-center justify-between px-4 transition-all duration-300 sm:px-6 ${hideTopRow ? "h-0 overflow-hidden opacity-0" : "h-11 opacity-100"}`}>
-            <PreisAlarmLogo size="md" />
-            <div className="flex items-center gap-0.5">
-<LanguageSwitcher current={lang} onChange={setLang} />
-              <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
-                <Pin className="h-5 w-5" />
-              </Link>
-              <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Favoriten">
-                <Heart className="h-5 w-5" />
-              </Link>
-              {isLoggedIn ? (
-                <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-900 hover:bg-gray-100">
-                  <User className="h-5 w-5 fill-current" />
-                </Link>
-              ) : (
-                <button onClick={() => setShowAuthModal(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100">
-                  <User className="h-5 w-5" />
-                </button>
-              )}
-            </div>
+          {/* Row 1: Logo + lang — collapses on scroll-down */}
+          <div className={`flex items-center justify-between px-4 transition-all duration-300 ${hideTopRow ? "h-0 overflow-hidden opacity-0" : "h-11 opacity-100"}`}>
+            <PreisAlarmLogo size="sm" />
+            <LanguageSwitcher current={lang} onChange={setLang} />
           </div>
 
-          {/* Row 2: ☰ Menü + Search — always visible */}
-          <div className="flex items-center gap-3 px-4 pb-2 sm:px-6">
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-gray-700">
+          {/* Row 2: Menu + Search — always visible, taller click targets */}
+          <div className="flex items-center gap-2 px-4 pb-2 pt-0.5">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? "Menü schliessen" : "Menü öffnen"}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-700 hover:bg-gray-100 active:bg-gray-200"
+            >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              {t("menu")}
             </button>
             <button
-              onClick={() => setSearchFocused(true)}
-              className="flex flex-1 items-center rounded-full border border-gray-300 bg-white px-3 py-2 text-left"
               type="button"
+              onClick={() => setSearchFocused(true)}
+              className="flex h-11 flex-1 items-center rounded-full border border-gray-200 bg-white px-4 text-left transition active:bg-gray-50"
             >
-              <Search className="h-4 w-4 shrink-0 text-gray-400" />
-              <span className="ml-2 flex-1 truncate text-base text-gray-400">
+              <Search className="h-[18px] w-[18px] shrink-0 text-gray-400" />
+              <span className="ml-2.5 flex-1 truncate text-[15px] text-gray-400">
                 {query || t("searchPlaceholder")}
               </span>
             </button>
           </div>
-          <div className="border-b border-gray-200" />
+          <div className="border-b border-gray-100" />
         </div>
       </header>
 
@@ -490,7 +476,7 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
       {/* Mobile menu — uses master CATEGORIES list directly */}
       {mobileMenuOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: `calc(9px + ${hideTopRow ? 0 : 44}px + 42px + 1px)` }}>
+        <div className="fixed inset-x-0 bottom-0 z-[45] overflow-y-auto bg-white lg:hidden" style={{ top: `calc(9px + ${hideTopRow ? 0 : 44}px + 54px + 1px)` }}>
           {/* Menu header */}
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">Alle Kategorien</p>

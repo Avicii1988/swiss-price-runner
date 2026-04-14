@@ -21,6 +21,7 @@ import { HowWeCalculateButton } from "@/components/how-we-calculate";
 import { EmailAlertForm } from "@/components/email-alert-form";
 import { SiteHeader } from "@/components/site-header";
 import { VisualSearchModal } from "@/components/visual-search-modal";
+import { ShareRow } from "@/components/share-row";
 import { useAuth } from "@/lib/auth/auth-context";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
@@ -248,6 +249,11 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                     <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
                     Favorit
                   </button>
+                </div>
+
+                {/* Share row — WhatsApp · Telegram · Copy Link */}
+                <div className="mt-3">
+                  <ShareRow title={`${product.brand} ${product.title}`.trim()} />
                 </div>
 
                 {/* Swiss Price Breakdown */}
