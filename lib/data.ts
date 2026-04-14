@@ -1,5 +1,10 @@
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { calculateSwissPrice, type PriceBreakdown } from "@/lib/pricing/calculator";
+import {
+  calculateSwissPrice,
+  buildSwissShopBreakdown,
+  type PriceBreakdown,
+} from "@/lib/pricing/calculator";
 import { SEED_PRODUCTS } from "@/prisma/seed";
 import type { MockProduct } from "@/prisma/seed";
 import { EXCHANGE_RATE, generatePriceHistory } from "@/lib/integrations/mock-service";
@@ -192,6 +197,69 @@ export async function getDistinctCategories(): Promise<string[]> {
   }
 }
 
+/**
+ * Variant sibling — one size of the product currently displayed on the PDP.
+ * Used by the variant selector to render "30 ml · 50 ml · 100 ml" chips
+ * that deep-link to the merchant's specific variant URL.
+ */
+export interface VariantSibling {
+  gtin: string;
+  sizeLabel: string | null;
+  priceChf: number;
+  /** Merchant deep-link (affiliateUrl) for THIS specific variant. */
+  affiliateUrl: string | null;
+  /** Internal PDP URL for navigating between variants on our site. */
+  productUrl: string;
+  /** True if this is the variant the user is currently looking at. */
+  isCurrent: boolean;
+}
+
+/**
+ * Fetch all variants that share a groupId with the given GTIN.
+ * Ordered by numeric size asc (so 30 ml comes before 50 ml before 100 ml).
+ * Returns an empty array for ungrouped products.
+ */
+export async function getVariantSiblings(gtin: string): Promise<VariantSibling[]> {
+  try {
+    const current = await db.product.findUnique({
+      where: { gtin },
+      select: { groupId: true, sizeLabel: true },
+    });
+    if (!current?.groupId) return [];
+
+    const siblings = await db.product.findMany({
+      where: { groupId: current.groupId, isActive: true, price: { gt: 0 } },
+      select: {
+        gtin: true,
+        sizeLabel: true,
+        price: true,
+        affiliateUrl: true,
+      },
+      orderBy: { price: "asc" },
+    });
+
+    return siblings
+      .map((s) => ({
+        gtin: s.gtin,
+        sizeLabel: s.sizeLabel,
+        priceChf: Number(s.price),
+        affiliateUrl: s.affiliateUrl,
+        productUrl: `/product/${s.gtin}`,
+        isCurrent: s.gtin === gtin,
+      }))
+      // Sort by the leading numeric portion of sizeLabel, fall back to price.
+      .sort((a, b) => {
+        const na = parseFloat((a.sizeLabel || "").replace(/[^\d.]/g, "")) || 0;
+        const nb = parseFloat((b.sizeLabel || "").replace(/[^\d.]/g, "")) || 0;
+        if (na && nb && na !== nb) return na - nb;
+        return a.priceChf - b.priceChf;
+      });
+  } catch (err) {
+    console.warn("[data] getVariantSiblings failed:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 export async function getAllGtinsFromDb(): Promise<string[]> {
   try {
     const products = await db.product.findMany({ select: { gtin: true } });
@@ -218,12 +286,16 @@ type DbProduct = {
   sourceType?: string | null;
   affiliateUrl?: string | null;
   price?: unknown | null;
+  shippingCostChf?: unknown | null;
+  priceIsNet?: boolean | null;
   prices: { amountChf: unknown; amountEur: unknown; sourceId: string; shopName?: string | null; url?: string | null; timestamp?: Date }[];
 };
 
 function buildFromDb(p: DbProduct): MockProductWithHistory {
   const isFeedProduct = p.sourceType === "adtraction_feed";
   const affiliateUrl = p.affiliateUrl || "#";
+  const productShippingChf = p.shippingCostChf == null ? null : Number(p.shippingCostChf);
+  const productPriceIsNet = p.priceIsNet === true;
 
   const sourceMap = new Map<string, { chf: number; eur: number; url: string; shopName: string }>();
   for (const price of p.prices) {
@@ -244,31 +316,38 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
 
   const seed = SEED_PRODUCTS.find((s) => s.gtin === p.gtin);
 
-  // For feed products with CHF prices: reverse-convert to EUR
-  // so the existing enrichProduct pipeline produces the correct totalChf.
-  const effectiveEur = isFeedProduct && bestChf > 0
-    ? bestChf / EXCHANGE_RATE
-    : 0;
-
   const sources = Array.from(sourceMap.entries()).map(([sid, { chf, eur, url, shopName: sName }]) => {
-    // Per-shop price: use each source's OWN CHF amount (not the global lowest)
-    // Reverse-convert CHF → EUR for feed products so calculateSwissPrice produces the right totalChf
-    const perShopEur = isFeedProduct && chf > 0 ? chf / EXCHANGE_RATE : eur;
+    // Swiss-shop feed price flows through as native CHF — no EUR round-trip.
+    // enrichProduct picks buildSwissShopBreakdown when nativeChf is set.
+    if (isFeedProduct && chf > 0) {
+      return {
+        sourceId: sid,
+        sourceName: sName || SOURCE_NAMES[sid] || sid,
+        url,
+        currentPriceEur: 0,
+        nativeChf: chf,
+        shippingChf: productShippingChf,
+        priceIsNet: productPriceIsNet,
+      };
+    }
     return {
       sourceId: sid,
       sourceName: sName || SOURCE_NAMES[sid] || sid,
       url,
-      currentPriceEur: perShopEur,
+      currentPriceEur: eur,
     };
   });
 
-  // Feed product without Price records: create a virtual source from Product fields
-  if (sources.length === 0 && isFeedProduct) {
+  // Feed product without Price records: virtual source from Product fields
+  if (sources.length === 0 && isFeedProduct && bestChf > 0) {
     sources.push({
       sourceId: "feed_default",
       sourceName: p.shopName || "Shop",
       url: affiliateUrl,
-      currentPriceEur: effectiveEur,
+      currentPriceEur: 0,
+      nativeChf: bestChf,
+      shippingChf: productShippingChf,
+      priceIsNet: productPriceIsNet,
     });
   }
 
@@ -301,6 +380,16 @@ function enrichProduct(product: MockProduct): MockProductWithHistory {
   const priceHistory = generatePriceHistory(product, 30);
 
   const latestPrices = product.sources.map((s) => {
+    // Swiss-shop feed: use the native CHF breakdown (no DE-VAT / no customs).
+    if (s.nativeChf != null && s.nativeChf > 0) {
+      const breakdown = buildSwissShopBreakdown({
+        grossChf: s.nativeChf,
+        shippingChf: s.shippingChf ?? null,
+        priceIsNet: s.priceIsNet === true,
+      });
+      return { sourceId: s.sourceId, sourceName: s.sourceName, breakdown };
+    }
+    // DE-import path (Amazon.de etc.): existing pipeline with VAT removal + customs.
     const breakdown = calculateSwissPrice({
       amountEur: s.currentPriceEur,
       exchangeRate: EXCHANGE_RATE,
@@ -347,6 +436,7 @@ const COMMON_SELECT = {
   id: true, gtin: true, title: true, brand: true, category: true,
   categoryName: true, imageUrl: true, shopName: true, sourceType: true,
   affiliateUrl: true, price: true,
+  shippingCostChf: true, priceIsNet: true,
 } as const;
 
 /**
@@ -473,9 +563,24 @@ export interface ThematicSlot {
   accent?: string;
 }
 
+/**
+ * Variant metadata attached to each shelf item. Populated from the per-group
+ * aggregate query inside `getThematicShelves`. `variantCount = 1` means the
+ * product is a singleton and should render like a regular card; any higher
+ * value triggers the "Ab CHF X" label + variant-count pill in the UI.
+ */
+export interface VariantMeta {
+  groupId: string | null;
+  variantCount: number;
+  /** Lowest Product.price across all variants sharing the groupId. */
+  minPriceChf: number;
+}
+
+export type ShelfItem = MockProductWithHistory & { variant?: VariantMeta };
+
 export interface ThematicShelf {
   slot: ThematicSlot;
-  items: MockProductWithHistory[];
+  items: ShelfItem[];
 }
 
 function unionDescendants(slugs: string[]): string[] {
@@ -495,38 +600,101 @@ export async function getThematicShelves(
   try {
     const results = await Promise.all(
       slots.map(async (slot) => {
-        // ── Build WHERE category clause based on slot shape ──
-        const baseWhere = {
-          isActive: true,
-          price: { gt: 0 },
-          imageUrl: { not: null },
-        } as const;
-
-        let categoryFilter: { in?: string[]; notIn?: string[] } | null = null;
+        let categoryFilter: { mode: "in" | "notIn"; slugs: string[] } | null = null;
 
         if (slot.categorySlugs && slot.categorySlugs.length > 0) {
           const slugs = unionDescendants(slot.categorySlugs);
           if (slugs.length === 0) return { slot, items: [] };
-          categoryFilter = { in: slugs };
+          categoryFilter = { mode: "in", slugs };
         } else if (slot.categorySlug) {
           const node = findCategoryNode(slot.categorySlug);
           if (!node) return { slot, items: [] };
-          categoryFilter = { in: collectDescendantSlugs(node) };
+          categoryFilter = { mode: "in", slugs: collectDescendantSlugs(node) };
         } else if (slot.excludeSlugs && slot.excludeSlugs.length > 0) {
-          const slugs = unionDescendants(slot.excludeSlugs);
-          categoryFilter = { notIn: slugs };
+          categoryFilter = { mode: "notIn", slugs: unionDescendants(slot.excludeSlugs) };
         }
 
-        const dbProducts = await db.product.findMany({
-          where: {
-            ...baseWhere,
-            ...(categoryFilter ? { category: categoryFilter } : {}),
-          },
-          select: COMMON_SELECT,
-          orderBy: { updatedAt: "desc" },
-          take: perShelf,
+        // ── Grouped query: DISTINCT ON (groupId) with min-price as representative ──
+        // Products without a groupId are treated as singletons via COALESCE(groupId, gtin).
+        // We pick the cheapest variant per group as the representative row and also
+        // return the group's variantCount + minPriceChf so the UI can show "Ab CHF X".
+        const whereClauses: Prisma.Sql[] = [
+          Prisma.sql`"isActive" = true`,
+          Prisma.sql`price IS NOT NULL AND price > 0`,
+          Prisma.sql`"imageUrl" IS NOT NULL`,
+        ];
+        if (categoryFilter) {
+          if (categoryFilter.slugs.length === 0) {
+            // notIn with empty list = match all → skip the filter
+          } else if (categoryFilter.mode === "in") {
+            whereClauses.push(Prisma.sql`category IN (${Prisma.join(categoryFilter.slugs)})`);
+          } else {
+            whereClauses.push(Prisma.sql`category NOT IN (${Prisma.join(categoryFilter.slugs)})`);
+          }
+        }
+        const whereSql = Prisma.join(whereClauses, " AND ");
+
+        const rows = await db.$queryRaw<Array<{
+          id: string; gtin: string; title: string; brand: string; category: string;
+          categoryName: string | null; imageUrl: string | null; shopName: string | null;
+          sourceType: string | null; affiliateUrl: string | null;
+          price: string; originalPriceChf: string | null;
+          shippingCostChf: string | null; priceIsNet: boolean;
+          groupId: string | null;
+          variant_count: number; min_price: string;
+        }>>`
+          WITH agg AS (
+            SELECT
+              COALESCE("groupId", gtin) AS grp_key,
+              COUNT(*)::int           AS variant_count,
+              MIN(price)              AS min_price
+            FROM "Product"
+            WHERE ${whereSql}
+            GROUP BY COALESCE("groupId", gtin)
+          ),
+          reps AS (
+            SELECT DISTINCT ON (COALESCE(p."groupId", p.gtin))
+              p.*, a.variant_count, a.min_price
+            FROM "Product" p
+            JOIN agg a ON a.grp_key = COALESCE(p."groupId", p.gtin)
+            WHERE ${whereSql}
+            ORDER BY COALESCE(p."groupId", p.gtin), p.price ASC
+          )
+          SELECT id, gtin, title, brand, category, "categoryName", "imageUrl",
+                 "shopName", "sourceType", "affiliateUrl", price, "originalPriceChf",
+                 "shippingCostChf", "priceIsNet", "groupId",
+                 variant_count, min_price
+          FROM reps
+          ORDER BY "updatedAt" DESC
+          LIMIT ${perShelf}
+        `;
+
+        const items: ShelfItem[] = rows.map((r) => {
+          const built = buildFromDb({
+            id: r.id,
+            gtin: r.gtin,
+            title: r.title,
+            brand: r.brand,
+            category: r.category,
+            categoryName: r.categoryName,
+            imageUrl: r.imageUrl,
+            shopName: r.shopName,
+            sourceType: r.sourceType,
+            affiliateUrl: r.affiliateUrl,
+            price: r.price,
+            shippingCostChf: r.shippingCostChf,
+            priceIsNet: r.priceIsNet,
+            prices: [],
+          });
+          return {
+            ...built,
+            variant: {
+              groupId: r.groupId,
+              variantCount: Number(r.variant_count),
+              minPriceChf: Number(r.min_price),
+            },
+          };
         });
-        const items = dbProducts.map((p) => buildFromDb({ ...p, prices: [] }));
         return { slot, items };
       }),
     );

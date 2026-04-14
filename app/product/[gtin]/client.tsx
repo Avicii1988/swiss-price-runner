@@ -22,6 +22,9 @@ import { EmailAlertForm } from "@/components/email-alert-form";
 import { SiteHeader } from "@/components/site-header";
 import { VisualSearchModal } from "@/components/visual-search-modal";
 import { ShareRow } from "@/components/share-row";
+import { VariantSelector } from "@/components/variant-selector";
+import type { VariantSibling } from "@/lib/data";
+import { classifyShipping } from "@/lib/pricing/calculator";
 import { useAuth } from "@/lib/auth/auth-context";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
@@ -64,9 +67,11 @@ const SIDEBAR_NAV: Record<string, { parent: string; siblings: string[] }> = {
 interface Props {
   item: MockProductWithHistory;
   allProducts: MockProductWithHistory[];
+  /** Sibling variants (different sizes) sharing the same groupId. Empty for ungrouped SKUs. */
+  variantSiblings?: VariantSibling[];
 }
 
-export function ProductDetailClient({ item, allProducts }: Props) {
+export function ProductDetailClient({ item, allProducts, variantSiblings = [] }: Props) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d, avgChf30d } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, isPinned, togglePin, setShowAuthModal } = useAuth();
   const [showAlert, setShowAlert] = useState(false);
@@ -234,6 +239,33 @@ export function ProductDetailClient({ item, allProducts }: Props) {
                     <ExternalLink className="h-4 w-4" /> Zum besten Shop
                   </a>
                 </div>
+
+                {/* Shipping chip — shown only when we have a definitive answer */}
+                {(() => {
+                  const s = classifyShipping(product.sources[0]?.shippingChf ?? null);
+                  if (s.kind === "included") {
+                    return (
+                      <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-medium text-emerald-700">
+                        <Truck className="h-3 w-3" /> Versand in die Schweiz inkl.
+                      </p>
+                    );
+                  }
+                  if (s.kind === "paid") {
+                    return (
+                      <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-medium text-gray-600">
+                        <Truck className="h-3 w-3" /> zzgl. CHF {Math.round(s.chf)}.– Versand
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Variant selector — only when the product has sibling sizes */}
+                {variantSiblings.length > 1 && (
+                  <div className="mt-4">
+                    <VariantSelector siblings={variantSiblings} />
+                  </div>
+                )}
 
                 {/* Merken + Favorit — independent states */}
                 <div className="mt-2 flex gap-2">

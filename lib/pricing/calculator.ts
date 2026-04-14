@@ -137,3 +137,89 @@ export function calculateBatch(
 ): PriceBreakdown[] {
   return items.map(calculateSwissPrice);
 }
+
+// ---------------------------------------------------------------------------
+// Swiss-shop pricing (XXL Parfum, Ackermann, Parfumsale, etc.)
+//
+// These feeds already deliver the final gross CHF price — no DE-VAT removal,
+// no EUR round-trip, no customs. The old `calculateSwissPrice` pipeline
+// double-taxed them. Use `buildSwissShopBreakdown` instead.
+// ---------------------------------------------------------------------------
+
+export interface SwissShopPriceInput {
+  /** Price as declared by the feed, in CHF. */
+  grossChf: number;
+  /** If true, `grossChf` is actually a NET price — we add 8.1% VAT. */
+  priceIsNet?: boolean;
+  /** Shipping cost to CH, in CHF. NULL = unknown; 0 = free; >0 = paid. */
+  shippingChf?: number | null;
+  /** Reduced VAT (food/medicine/books) if the product qualifies. */
+  vatRate?: "standard" | "reduced";
+}
+
+/**
+ * Build a PriceBreakdown for a Swiss-shop product.
+ *
+ * - Display price = gross CHF (+ shipping if the feed lists a non-zero value).
+ * - If `priceIsNet=true` we add CH-VAT to honour the NET → GROSS contract.
+ * - No customs fee (intra-CH), no EUR round-trip.
+ *
+ * The resulting `PriceBreakdown` keeps the same shape as the DE-import path
+ * so the UI doesn't need two code paths.
+ */
+export function buildSwissShopBreakdown(input: SwissShopPriceInput): PriceBreakdown {
+  const grossInput = input.grossChf;
+  if (grossInput <= 0) {
+    return {
+      originalEur: 0, netEur: 0, netChf: 0, chVat: 0,
+      customsFee: 0, totalChf: 0, exchangeRate: 1, savings: 0,
+    };
+  }
+
+  const vatRate = input.vatRate === "reduced" ? CH_VAT_RATE_REDUCED : CH_VAT_RATE;
+  let netChf: number;
+  let chVat: number;
+  let grossChf: number;
+
+  if (input.priceIsNet) {
+    // Feed declared NET → add VAT to get the GROSS the user actually pays.
+    netChf = grossInput;
+    chVat = netChf * vatRate;
+    grossChf = netChf + chVat;
+  } else {
+    // Feed is already GROSS → derive the embedded VAT for the breakdown.
+    grossChf = grossInput;
+    netChf = grossChf / (1 + vatRate);
+    chVat = grossChf - netChf;
+  }
+
+  const shipping = Math.max(0, input.shippingChf ?? 0);
+  const totalChf = grossChf + shipping;
+
+  return {
+    originalEur: 0,
+    netEur: 0,
+    netChf: round(netChf),
+    chVat: round(chVat),
+    customsFee: 0,
+    totalChf: round(totalChf),
+    exchangeRate: 1,
+    savings: 0,
+  };
+}
+
+/**
+ * Shipping-state helper — maps the nullable `shippingCostChf` field to a
+ * UI-ready discriminated union. Keep this in the calculator so the rule
+ * lives in one place (import, PDP card, shelf card all agree).
+ */
+export type ShippingState =
+  | { kind: "included"; chf: 0 }
+  | { kind: "paid"; chf: number }
+  | { kind: "unknown" };
+
+export function classifyShipping(chf: number | null | undefined): ShippingState {
+  if (chf === null || chf === undefined) return { kind: "unknown" };
+  if (chf <= 0) return { kind: "included", chf: 0 };
+  return { kind: "paid", chf: round(chf) };
+}
