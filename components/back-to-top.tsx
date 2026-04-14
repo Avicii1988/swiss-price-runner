@@ -4,13 +4,14 @@ import { useState, useEffect } from "react";
 import { ChevronUp } from "lucide-react";
 
 /**
- * Floating "Back to top" pill — semi-transparent, backdrop-blurred.
+ * Floating "Back to top" — glass-morphism pill.
  *
- * - Shown on all breakpoints after the user scrolls ~500 px.
- * - Fades in/out via opacity so it never "pops" on the page.
- * - Rendered to the bottom-right corner, offset above the mobile
- *   sticky bar (64 px) so it never overlaps main navigation.
- * - 44×44 touch target, thin ChevronUp glyph, boutique feel.
+ * Design spec (per product ask):
+ *   - Glass-like semi-transparent circle (white/55 + blur-lg + thin ring)
+ *   - Small, thin ChevronUp — minimalist boutique look
+ *   - Fades in/out via opacity + translate-y after ~500 px scroll
+ *   - Positioned bottom-right, offset above the mobile sticky bar so
+ *     it never overlaps main navigation.
  */
 export function BackToTop() {
   const [visible, setVisible] = useState(false);
@@ -31,11 +32,16 @@ export function BackToTop() {
       aria-label="Zurück nach oben"
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
-      className={`fixed z-40 flex h-11 w-11 items-center justify-center rounded-full border border-black/[0.06] bg-white/70 text-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.12)] backdrop-blur-md transition-[opacity,transform] duration-300 ease-out hover:bg-white hover:text-gray-900 active:scale-95 ${
+      className={`fixed z-40 flex h-11 w-11 items-center justify-center rounded-full bg-white/55 text-gray-700 ring-1 ring-black/[0.04] backdrop-blur-lg transition-[opacity,transform] duration-300 ease-out hover:bg-white/80 hover:text-gray-900 active:scale-95 ${
         visible
           ? "pointer-events-auto translate-y-0 opacity-100"
           : "pointer-events-none translate-y-2 opacity-0"
       } bottom-[calc(72px+env(safe-area-inset-bottom))] right-4 sm:bottom-6 sm:right-6`}
+      style={{
+        // Soft dual-layer glow for the glass feel — inner highlight + outer drop
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.8), 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -6px rgba(0,0,0,0.14)",
+      }}
     >
       <ChevronUp className="h-[18px] w-[18px]" strokeWidth={1.5} />
     </button>

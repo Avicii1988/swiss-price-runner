@@ -559,9 +559,90 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                 <ChevronRight className="ml-auto h-4 w-4 text-gray-300" />
               </Link>
             </div>
+
+            {/* ═══ Compact footer inside mobile menu ═══ */}
+            <div className="mt-4 border-t border-gray-100 bg-[#fafafa] px-5 pb-8 pt-5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-400">Rechtliches</p>
+              <nav className="mt-2 flex flex-col gap-1.5 text-[13px] text-gray-600">
+                <Link href="/impressum" onClick={() => setMobileMenuOpen(false)} className="hover:text-gray-900">
+                  Impressum
+                </Link>
+                <Link href="/privacy" onClick={() => setMobileMenuOpen(false)} className="hover:text-gray-900">
+                  Datenschutz (nDSG)
+                </Link>
+                <Link href="/impressum" onClick={() => setMobileMenuOpen(false)} className="hover:text-gray-900">
+                  AGB
+                </Link>
+                <a href="mailto:bugs@preisalarm.ch" className="hover:text-gray-900">
+                  Bug melden
+                </a>
+              </nav>
+
+              <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-400">Folge uns</p>
+              <div className="mt-2 flex items-center gap-2">
+                {[
+                  { href: "https://www.instagram.com/preisalarm.ch", label: "Instagram", svg: <InstagramGlyph /> },
+                  { href: "https://www.tiktok.com/@preisalarm.ch", label: "TikTok", svg: <TikTokGlyph /> },
+                  { href: "https://www.facebook.com/preisalarm.ch", label: "Facebook", svg: <FacebookGlyph /> },
+                  { href: "https://www.youtube.com/@preisalarm", label: "YouTube", svg: <YouTubeGlyph /> },
+                ].map(({ href, label, svg }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-black/[0.06] text-gray-500 transition active:scale-95 hover:text-gray-900"
+                  >
+                    {svg}
+                  </a>
+                ))}
+              </div>
+
+              <p className="mt-6 text-[10px] text-gray-400">
+                &copy; {new Date().getFullYear()} PreisAlarm.ch — Preisvergleich Schweiz
+              </p>
+            </div>
           </nav>
         </div>
       )}
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Minimal social glyphs — inlined so the mobile-menu footer
+// doesn't drag in the full lucide icon set.
+// ─────────────────────────────────────────────────────────────
+function InstagramGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect width="20" height="20" x="2" y="2" rx="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+    </svg>
+  );
+}
+function FacebookGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  );
+}
+function YouTubeGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
+      <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
+    </svg>
+  );
+}
+function TikTokGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[16px] w-[16px]" fill="currentColor" aria-hidden>
+      <path d="M19.321 5.562a5.124 5.124 0 0 1-5.16-4.964h-3.376v13.705a3.09 3.09 0 1 1-3.09-3.09c.17 0 .337.016.5.045V7.82a6.466 6.466 0 0 0-.5-.02 6.465 6.465 0 1 0 6.465 6.465V8.158a8.475 8.475 0 0 0 5.161 1.748V6.53a5.09 5.09 0 0 1 0-.968z" />
+    </svg>
   );
 }
