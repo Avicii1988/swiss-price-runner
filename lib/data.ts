@@ -5,6 +5,7 @@ import type { MockProduct } from "@/prisma/seed";
 import { EXCHANGE_RATE, generatePriceHistory } from "@/lib/integrations/mock-service";
 import type { MockPricePoint, MockProductWithHistory } from "@/lib/integrations/mock-service";
 import { decodeHtmlEntities, prettifySlug, cleanCategoryName } from "@/lib/category-icons";
+import { findCategoryNode, type CategoryNode } from "@/lib/categories";
 
 const SOURCE_NAMES: Record<string, string> = {
   amazon_de: "Amazon.de",
@@ -336,4 +337,191 @@ function enrichProduct(product: MockProduct): MockProductWithHistory {
     priceDrop30d: Math.round(priceDrop30d * 100) / 100,
     avgChf30d: Math.round(avgChf30d * 100) / 100,
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Homepage curation — TopPicks, PriceDrops, Thematic shelves, Trending
+// ═══════════════════════════════════════════════════════════════════
+
+const COMMON_SELECT = {
+  id: true, gtin: true, title: true, brand: true, category: true,
+  categoryName: true, imageUrl: true, shopName: true, sourceType: true,
+  affiliateUrl: true, price: true,
+} as const;
+
+/**
+ * Top picks — the n most recently refreshed active products with a valid
+ * image + price. Proxy for "popular/trending" until we have click telemetry.
+ */
+export async function getTopPicks(n = 10): Promise<MockProductWithHistory[]> {
+  try {
+    const dbProducts = await db.product.findMany({
+      where: {
+        isActive: true,
+        price: { gt: 0 },
+        imageUrl: { not: null },
+      },
+      select: COMMON_SELECT,
+      orderBy: { updatedAt: "desc" },
+      take: n,
+    });
+    return dbProducts.map((p) => buildFromDb({ ...p, prices: [] }));
+  } catch (err) {
+    console.warn("[data] getTopPicks failed:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/**
+ * Price drops — products where originalPriceChf > price, ordered by
+ * discount percentage DESC. Computes discount inline via raw SQL so
+ * we can sort server-side.
+ */
+export interface PriceDropProduct {
+  item: MockProductWithHistory;
+  originalPriceChf: number;
+  discountPct: number;   // integer 0-99
+}
+
+export async function getPriceDrops(n = 24): Promise<PriceDropProduct[]> {
+  try {
+    const rows = await db.$queryRaw<Array<{
+      id: string;
+      gtin: string;
+      title: string;
+      brand: string;
+      category: string;
+      categoryName: string | null;
+      imageUrl: string | null;
+      shopName: string | null;
+      sourceType: string | null;
+      affiliateUrl: string | null;
+      price: string;                 // Decimal → string via Prisma
+      originalPriceChf: string;
+      discount_pct: number;
+    }>>`
+      SELECT id, gtin, title, brand, category, "categoryName", "imageUrl",
+             "shopName", "sourceType", "affiliateUrl", price, "originalPriceChf",
+             ROUND(((("originalPriceChf" - price) / "originalPriceChf") * 100)::numeric, 0)::int AS discount_pct
+      FROM "Product"
+      WHERE "isActive" = true
+        AND price > 0
+        AND "originalPriceChf" IS NOT NULL
+        AND "originalPriceChf" > price
+        AND "imageUrl" IS NOT NULL
+      ORDER BY discount_pct DESC, "updatedAt" DESC
+      LIMIT ${n}
+    `;
+
+    return rows.map((r) => ({
+      item: buildFromDb({
+        id: r.id,
+        gtin: r.gtin,
+        title: r.title,
+        brand: r.brand,
+        category: r.category,
+        categoryName: r.categoryName,
+        imageUrl: r.imageUrl,
+        shopName: r.shopName,
+        sourceType: r.sourceType,
+        affiliateUrl: r.affiliateUrl,
+        price: r.price,
+        prices: [],
+      }),
+      originalPriceChf: Number(r.originalPriceChf),
+      discountPct: Number(r.discount_pct),
+    }));
+  } catch (err) {
+    console.warn("[data] getPriceDrops failed:", err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+/**
+ * Walk the static category tree collecting every descendant leaf slug.
+ * Includes the node itself so "parfum/damendufte" also picks up products
+ * whose Product.category is "damendufte" (not just the L3 children).
+ */
+function collectDescendantSlugs(node: CategoryNode): string[] {
+  const out: string[] = [node.slug];
+  for (const child of node.children) out.push(...collectDescendantSlugs(child));
+  return out;
+}
+
+/**
+ * Thematic shelves — one "shelf" per editorial slot. Each slot references
+ * a category by slug (root, L2, or L3); products are drawn from that slug
+ * AND all its descendants, ordered by most-recently-updated.
+ *
+ * Returns an empty shelf if the slug isn't in the tree.
+ */
+export interface ThematicSlot {
+  key: string;                 // short id for React keys
+  title: string;               // "Hottest Fragrances"
+  subtitle?: string;
+  categorySlug: string;        // root | L2 | L3 slug inside CATEGORY_TREE
+  /** Relative path for the "see more" CTA. Derived from the tree if omitted. */
+  href?: string;
+  /** Accent color — applied as a subtle gradient tint on the banner. */
+  accent?: string;
+}
+
+export interface ThematicShelf {
+  slot: ThematicSlot;
+  items: MockProductWithHistory[];
+}
+
+export async function getThematicShelves(
+  slots: ThematicSlot[],
+  perShelf = 6,
+): Promise<ThematicShelf[]> {
+  try {
+    const results = await Promise.all(
+      slots.map(async (slot) => {
+        const node = findCategoryNode(slot.categorySlug);
+        if (!node) return { slot, items: [] };
+        const slugs = collectDescendantSlugs(node);
+        const dbProducts = await db.product.findMany({
+          where: {
+            isActive: true,
+            price: { gt: 0 },
+            imageUrl: { not: null },
+            category: { in: slugs },
+          },
+          select: COMMON_SELECT,
+          orderBy: { updatedAt: "desc" },
+          take: perShelf,
+        });
+        const items = dbProducts.map((p) => buildFromDb({ ...p, prices: [] }));
+        return { slot, items };
+      }),
+    );
+    return results;
+  } catch (err) {
+    console.warn("[data] getThematicShelves failed:", err instanceof Error ? err.message : err);
+    return slots.map((slot) => ({ slot, items: [] }));
+  }
+}
+
+/**
+ * Trending tags — top n brands by active-product count. Used for the
+ * Hero-Search chips row. Returns just the brand names.
+ */
+export async function getTrendingTags(n = 12): Promise<string[]> {
+  try {
+    const rows = await db.product.groupBy({
+      by: ["brand"],
+      where: { isActive: true, price: { gt: 0 } },
+      _count: { brand: true },
+      orderBy: { _count: { brand: "desc" } },
+      take: n + 5, // pull a few extras so we can filter out junky brand names
+    });
+    return rows
+      .map((r) => decodeHtmlEntities(r.brand))
+      .filter((b) => b.length >= 2 && b.length <= 40 && !/^[\d\s]+$/.test(b))
+      .slice(0, n);
+  } catch (err) {
+    console.warn("[data] getTrendingTags failed:", err instanceof Error ? err.message : err);
+    return [];
+  }
 }
