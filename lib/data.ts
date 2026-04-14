@@ -449,26 +449,43 @@ function collectDescendantSlugs(node: CategoryNode): string[] {
 }
 
 /**
- * Thematic shelves — one "shelf" per editorial slot. Each slot references
- * a category by slug (root, L2, or L3); products are drawn from that slug
- * AND all its descendants, ordered by most-recently-updated.
+ * Thematic shelves — one "shelf" per editorial slot. Slots can target:
+ *   - a single slug via `categorySlug`         (root, L2, or L3)
+ *   - a union of slugs via `categorySlugs[]`   (multi-tree match)
+ *   - "everything else" via `excludeSlugs[]`   (for a general/trending feed)
  *
- * Returns an empty shelf if the slug isn't in the tree.
+ * Products are drawn from the referenced slug(s) AND all their descendants,
+ * ordered by most-recently-updated. Returns an empty shelf if no slug resolves.
  */
 export interface ThematicSlot {
-  key: string;                 // short id for React keys
-  title: string;               // "Hottest Fragrances"
+  key: string;                    // short id for React keys
+  title: string;                  // "Top 10 Apple Ecosystem"
   subtitle?: string;
-  categorySlug: string;        // root | L2 | L3 slug inside CATEGORY_TREE
-  /** Relative path for the "see more" CTA. Derived from the tree if omitted. */
+  /** Single-slug targeting (legacy shape, still supported). */
+  categorySlug?: string;
+  /** Multi-slug targeting — union of all descendants. */
+  categorySlugs?: string[];
+  /** Catch-all shelf: exclude products whose leaf slug is in this descendant set. */
+  excludeSlugs?: string[];
+  /** Relative path for the "Alle anzeigen" CTA. Required for the home page. */
   href?: string;
-  /** Accent color — applied as a subtle gradient tint on the banner. */
+  /** Accent color — applied as a subtle gradient tint on editorial banners. */
   accent?: string;
 }
 
 export interface ThematicShelf {
   slot: ThematicSlot;
   items: MockProductWithHistory[];
+}
+
+function unionDescendants(slugs: string[]): string[] {
+  const seen = new Set<string>();
+  for (const slug of slugs) {
+    const node = findCategoryNode(slug);
+    if (!node) { seen.add(slug); continue; }
+    for (const s of collectDescendantSlugs(node)) seen.add(s);
+  }
+  return Array.from(seen);
 }
 
 export async function getThematicShelves(
@@ -478,15 +495,32 @@ export async function getThematicShelves(
   try {
     const results = await Promise.all(
       slots.map(async (slot) => {
-        const node = findCategoryNode(slot.categorySlug);
-        if (!node) return { slot, items: [] };
-        const slugs = collectDescendantSlugs(node);
+        // ── Build WHERE category clause based on slot shape ──
+        const baseWhere = {
+          isActive: true,
+          price: { gt: 0 },
+          imageUrl: { not: null },
+        } as const;
+
+        let categoryFilter: { in?: string[]; notIn?: string[] } | null = null;
+
+        if (slot.categorySlugs && slot.categorySlugs.length > 0) {
+          const slugs = unionDescendants(slot.categorySlugs);
+          if (slugs.length === 0) return { slot, items: [] };
+          categoryFilter = { in: slugs };
+        } else if (slot.categorySlug) {
+          const node = findCategoryNode(slot.categorySlug);
+          if (!node) return { slot, items: [] };
+          categoryFilter = { in: collectDescendantSlugs(node) };
+        } else if (slot.excludeSlugs && slot.excludeSlugs.length > 0) {
+          const slugs = unionDescendants(slot.excludeSlugs);
+          categoryFilter = { notIn: slugs };
+        }
+
         const dbProducts = await db.product.findMany({
           where: {
-            isActive: true,
-            price: { gt: 0 },
-            imageUrl: { not: null },
-            category: { in: slugs },
+            ...baseWhere,
+            ...(categoryFilter ? { category: categoryFilter } : {}),
           },
           select: COMMON_SELECT,
           orderBy: { updatedAt: "desc" },

@@ -1,11 +1,7 @@
 import {
-  getProductsPaginated,
   getDynamicCategories,
   getSiteStats,
-  getTopPicks,
-  getPriceDrops,
   getThematicShelves,
-  getTrendingTags,
   type ThematicSlot,
 } from "@/lib/data";
 import HomeClient from "./home-client";
@@ -13,62 +9,57 @@ import HomeClient from "./home-client";
 export const dynamic = "force-dynamic";
 
 /**
- * Three editorial shelves on the homepage — curated, not automatic.
- * Slugs reference nodes in lib/categories.ts::CATEGORY_TREE.
+ * Four themed shelves on the homepage — curated, exactly 10 products each.
+ * The "trending" slot auto-excludes the slugs covered by the other three
+ * so users don't see duplicates across sections.
  */
-const THEMATIC_SLOTS: ThematicSlot[] = [
-  {
-    key: "hottest-fragrances",
-    title: "Hottest Fragrances",
-    subtitle: "Beauty Editorial",
-    categorySlug: "damendufte",
-    accent: "#c67a9e",
-  },
+const APPLE_SLUGS    = ["iphone", "uhren-smartwatch"];
+const SNEAKER_SLUGS  = ["sneakers-newbalance"];
+const BEAUTY_SLUGS   = ["parfum", "damendufte"];
+
+const HOME_SHELVES: ThematicSlot[] = [
   {
     key: "apple-ecosystem",
-    title: "Apple Ecosystem",
     subtitle: "Tech · Premium",
-    categorySlug: "smartphones-apple",
-    accent: "#1d1d1f",
+    title: "Top 10 Apple Ecosystem",
+    categorySlugs: APPLE_SLUGS,
+    href: "/category/smartphones-apple",
   },
   {
-    key: "urban-sneakers",
-    title: "Urban Sneakers",
+    key: "sneaker-highlights",
     subtitle: "Street · Style",
-    categorySlug: "schuhe-sneakers",
-    accent: "#f26a2e",
+    title: "Sneaker Highlights",
+    categorySlugs: SNEAKER_SLUGS,
+    href: "/category/schuhe-sneakers",
+  },
+  {
+    key: "beauty-fragrances",
+    subtitle: "Beauty · Düfte",
+    title: "Beauty & Fragrances",
+    categorySlugs: BEAUTY_SLUGS,
+    href: "/category/parfum",
+  },
+  {
+    key: "trending-now",
+    subtitle: "Editors Picks",
+    title: "Trending Now",
+    excludeSlugs: [...APPLE_SLUGS, ...SNEAKER_SLUGS, ...BEAUTY_SLUGS],
+    href: "/category/parfum",
   },
 ];
 
 export default async function HomePage() {
-  const [
-    { products: initialProducts, total },
-    dynamicCategories,
-    stats,
-    topPicks,
-    priceDrops,
-    shelves,
-    trending,
-  ] = await Promise.all([
-    getProductsPaginated(24, 0),
+  const [dynamicCategories, stats, shelves] = await Promise.all([
     getDynamicCategories(),
     getSiteStats(),
-    getTopPicks(10),
-    getPriceDrops(12),
-    getThematicShelves(THEMATIC_SLOTS, 4),
-    getTrendingTags(10),
+    getThematicShelves(HOME_SHELVES, 10),
   ]);
 
   return (
     <HomeClient
-      initialProducts={initialProducts}
-      totalProducts={total}
       dynamicCategories={dynamicCategories}
       stats={stats}
-      topPicks={topPicks}
-      priceDrops={priceDrops}
       shelves={shelves}
-      trending={trending}
     />
   );
 }
