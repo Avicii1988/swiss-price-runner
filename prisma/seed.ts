@@ -15,7 +15,19 @@ export interface MockSource {
   sourceId: string;
   sourceName: string;
   url: string;
+  /** EUR price — populated for DE-import sources (Amazon.de etc.). */
   currentPriceEur: number;
+  /**
+   * Native CHF price as declared by a Swiss shop feed (XXL Parfum,
+   * Parfumsale, Ackermann, etc.). Takes precedence over
+   * `currentPriceEur` in the pricing pipeline — the Swiss-shop
+   * breakdown path is used when this is set.
+   */
+  nativeChf?: number;
+  /** Shipping cost to CH in CHF. NULL = unknown; 0 = free; >0 = paid. */
+  shippingChf?: number | null;
+  /** True when `nativeChf` is a NET price (feed contract is net). */
+  priceIsNet?: boolean;
 }
 
 export interface MockProduct {

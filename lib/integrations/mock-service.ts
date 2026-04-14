@@ -1,4 +1,8 @@
-import { calculateSwissPrice, type PriceBreakdown } from "@/lib/pricing/calculator";
+import {
+  calculateSwissPrice,
+  buildSwissShopBreakdown,
+  type PriceBreakdown,
+} from "@/lib/pricing/calculator";
 import { SEED_PRODUCTS } from "@/prisma/seed";
 
 // ---------------------------------------------------------------------------
@@ -69,14 +73,27 @@ export function generatePriceHistory(
 
     for (const source of product.sources) {
       const drift = 1 + (rand() - 0.5) * 0.16;
-      const amountEur = Math.round(source.currentPriceEur * drift * 100) / 100;
 
-      const breakdown = calculateSwissPrice({
-        amountEur,
-        exchangeRate: EXCHANGE_RATE,
-        category: "standard",
-        clearanceType: "vereinfacht",
-      });
+      let amountEur: number;
+      let breakdown: PriceBreakdown;
+      if (source.nativeChf != null && source.nativeChf > 0) {
+        // Swiss-shop source: drift the native CHF directly.
+        const driftedChf = Math.round(source.nativeChf * drift * 100) / 100;
+        breakdown = buildSwissShopBreakdown({
+          grossChf: driftedChf,
+          shippingChf: source.shippingChf ?? null,
+          priceIsNet: source.priceIsNet === true,
+        });
+        amountEur = 0;
+      } else {
+        amountEur = Math.round(source.currentPriceEur * drift * 100) / 100;
+        breakdown = calculateSwissPrice({
+          amountEur,
+          exchangeRate: EXCHANGE_RATE,
+          category: "standard",
+          clearanceType: "vereinfacht",
+        });
+      }
 
       history.push({
         date: dateStr,

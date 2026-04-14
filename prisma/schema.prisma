@@ -24,6 +24,24 @@ model Product {
   /// Original (pre-discount) price in CHF — e.g. <g:price> vs <g:sale_price>.
   /// Used to compute discount % for the "Price Drops" homepage section.
   originalPriceChf Decimal? @db.Decimal(10, 2)
+  /// Shipping cost to Switzerland in CHF as declared by the feed.
+  /// NULL  = unknown      (UI: "Versand auf Anfrage")
+  /// 0     = free         (UI: "Versand inkl.")
+  /// >0    = paid         (UI: "+ CHF X Versand")
+  shippingCostChf Decimal? @db.Decimal(10, 2)
+  /// True if `price` is NET (ex-VAT) — rare; most retail feeds ship gross.
+  /// When true the UI applies 8.1% Swiss VAT before displaying.
+  priceIsNet Boolean @default(false)
+  /// Variant grouping key. All sizes of the same product (e.g. 30 / 50 / 100 ml)
+  /// share the same groupId. NULL = ungrouped (single-variant product).
+  /// Computed during import from brand + baseTitle (size-stripped).
+  groupId   String?
+  /// Title with the size suffix stripped, used as the grouping signal
+  /// AND for SEO-friendly variant headings. Example: "Dior Sauvage EDP".
+  baseTitle String?
+  /// Extracted size label, kept for the variant selector on the PDP.
+  /// Example: "50 ml", "100 ml", "Gr. 42". NULL if no size detected.
+  sizeLabel String?
   embedding     String?   @db.Text
   /// The vector column exists in DB but is managed via raw SQL only.
   /// Prisma cannot serialize pgvector types, so we exclude it from the model.
@@ -45,6 +63,8 @@ model Product {
   @@index([isActive, category])
   @@index([isActive, price])
   @@index([originalPriceChf])
+  @@index([groupId])
+  @@index([isActive, groupId])
 }
 
 model Category {

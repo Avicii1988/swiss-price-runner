@@ -154,6 +154,12 @@ async function decompressZip(data: Uint8Array): Promise<string> {
 interface FeedItem {
   title: string; price: string; originalPrice: string; link: string; imageLink: string;
   brand: string; gtin: string; mpn: string; productType: string; description: string; availability: string;
+  /** Raw feed shipping cost string (e.g. "5.90 CHF") or empty when not provided. */
+  shippingCost: string;
+  /** "net" | "gross" | "" — rare, but some feeds set this explicitly. */
+  priceType: string;
+  /** g:item_group_id — Google Merchant parent SKU used for variant grouping. */
+  itemGroupId: string;
 }
 
 /** Container tag — most Adtraction feeds use <item>, some use <product>. */
@@ -211,6 +217,17 @@ function parseFeedSlice(xml: string, idx: FeedIndex, offset: number, limit: numb
       productType: tag(block, "g:product_type") || tag(block, "g:google_product_category") || tag(block, "category") || tag(block, "categoryName") || "",
       description: tag(block, "g:description") || tag(block, "description") || "",
       availability: tag(block, "g:availability") || tag(block, "availability") || tag(block, "inStock") || "",
+      // Shipping aliases — Google Merchant nests <g:shipping><g:price>…</g:price></g:shipping>.
+      // We probe the flat <g:shipping_price> first, fall back to scanning for any nested
+      // <g:price> inside a <g:shipping> block, then to plain <shipping> / <shippingCost>.
+      shippingCost:
+        tag(block, "g:shipping_price") ||
+        nestedShippingPrice(block) ||
+        tag(block, "shipping") ||
+        tag(block, "shippingCost") ||
+        "",
+      priceType: (tag(block, "g:price_type") || tag(block, "priceType") || "").toLowerCase(),
+      itemGroupId: tag(block, "g:item_group_id") || tag(block, "item_group_id") || tag(block, "parentSku") || "",
     });
   }
   return items;
@@ -220,6 +237,87 @@ function tag(xml: string, name: string): string {
   const re = new RegExp(`<${name}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${name}>`, "i");
   const m = re.exec(xml);
   return m ? m[1].trim() : "";
+}
+
+/**
+ * Google Merchant nests shipping like:
+ *   <g:shipping>
+ *     <g:country>CH</g:country>
+ *     <g:price>5.90 CHF</g:price>
+ *   </g:shipping>
+ * We extract the first nested price from any <g:shipping> block — good enough
+ * for Swiss-only feeds where one country is advertised.
+ */
+function nestedShippingPrice(xml: string): string {
+  const block = /<g:shipping[^>]*>([\s\S]*?)<\/g:shipping>/i.exec(xml);
+  if (!block) return "";
+  const price = /<g:price[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/g:price>/i.exec(block[1]);
+  return price ? price[1].trim() : "";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Variant-grouping helpers
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Detect a size suffix at the end of a product title and split the title
+ * into `baseTitle` + `sizeLabel`. Handles:
+ *   "Dior Sauvage EDP 50ml"       → base="Dior Sauvage EDP"  size="50 ml"
+ *   "Dior Sauvage 100 ml Spray"   → base="Dior Sauvage Spray" size="100 ml"
+ *   "Nike Air Max 90 Gr. 42"      → base="Nike Air Max 90"   size="Gr. 42"
+ *   "Dior Sauvage"                → base=<title>            size=null
+ */
+const SIZE_UNIT_RE = /(\d+(?:[.,]\d+)?)\s?(ml|g|kg|l|oz|cl|pcs?|stk|stück|paar|gr)\.?/i;
+const SHOE_SIZE_RE = /\bgr(?:össe|oesse|\.|e)?\s?(\d{1,3}(?:[.,]\d+)?)\b/i;
+
+interface TitleSplit { baseTitle: string; sizeLabel: string | null; }
+
+function splitTitleBySize(title: string): TitleSplit {
+  if (!title) return { baseTitle: title, sizeLabel: null };
+
+  // 1. Try unit-based sizes (ml, g, kg, oz, pcs, paar, …) — scan the whole
+  //    title, keep the FIRST match (closest to product name), strip it.
+  const unit = SIZE_UNIT_RE.exec(title);
+  if (unit) {
+    const raw = unit[0];
+    const stripped = (title.slice(0, unit.index) + " " + title.slice(unit.index + raw.length))
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[-–,]\s*$/, "")
+      .trim();
+    const amount = unit[1].replace(",", ".");
+    const unitNorm = unit[2].toLowerCase().replace("stück", "stk");
+    return { baseTitle: stripped || title, sizeLabel: `${amount} ${unitNorm}` };
+  }
+
+  // 2. Try "Gr. 42" style shoe sizes.
+  const shoe = SHOE_SIZE_RE.exec(title);
+  if (shoe) {
+    const raw = shoe[0];
+    const stripped = (title.slice(0, shoe.index) + " " + title.slice(shoe.index + raw.length))
+      .replace(/\s+/g, " ")
+      .trim();
+    return { baseTitle: stripped || title, sizeLabel: `Gr. ${shoe[1].replace(",", ".")}` };
+  }
+
+  return { baseTitle: title, sizeLabel: null };
+}
+
+/**
+ * Compute a deterministic group id shared by all variants of a product.
+ * Preference:
+ *   1. Feed-provided `g:item_group_id`             (most reliable)
+ *   2. `brand|baseTitle` SHA-like hash             (fallback heuristic)
+ *
+ * Returns NULL when neither signal is usable (keeps Product.groupId NULL
+ * for truly single-variant SKUs).
+ */
+function computeGroupId(itemGroupId: string, brand: string, baseTitle: string): string | null {
+  const explicit = (itemGroupId || "").trim();
+  if (explicit) return `igi_${hashStr(explicit.toLowerCase())}`;
+  const key = `${(brand || "").trim().toLowerCase()}|${(baseTitle || "").trim().toLowerCase()}`;
+  if (!key || key === "|") return null;
+  return `grp_${hashStr(key)}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -326,12 +424,22 @@ interface PreparedItem {
   priceChf: number;
   /** UVP / original price (pre-discount). Null if not supplied by feed or ≤ priceChf. */
   originalPriceChf: number | null;
+  /** Shipping cost to CH in CHF from the feed. NULL = unknown; 0 = free. */
+  shippingCostChf: number | null;
+  /** True only when the feed explicitly declares a NET price. */
+  priceIsNet: boolean;
   affiliateLink: string;
   catSlug: string; catName: string;
   /** Full category path root → … → leaf. Used by ensureCategories(). */
   catPath: string[];
   imageUrl: string | null;
   title: string; brand: string;
+  /** Variant grouping. NULL = singleton, else shared across size siblings. */
+  groupId: string | null;
+  /** Title with size stripped (e.g. "Dior Sauvage EDP"). */
+  baseTitle: string | null;
+  /** Extracted size label ("50 ml", "Gr. 42"). NULL if no size detected. */
+  sizeLabel: string | null;
 }
 
 async function bulkUpsertBatch(
@@ -356,15 +464,57 @@ async function bulkUpsertBatch(
   const droppedDupes = prepared.length - deduped.length;
 
   const productRows = Prisma.join(
-    deduped.map((p) => Prisma.sql`(${p.newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${p.originalPriceChf}, ${feed.sourceType}, NOW(), NOW())`),
+    deduped.map((p) => Prisma.sql`(
+      ${p.newId}, ${p.gtin}, ${p.title}, ${p.brand},
+      ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true,
+      ${p.priceChf}, ${p.originalPriceChf},
+      ${p.shippingCostChf}, ${p.priceIsNet},
+      ${p.groupId}, ${p.baseTitle}, ${p.sizeLabel},
+      ${feed.sourceType}, NOW(), NOW()
+    )`),
   );
 
   const updateClause = scrub
-    ? Prisma.sql`title = EXCLUDED.title, brand = EXCLUDED.brand, category = EXCLUDED.category, "categoryName" = EXCLUDED."categoryName", "imageUrl" = COALESCE(EXCLUDED."imageUrl", "Product"."imageUrl"), price = EXCLUDED.price, "originalPriceChf" = EXCLUDED."originalPriceChf", "isActive" = true, "updatedAt" = NOW()`
-    : Prisma.sql`title = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.title ELSE "Product".title END, brand = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.brand ELSE "Product".brand END, "imageUrl" = COALESCE("Product"."imageUrl", EXCLUDED."imageUrl"), category = COALESCE(NULLIF("Product".category, ''), EXCLUDED.category), "categoryName" = COALESCE(NULLIF("Product"."categoryName", ''), EXCLUDED."categoryName"), price = CASE WHEN EXCLUDED.price < COALESCE("Product".price, 9999999) THEN EXCLUDED.price ELSE "Product".price END, "originalPriceChf" = CASE WHEN EXCLUDED."originalPriceChf" IS NOT NULL AND EXCLUDED."originalPriceChf" > COALESCE("Product"."originalPriceChf", 0) THEN EXCLUDED."originalPriceChf" ELSE "Product"."originalPriceChf" END, "isActive" = true, "updatedAt" = NOW()`;
+    ? Prisma.sql`
+        title = EXCLUDED.title,
+        brand = EXCLUDED.brand,
+        category = EXCLUDED.category,
+        "categoryName" = EXCLUDED."categoryName",
+        "imageUrl" = COALESCE(EXCLUDED."imageUrl", "Product"."imageUrl"),
+        price = EXCLUDED.price,
+        "originalPriceChf" = EXCLUDED."originalPriceChf",
+        "shippingCostChf" = EXCLUDED."shippingCostChf",
+        "priceIsNet" = EXCLUDED."priceIsNet",
+        "groupId" = EXCLUDED."groupId",
+        "baseTitle" = EXCLUDED."baseTitle",
+        "sizeLabel" = EXCLUDED."sizeLabel",
+        "isActive" = true,
+        "updatedAt" = NOW()`
+    : Prisma.sql`
+        title = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.title ELSE "Product".title END,
+        brand = CASE WHEN LENGTH(EXCLUDED.title) > LENGTH("Product".title) THEN EXCLUDED.brand ELSE "Product".brand END,
+        "imageUrl" = COALESCE("Product"."imageUrl", EXCLUDED."imageUrl"),
+        category = COALESCE(NULLIF("Product".category, ''), EXCLUDED.category),
+        "categoryName" = COALESCE(NULLIF("Product"."categoryName", ''), EXCLUDED."categoryName"),
+        price = CASE WHEN EXCLUDED.price < COALESCE("Product".price, 9999999) THEN EXCLUDED.price ELSE "Product".price END,
+        "originalPriceChf" = CASE WHEN EXCLUDED."originalPriceChf" IS NOT NULL AND EXCLUDED."originalPriceChf" > COALESCE("Product"."originalPriceChf", 0) THEN EXCLUDED."originalPriceChf" ELSE "Product"."originalPriceChf" END,
+        "shippingCostChf" = COALESCE(EXCLUDED."shippingCostChf", "Product"."shippingCostChf"),
+        "priceIsNet" = EXCLUDED."priceIsNet",
+        "groupId" = COALESCE(EXCLUDED."groupId", "Product"."groupId"),
+        "baseTitle" = COALESCE(EXCLUDED."baseTitle", "Product"."baseTitle"),
+        "sizeLabel" = COALESCE(EXCLUDED."sizeLabel", "Product"."sizeLabel"),
+        "isActive" = true,
+        "updatedAt" = NOW()`;
 
   const productResults = await db.$queryRaw<{ id: string; gtin: string }[]>`
-    INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "originalPriceChf", "sourceType", "createdAt", "updatedAt")
+    INSERT INTO "Product" (
+      id, gtin, title, brand,
+      category, "categoryName", "imageUrl", "isActive",
+      price, "originalPriceChf",
+      "shippingCostChf", "priceIsNet",
+      "groupId", "baseTitle", "sizeLabel",
+      "sourceType", "createdAt", "updatedAt"
+    )
     VALUES ${productRows}
     ON CONFLICT (gtin) DO UPDATE SET ${updateClause}
     RETURNING id, gtin
@@ -462,10 +612,18 @@ async function main() {
           continue;
         }
 
-        // Title + description keyword fallback + source-specific default.
-        // In-memory per item — happens BEFORE the DB write so no I/O overhead.
+        // ── Parse shipping + NET/GROSS flag from feed ──
+        const shippingCostChf = parseSwissPrice(item.shippingCost);
+        const priceIsNet = item.priceType === "net";
+
+        // ── Variant detection: split title by size suffix ──
         const decodedTitle = decodeHtml(item.title || gtin);
         const decodedDescription = decodeHtml(item.description || "");
+        const decodedBrand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
+        const { baseTitle, sizeLabel } = splitTitleBySize(decodedTitle);
+        const groupId = computeGroupId(item.itemGroupId, decodedBrand, baseTitle);
+
+        // ── Category resolution (in-memory, BEFORE DB write) ──
         const { path: catPath, name: catName } = resolveCategory(
           item.productType,
           decodedTitle,
@@ -473,18 +631,24 @@ async function main() {
           feed.id,
         );
         const leafSlug = catPath[catPath.length - 1];
+
         prepared.push({
           newId: generateId(),
           gtin,
           priceChf,
           originalPriceChf,
+          shippingCostChf,
+          priceIsNet,
           affiliateLink,
           catSlug: leafSlug,   // Product.category = leaf of the path
           catName,
           catPath,             // full path → ensureCategories walks this
           imageUrl: item.imageLink ? cleanUrl(item.imageLink) : null,
           title: decodedTitle.slice(0, 500),
-          brand: decodeHtml(item.brand || feed.shopName).slice(0, 200),
+          brand: decodedBrand,
+          groupId,
+          baseTitle: baseTitle.slice(0, 500),
+          sizeLabel,
         });
       }
 
