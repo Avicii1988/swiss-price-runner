@@ -212,7 +212,8 @@ async function handleRequest(req: NextRequest) {
     interface PreparedItem {
       gtin: string; priceChf: number; originalPriceChf: number | null;
       affiliateLink: string;
-      catSlug: string; catName: string; imageUrl: string | null;
+      catSlug: string; catName: string; catPath: string[];
+      imageUrl: string | null;
       title: string; brand: string;
     }
     const prepared: PreparedItem[] = [];
@@ -259,20 +260,22 @@ async function handleRequest(req: NextRequest) {
       // Pure in-memory scan — runs per item in this loop, BEFORE any DB write.
       const decodedTitle = decodeHtml(item.title || gtin);
       const decodedDescription = decodeHtml(item.description || "");
-      const { slug: catSlug, name: catName } = resolveCategory(
+      const { path: catPath, name: catName } = resolveCategory(
         item.productType,
         decodedTitle,
         decodedDescription,
         feed.id,
       );
+      const leafSlug = catPath[catPath.length - 1];
       prepared.push({
         gtin,
         priceChf,
         // Only use originalPrice if it's strictly higher (= real discount)
         originalPriceChf: originalPriceChf && originalPriceChf > priceChf ? originalPriceChf : null,
         affiliateLink,
-        catSlug,
+        catSlug: leafSlug,
         catName,
+        catPath,
         imageUrl: item.imageLink ? cleanUrl(item.imageLink) : null,
         title: decodedTitle.slice(0, 500),
         brand: decodeHtml(item.brand || feed.shopName).slice(0, 200),
@@ -283,9 +286,9 @@ async function handleRequest(req: NextRequest) {
     // Replaces 50 individual processItem() calls → 2 SQL statements total
     if (prepared.length > 0 && elapsed() <= SAFETY_TIMEOUT_MS) {
       try {
-        // Guarantee every referenced Category row exists before the Product upsert —
-        // runs once per batch so products are always born linked to a category slug.
-        await ensureCategories(prepared.map((p) => ({ slug: p.catSlug, name: p.catName })));
+        // Guarantee every referenced Category row (and its ancestors) exists
+        // so every product is born under a valid root → L2 → L3 chain.
+        await ensureCategories(prepared.map((p) => ({ path: p.catPath, name: p.catName })));
         const { imported: bulkImported, errors: bulkErrors } = await bulkUpsertBatch(prepared, feed, scrub);
         imported += bulkImported;
         errors += bulkErrors;
@@ -355,7 +358,7 @@ function jsonResponse(ok: boolean, data: Record<string, any>) {
  *   - Then second INSERT for prices using ON CONFLICT (productId, sourceId)
  */
 async function bulkUpsertBatch(
-  prepared: { gtin: string; priceChf: number; originalPriceChf: number | null; affiliateLink: string; catSlug: string; catName: string; imageUrl: string | null; title: string; brand: string }[],
+  prepared: { gtin: string; priceChf: number; originalPriceChf: number | null; affiliateLink: string; catSlug: string; catName: string; catPath: string[]; imageUrl: string | null; title: string; brand: string }[],
   feed: FeedConfig,
   scrub: boolean,
 ): Promise<{ imported: number; errors: number }> {
@@ -381,7 +384,7 @@ async function bulkUpsertBatch(
 
   // ── Step 1: Bulk Product UPSERT ──
   const productRows = Prisma.join(
-    withIds.map((p) => Prisma.sql`(${p.newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())`),
+    withIds.map((p) => Prisma.sql`(${p.newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${p.originalPriceChf}, ${feed.sourceType}, NOW(), NOW())`),
   );
 
   const updateClause = scrub
@@ -392,6 +395,7 @@ async function bulkUpsertBatch(
         "categoryName" = EXCLUDED."categoryName",
         "imageUrl" = COALESCE(EXCLUDED."imageUrl", "Product"."imageUrl"),
         price = EXCLUDED.price,
+        "originalPriceChf" = EXCLUDED."originalPriceChf",
         "isActive" = true,
         "updatedAt" = NOW()`
     : Prisma.sql`
@@ -401,11 +405,12 @@ async function bulkUpsertBatch(
         category = COALESCE(NULLIF("Product".category, ''), EXCLUDED.category),
         "categoryName" = COALESCE(NULLIF("Product"."categoryName", ''), EXCLUDED."categoryName"),
         price = CASE WHEN EXCLUDED.price < COALESCE("Product".price, 9999999) THEN EXCLUDED.price ELSE "Product".price END,
+        "originalPriceChf" = CASE WHEN EXCLUDED."originalPriceChf" IS NOT NULL AND EXCLUDED."originalPriceChf" > COALESCE("Product"."originalPriceChf", 0) THEN EXCLUDED."originalPriceChf" ELSE "Product"."originalPriceChf" END,
         "isActive" = true,
         "updatedAt" = NOW()`;
 
   const productResults = await db.$queryRaw<{ id: string; gtin: string }[]>`
-    INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "sourceType", "createdAt", "updatedAt")
+    INSERT INTO "Product" (id, gtin, title, brand, category, "categoryName", "imageUrl", "isActive", price, "originalPriceChf", "sourceType", "createdAt", "updatedAt")
     VALUES ${productRows}
     ON CONFLICT (gtin) DO UPDATE SET ${updateClause}
     RETURNING id, gtin
@@ -577,180 +582,263 @@ function cleanUrl(s: string): string {
 
 // ── Category Mapping ─────────────────────────────────────────
 
-const CATEGORY_MAP: { pattern: string; slug: string; name: string }[] = [
-  { pattern: "men's fragrance", slug: "herrendufte", name: "Herrendüfte" },
-  { pattern: "men's eau de", slug: "herrendufte", name: "Herrendüfte" },
-  { pattern: "aftershave", slug: "herrendufte", name: "Herrendüfte" },
-  { pattern: "cologne", slug: "herrendufte", name: "Herrendüfte" },
-  { pattern: "women's fragrance", slug: "damendufte", name: "Damendüfte" },
-  { pattern: "women's eau de", slug: "damendufte", name: "Damendüfte" },
-  { pattern: "unisex fragrance", slug: "unisex-dufte", name: "Unisex-Düfte" },
-  { pattern: "unisex eau de", slug: "unisex-dufte", name: "Unisex-Düfte" },
-  { pattern: "fragrance", slug: "parfum", name: "Parfum & Düfte" },
-  { pattern: "perfume", slug: "parfum", name: "Parfum & Düfte" },
-  { pattern: "eau de parfum", slug: "parfum", name: "Parfum & Düfte" },
-  { pattern: "eau de toilette", slug: "parfum", name: "Parfum & Düfte" },
-  { pattern: "skin care", slug: "pflege", name: "Pflege" },
-  { pattern: "skincare", slug: "pflege", name: "Pflege" },
-  { pattern: "face care", slug: "pflege", name: "Pflege" },
-  { pattern: "body care", slug: "pflege", name: "Pflege" },
-  { pattern: "moisturi", slug: "pflege", name: "Pflege" },
-  { pattern: "serum", slug: "pflege", name: "Pflege" },
-  { pattern: "cleanser", slug: "pflege", name: "Pflege" },
-  { pattern: "make up", slug: "make-up", name: "Make-Up" },
-  { pattern: "makeup", slug: "make-up", name: "Make-Up" },
-  { pattern: "cosmetic", slug: "make-up", name: "Make-Up" },
-  { pattern: "lipstick", slug: "make-up", name: "Make-Up" },
-  { pattern: "mascara", slug: "make-up", name: "Make-Up" },
-  { pattern: "foundation", slug: "make-up", name: "Make-Up" },
-  { pattern: "hair care", slug: "haarpflege", name: "Haarpflege" },
-  { pattern: "hair", slug: "haarpflege", name: "Haarpflege" },
-  { pattern: "shampoo", slug: "haarpflege", name: "Haarpflege" },
-  { pattern: "conditioner", slug: "haarpflege", name: "Haarpflege" },
-  { pattern: "bath", slug: "koerperpflege", name: "Körperpflege" },
-  { pattern: "shower", slug: "koerperpflege", name: "Körperpflege" },
-  { pattern: "body", slug: "koerperpflege", name: "Körperpflege" },
-  { pattern: "deodorant", slug: "koerperpflege", name: "Körperpflege" },
-  { pattern: "gift set", slug: "geschenksets", name: "Geschenksets" },
-  { pattern: "gift", slug: "geschenksets", name: "Geschenksets" },
-  { pattern: "set", slug: "geschenksets", name: "Geschenksets" },
-  { pattern: "sun", slug: "sonnenpflege", name: "Sonnenpflege" },
-  { pattern: "spf", slug: "sonnenpflege", name: "Sonnenpflege" },
-  // ── Schuhe & Mode (New Balance, Nike, etc.) ──
-  { pattern: "sneaker", slug: "schuhe", name: "Schuhe" },
-  { pattern: "running shoe", slug: "schuhe", name: "Schuhe" },
-  { pattern: "laufschuh", slug: "schuhe", name: "Schuhe" },
-  { pattern: "wanderschuh", slug: "schuhe", name: "Schuhe" },
-  { pattern: "hiking shoe", slug: "schuhe", name: "Schuhe" },
-  { pattern: "trail shoe", slug: "schuhe", name: "Schuhe" },
-  { pattern: "training shoe", slug: "schuhe", name: "Schuhe" },
-  { pattern: "footwear", slug: "schuhe", name: "Schuhe" },
-  { pattern: "shoes", slug: "schuhe", name: "Schuhe" },
-  { pattern: "schuhe", slug: "schuhe", name: "Schuhe" },
-  { pattern: "stiefel", slug: "schuhe", name: "Schuhe" },
-  { pattern: "sandalen", slug: "schuhe", name: "Schuhe" },
-  { pattern: "sandals", slug: "schuhe", name: "Schuhe" },
-  { pattern: "boots", slug: "schuhe", name: "Schuhe" },
-  // Mode / Bekleidung
-  { pattern: "apparel", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "clothing", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "bekleidung", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "jacke", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "jacket", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "t-shirt", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "hose", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "pants", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "shorts", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "pullover", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "hoodie", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "sweatshirt", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "accessories", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "socken", slug: "mode", name: "Mode & Bekleidung" },
-  { pattern: "socks", slug: "mode", name: "Mode & Bekleidung" },
+/**
+ * CATEGORY_MAP — keyword → full category path (root → … → leaf).
+ * Mirrors scripts/import-runner.ts so both import paths behave identically.
+ * See that file for the full rationale; kept DRY via in-process copy because
+ * this route + the runner run in very different environments (Vercel vs Node).
+ */
+const CATEGORY_MAP: { pattern: string; path: string[]; name: string }[] = [
+  // Parfum
+  { pattern: "men's fragrance",   path: ["parfum", "herrendufte"],   name: "Herrendüfte" },
+  { pattern: "men's eau de",      path: ["parfum", "herrendufte"],   name: "Herrendüfte" },
+  { pattern: "aftershave",        path: ["parfum", "herrendufte"],   name: "Herrendüfte" },
+  { pattern: "cologne",           path: ["parfum", "herrendufte"],   name: "Herrendüfte" },
+  { pattern: "women's fragrance", path: ["parfum", "damendufte"],    name: "Damendüfte" },
+  { pattern: "women's eau de",    path: ["parfum", "damendufte"],    name: "Damendüfte" },
+  { pattern: "unisex fragrance",  path: ["parfum", "unisex-dufte"],  name: "Unisex" },
+  { pattern: "unisex eau de",     path: ["parfum", "unisex-dufte"],  name: "Unisex" },
+  { pattern: "fragrance",         path: ["parfum"],                  name: "Parfum & Düfte" },
+  { pattern: "perfume",           path: ["parfum"],                  name: "Parfum & Düfte" },
+  { pattern: "eau de parfum",     path: ["parfum"],                  name: "Parfum & Düfte" },
+  { pattern: "eau de toilette",   path: ["parfum"],                  name: "Parfum & Düfte" },
+  { pattern: "skin care",         path: ["parfum", "pflege"],        name: "Pflege" },
+  { pattern: "skincare",          path: ["parfum", "pflege"],        name: "Pflege" },
+  { pattern: "face care",         path: ["parfum", "pflege"],        name: "Pflege" },
+  { pattern: "body care",         path: ["parfum", "pflege"],        name: "Pflege" },
+  { pattern: "moisturi",          path: ["parfum", "pflege"],        name: "Pflege" },
+  { pattern: "serum",             path: ["parfum", "pflege"],        name: "Pflege" },
+  { pattern: "cleanser",          path: ["parfum", "pflege"],        name: "Pflege" },
+  { pattern: "make up",           path: ["parfum", "make-up"],       name: "Make-Up" },
+  { pattern: "makeup",            path: ["parfum", "make-up"],       name: "Make-Up" },
+  { pattern: "cosmetic",          path: ["parfum", "make-up"],       name: "Make-Up" },
+  { pattern: "lipstick",          path: ["parfum", "make-up"],       name: "Make-Up" },
+  { pattern: "mascara",           path: ["parfum", "make-up"],       name: "Make-Up" },
+  { pattern: "foundation",        path: ["parfum", "make-up"],       name: "Make-Up" },
+  { pattern: "hair care",         path: ["parfum", "haarpflege"],    name: "Haarpflege" },
+  { pattern: "hair",              path: ["parfum", "haarpflege"],    name: "Haarpflege" },
+  { pattern: "shampoo",           path: ["parfum", "haarpflege"],    name: "Haarpflege" },
+  { pattern: "conditioner",       path: ["parfum", "haarpflege"],    name: "Haarpflege" },
+  { pattern: "bath",              path: ["parfum", "koerperpflege"], name: "Körperpflege" },
+  { pattern: "shower",            path: ["parfum", "koerperpflege"], name: "Körperpflege" },
+  { pattern: "body",              path: ["parfum", "koerperpflege"], name: "Körperpflege" },
+  { pattern: "deodorant",         path: ["parfum", "koerperpflege"], name: "Körperpflege" },
+  { pattern: "gift set",          path: ["parfum", "geschenksets"],  name: "Geschenksets" },
+  { pattern: "gift",              path: ["parfum", "geschenksets"],  name: "Geschenksets" },
+  { pattern: "sun",               path: ["parfum", "sonnenpflege"],  name: "Sonnenpflege" },
+  { pattern: "spf",               path: ["parfum", "sonnenpflege"],  name: "Sonnenpflege" },
+
+  // Schuhe (with brand L3 where known)
+  { pattern: "nike air",          path: ["schuhe", "schuhe-sneakers", "sneakers-nike"],        name: "Nike Sneakers" },
+  { pattern: "jordan",            path: ["schuhe", "schuhe-sneakers", "sneakers-nike"],        name: "Nike Jordan" },
+  { pattern: "adidas",            path: ["schuhe", "schuhe-sneakers", "sneakers-adidas"],      name: "Adidas" },
+  { pattern: "new balance",       path: ["schuhe", "schuhe-sneakers", "sneakers-newbalance"],  name: "New Balance" },
+  { pattern: "on cloud",          path: ["schuhe", "schuhe-sneakers", "sneakers-onrunning"],   name: "On Running" },
+  { pattern: "sneaker",           path: ["schuhe", "schuhe-sneakers"],                         name: "Sneakers" },
+  { pattern: "running shoe",      path: ["schuhe", "schuhe-laufschuhe"],                       name: "Laufschuhe" },
+  { pattern: "laufschuh",         path: ["schuhe", "schuhe-laufschuhe"],                       name: "Laufschuhe" },
+  { pattern: "hiking shoe",       path: ["schuhe", "schuhe-wandern"],                          name: "Wanderschuhe" },
+  { pattern: "trail shoe",        path: ["schuhe", "schuhe-wandern"],                          name: "Wanderschuhe" },
+  { pattern: "training shoe",     path: ["schuhe", "schuhe-laufschuhe"],                       name: "Laufschuhe" },
+  { pattern: "footwear",          path: ["schuhe"],                                            name: "Schuhe" },
+  { pattern: "shoes",             path: ["schuhe"],                                            name: "Schuhe" },
+  { pattern: "schuhe",            path: ["schuhe"],                                            name: "Schuhe" },
+  { pattern: "stiefel",           path: ["schuhe"],                                            name: "Schuhe" },
+  { pattern: "sandalen",          path: ["schuhe"],                                            name: "Schuhe" },
+  { pattern: "sandals",           path: ["schuhe"],                                            name: "Schuhe" },
+  { pattern: "boots",             path: ["schuhe"],                                            name: "Schuhe" },
+
+  // Mode
+  { pattern: "damenmode",         path: ["mode", "mode-damen"],   name: "Damenmode" },
+  { pattern: "herrenmode",        path: ["mode", "mode-herren"],  name: "Herrenmode" },
+  { pattern: "kindermode",        path: ["mode", "mode-kinder"],  name: "Kindermode" },
+  { pattern: "apparel",           path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "clothing",          path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "bekleidung",        path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "jacke",             path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "jacket",            path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "t-shirt",           path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "hose",              path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "pants",             path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "pullover",          path: ["mode"],                 name: "Mode & Bekleidung" },
+  { pattern: "hoodie",            path: ["mode"],                 name: "Mode & Bekleidung" },
+
+  // Smartphones
+  { pattern: "iphone",            path: ["smartphones", "smartphones-apple", "iphone"],          name: "iPhone" },
+  { pattern: "ipad",              path: ["smartphones", "smartphones-apple", "ipad"],            name: "iPad" },
+  { pattern: "galaxy",            path: ["smartphones", "smartphones-samsung", "samsung-galaxy"],name: "Galaxy" },
+  { pattern: "samsung",           path: ["smartphones", "smartphones-samsung"],                  name: "Samsung" },
+  { pattern: "pixel",             path: ["smartphones", "smartphones-google"],                   name: "Google Pixel" },
+  { pattern: "xiaomi",            path: ["smartphones", "smartphones-xiaomi"],                   name: "Xiaomi" },
+  { pattern: "smartphone",        path: ["smartphones"],                                         name: "Smartphones" },
+  { pattern: "handy",             path: ["smartphones"],                                         name: "Smartphones" },
+  { pattern: "tablet",            path: ["smartphones"],                                         name: "Smartphones" },
+
+  // Laptops
+  { pattern: "macbook",           path: ["laptops", "laptops-macbook"],                          name: "MacBook" },
+  { pattern: "gaming laptop",     path: ["laptops", "laptops-windows", "laptops-gaming"],        name: "Gaming Laptops" },
+  { pattern: "chromebook",        path: ["laptops", "laptops-chromebook"],                       name: "Chromebook" },
+  { pattern: "notebook",          path: ["laptops", "laptops-windows"],                          name: "Windows Laptops" },
+  { pattern: "laptop",            path: ["laptops"],                                             name: "Laptops & Computer" },
+  { pattern: "monitor",           path: ["laptops", "laptops-monitors"],                         name: "Monitore" },
+
+  // Kopfhörer / Audio
+  { pattern: "over-ear",          path: ["kopfhoerer", "kopfhoerer-over-ear"],                   name: "Over-Ear" },
+  { pattern: "in-ear",            path: ["kopfhoerer", "kopfhoerer-in-ear"],                     name: "In-Ear" },
+  { pattern: "earbud",            path: ["kopfhoerer", "kopfhoerer-in-ear"],                     name: "In-Ear" },
+  { pattern: "noise cancel",      path: ["kopfhoerer", "kopfhoerer-nc"],                         name: "Noise Cancelling" },
+  { pattern: "kopfhörer",         path: ["kopfhoerer"],                                          name: "Kopfhörer & Audio" },
+  { pattern: "kopfhoerer",        path: ["kopfhoerer"],                                          name: "Kopfhörer & Audio" },
+  { pattern: "headphone",         path: ["kopfhoerer"],                                          name: "Kopfhörer & Audio" },
+  { pattern: "lautsprecher",      path: ["kopfhoerer", "kopfhoerer-lautsprecher"],               name: "Lautsprecher" },
+  { pattern: "speaker",           path: ["kopfhoerer", "kopfhoerer-lautsprecher"],               name: "Lautsprecher" },
+
+  // TV / Audio
+  { pattern: "oled tv",           path: ["tv-audio", "tv-oled"],       name: "OLED TVs" },
+  { pattern: "qled tv",           path: ["tv-audio", "tv-qled"],       name: "QLED TVs" },
+  { pattern: "soundbar",          path: ["tv-audio", "tv-soundbar"],   name: "Soundbars" },
+  { pattern: "beamer",            path: ["tv-audio", "tv-beamer"],     name: "Beamer" },
+  { pattern: "projector",         path: ["tv-audio", "tv-beamer"],     name: "Beamer" },
+  { pattern: "fernseher",         path: ["tv-audio"],                  name: "TV & Audio" },
+  { pattern: "television",        path: ["tv-audio"],                  name: "TV & Audio" },
+
+  // Foto
+  { pattern: "dslr",              path: ["foto", "foto-dslr"],         name: "Spiegelreflex" },
+  { pattern: "mirrorless",        path: ["foto", "foto-mirrorless"],   name: "Systemkameras" },
+  { pattern: "action cam",        path: ["foto", "foto-action"],       name: "Action Cams" },
+  { pattern: "drohne",            path: ["foto", "foto-drohnen"],      name: "Drohnen" },
+  { pattern: "drone",             path: ["foto", "foto-drohnen"],      name: "Drohnen" },
+  { pattern: "objektiv",          path: ["foto", "foto-objektive"],    name: "Objektive" },
+  { pattern: "kamera",            path: ["foto"],                      name: "Foto & Video" },
+  { pattern: "camera",            path: ["foto"],                      name: "Foto & Video" },
+
+  // Gaming
+  { pattern: "playstation",       path: ["gaming", "gaming-ps5"],      name: "PlayStation" },
+  { pattern: "xbox",              path: ["gaming", "gaming-xbox"],     name: "Xbox" },
+  { pattern: "nintendo",          path: ["gaming", "gaming-nintendo"], name: "Nintendo" },
+  { pattern: "konsole",           path: ["gaming", "gaming-konsolen"], name: "Konsolen" },
+  { pattern: "vr headset",        path: ["gaming", "gaming-vr"],       name: "VR Headsets" },
+
+  // Uhren
+  { pattern: "smartwatch",        path: ["uhren", "uhren-smartwatch"], name: "Smartwatches" },
+  { pattern: "fitness tracker",   path: ["uhren", "uhren-smartwatch"], name: "Fitness Tracker" },
+  { pattern: "apple watch",       path: ["uhren", "uhren-smartwatch"], name: "Apple Watch" },
+
+  // Haushalt
+  { pattern: "staubsauger",       path: ["haushalt", "haushalt-staubsauger"],    name: "Staubsauger" },
+  { pattern: "vacuum",            path: ["haushalt", "haushalt-staubsauger"],    name: "Staubsauger" },
+  { pattern: "kaffeemaschine",    path: ["haushalt", "haushalt-kaffee"],         name: "Kaffeemaschinen" },
+  { pattern: "küche",             path: ["haushalt", "haushalt-kuechengeraete"], name: "Küchengeräte" },
+  { pattern: "kuechengerät",      path: ["haushalt", "haushalt-kuechengeraete"], name: "Küchengeräte" },
+  { pattern: "luftreiniger",      path: ["haushalt", "haushalt-luftreiniger"],   name: "Luftreiniger" },
+  { pattern: "mixer",             path: ["haushalt", "haushalt-kuechengeraete"], name: "Küchengeräte" },
+  { pattern: "haushalt",          path: ["haushalt"],                            name: "Haushalt & Küche" },
 ];
 
 /** Feed-specific defaults when productType is unknown or empty */
-const FEED_CATEGORY_DEFAULTS: Record<string, { slug: string; name: string }> = {
-  xxl_parfum: { slug: "parfum", name: "Parfum & Düfte" },
-  parfumsale: { slug: "parfum", name: "Parfum & Düfte" },
-  import_parfumerie: { slug: "parfum", name: "Parfum & Düfte" },
-  coop_vitality: { slug: "parfum", name: "Parfum & Düfte" },
-  new_balance: { slug: "schuhe", name: "Schuhe" },
-  // Parfum.ch is a pure beauty shop — everything defaults to Parfum & Düfte.
-  parfum_ch: { slug: "parfum", name: "Parfum & Düfte" },
-  // Ackermann Technik = consumer electronics / household tech.
-  ackermann_ch: { slug: "haushalt", name: "Haushalt & Küche" },
+const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: string }> = {
+  xxl_parfum:        { path: ["parfum"],   name: "Parfum & Düfte" },
+  parfumsale:        { path: ["parfum"],   name: "Parfum & Düfte" },
+  import_parfumerie: { path: ["parfum"],   name: "Parfum & Düfte" },
+  coop_vitality:     { path: ["parfum"],   name: "Parfum & Düfte" },
+  new_balance:       { path: ["schuhe", "schuhe-sneakers", "sneakers-newbalance"], name: "New Balance" },
+  parfum_ch:         { path: ["parfum"],   name: "Parfum & Düfte" },
+  ackermann_ch:      { path: ["haushalt"], name: "Haushalt & Küche" },
 };
 
-function mapCategory(productType: string | undefined, feedId?: string): { slug: string; name: string } {
-  const fallback = (feedId && FEED_CATEGORY_DEFAULTS[feedId]) || { slug: "parfum", name: "Parfum & Düfte" };
-  if (!productType) return fallback;
-  const lower = productType.toLowerCase();
-  for (const entry of CATEGORY_MAP) {
-    if (lower.includes(entry.pattern)) return { slug: entry.slug, name: entry.name };
-  }
-  // Fallback: use first segment before ">"
-  const firstPart = productType.split(">")[0].trim();
-  if (firstPart && !/^\d+$/.test(firstPart) && firstPart.length > 2) {
-    const name = firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
-    return { slug: slugify(firstPart), name };
-  }
-  // Numeric IDs or unknown → feed-specific fallback
-  return fallback;
-}
-
 // ───────────────────────────────────────────────────────────────────
-// Beauty keyword fallback (title + description scan)
-// In-memory per item — zero DB overhead, runs BEFORE bulkUpsertBatch.
-// Mirrors scripts/import-runner.ts so both import paths behave identically.
+// Beauty keyword fallback (title + description scan). In-memory per item,
+// runs BEFORE bulkUpsertBatch. Each rule produces a full path.
 // ───────────────────────────────────────────────────────────────────
 
-const BEAUTY_KEYWORD_RULES: { keywords: string[]; slug: string; name: string }[] = [
-  { keywords: ["eau de parfum", "edp"], slug: "damendufte", name: "Damendüfte" },
-  { keywords: ["eau de toilette", "edt"], slug: "damendufte", name: "Damendüfte" },
-  { keywords: ["duftset", "geschenkset", "gift set"], slug: "geschenksets", name: "Geschenksets" },
-  { keywords: ["after shave", "aftershave"], slug: "herrendufte", name: "Herrendüfte" },
-  { keywords: ["mascara", "lippenstift", "lipstick", "make-up", "makeup"], slug: "make-up", name: "Make-Up" },
-  { keywords: ["gesichtspflege", "gesichtscreme", "serum"], slug: "pflege", name: "Pflege" },
-  { keywords: ["body lotion", "körperlotion", "koerperlotion", "body milk"], slug: "koerperpflege", name: "Körperpflege" },
-  { keywords: ["shampoo", "conditioner", "haarpflege"], slug: "haarpflege", name: "Haarpflege" },
-  { keywords: ["parfum", "perfume", "duft", "fragrance"], slug: "parfum", name: "Parfum & Düfte" },
+const BEAUTY_KEYWORD_RULES: { keywords: string[]; path: string[]; name: string }[] = [
+  { keywords: ["eau de parfum", "edp"],                                        path: ["parfum", "damendufte"],    name: "Damendüfte" },
+  { keywords: ["eau de toilette", "edt"],                                      path: ["parfum", "damendufte"],    name: "Damendüfte" },
+  { keywords: ["duftset", "geschenkset", "gift set"],                          path: ["parfum", "geschenksets"],  name: "Geschenksets" },
+  { keywords: ["after shave", "aftershave"],                                   path: ["parfum", "herrendufte"],   name: "Herrendüfte" },
+  { keywords: ["mascara", "lippenstift", "lipstick", "make-up", "makeup"],     path: ["parfum", "make-up"],       name: "Make-Up" },
+  { keywords: ["gesichtspflege", "gesichtscreme", "serum"],                    path: ["parfum", "pflege"],        name: "Pflege" },
+  { keywords: ["body lotion", "körperlotion", "koerperlotion", "body milk"],   path: ["parfum", "koerperpflege"], name: "Körperpflege" },
+  { keywords: ["shampoo", "conditioner", "haarpflege"],                        path: ["parfum", "haarpflege"],    name: "Haarpflege" },
+  { keywords: ["parfum", "perfume", "duft", "fragrance"],                      path: ["parfum"],                  name: "Parfum & Düfte" },
 ];
 
-function matchBeautyKeywords(title: string, description: string): { slug: string; name: string } | null {
+function matchBeautyKeywords(title: string, description: string): { path: string[]; name: string } | null {
   const haystack = (title + " " + description).toLowerCase();
   for (const rule of BEAUTY_KEYWORD_RULES) {
-    for (const kw of rule.keywords) if (haystack.includes(kw)) return { slug: rule.slug, name: rule.name };
+    for (const kw of rule.keywords) if (haystack.includes(kw)) return { path: rule.path, name: rule.name };
   }
   return null;
 }
 
 /**
- * Resolve a category with priority: productType → keyword scan → feed default.
- * Parfum.ch (source parfum_ch) always lands in Parfum & Düfte when nothing else matches.
+ * Resolve a category path with priority: productType → keyword scan → feed default.
+ * The last slug in path is written to Product.category; the full path is used
+ * to upsert all ancestors via ensureCategories().
  */
 function resolveCategory(
   productType: string | undefined,
   title: string,
   description: string,
   feedId: string,
-): { slug: string; name: string } {
+): { path: string[]; name: string } {
   if (productType) {
     const lower = productType.toLowerCase();
     for (const entry of CATEGORY_MAP) {
-      if (lower.includes(entry.pattern)) return { slug: entry.slug, name: entry.name };
+      if (lower.includes(entry.pattern)) return { path: entry.path, name: entry.name };
     }
   }
   const kw = matchBeautyKeywords(title, description);
   if (kw) return kw;
-  return FEED_CATEGORY_DEFAULTS[feedId] || { slug: "parfum", name: "Parfum & Düfte" };
+  return FEED_CATEGORY_DEFAULTS[feedId] || { path: ["parfum"], name: "Parfum & Düfte" };
 }
 
 /**
- * Upsert Category rows for every unique slug in the prepared batch.
- * Runs once per batch (tiny, <1 KB) → products are always linked to a
- * valid `Category.slug` (the de-facto unique category key in this schema).
+ * Upsert every node along the supplied category paths with correct parent-id
+ * linking. One INSERT per depth-level so roots exist before children try to
+ * resolve their parent.
  */
-async function ensureCategories(pairs: Iterable<{ slug: string; name: string }>): Promise<void> {
-  const seen = new Map<string, string>();
-  for (const p of pairs) if (!seen.has(p.slug)) seen.set(p.slug, p.name);
-  if (seen.size === 0) return;
-  const rows = Prisma.join(
-    Array.from(seen.entries()).map(([slug, name]) =>
-      Prisma.sql`(${generateId()}, ${name}, ${slug}, 0, NOW())`,
-    ),
-  );
-  await db.$executeRaw`
-    INSERT INTO "Category" (id, name, slug, "sortOrder", "createdAt")
-    VALUES ${rows}
-    ON CONFLICT (slug) DO NOTHING
-  `;
+async function ensureCategories(pairs: Iterable<{ path: string[]; name: string }>): Promise<void> {
+  const byDepth = new Map<number, Map<string, { name: string; parent: string | null }>>();
+  for (const { path, name } of pairs) {
+    for (let i = 0; i < path.length; i++) {
+      const slug = path[i];
+      const parent = i === 0 ? null : path[i - 1];
+      const isLeaf = i === path.length - 1;
+      const level = byDepth.get(i) ?? new Map();
+      const prev = level.get(slug);
+      const effectiveName = isLeaf ? name : prev?.name ?? titleCaseSlug(slug);
+      level.set(slug, { name: effectiveName, parent });
+      byDepth.set(i, level);
+    }
+  }
+  if (byDepth.size === 0) return;
+
+  const maxDepth = Math.max(...byDepth.keys());
+  for (let depth = 0; depth <= maxDepth; depth++) {
+    const level = byDepth.get(depth);
+    if (!level || level.size === 0) continue;
+
+    const rows = Prisma.join(
+      Array.from(level.entries()).map(([slug, { name, parent }]) =>
+        parent === null
+          ? Prisma.sql`(${generateId()}, ${name}, ${slug}, NULL, ${depth}, NOW())`
+          : Prisma.sql`(${generateId()}, ${name}, ${slug}, (SELECT id FROM "Category" WHERE slug = ${parent} LIMIT 1), ${depth}, NOW())`,
+      ),
+    );
+
+    await db.$executeRaw`
+      INSERT INTO "Category" (id, name, slug, "parentId", "sortOrder", "createdAt")
+      VALUES ${rows}
+      ON CONFLICT (slug) DO UPDATE SET
+        "parentId"  = COALESCE("Category"."parentId",  EXCLUDED."parentId"),
+        "sortOrder" = CASE WHEN "Category"."sortOrder" = 0 THEN EXCLUDED."sortOrder" ELSE "Category"."sortOrder" END
+    `;
+  }
 }
 
-function slugify(s: string): string {
-  return s.toLowerCase().replace(/[äà]/g, "a").replace(/[öò]/g, "o")
-    .replace(/[üù]/g, "u").replace(/[éèê]/g, "e")
-    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+function titleCaseSlug(slug: string): string {
+  return slug.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
 function hashStr(s: string): string {

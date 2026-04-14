@@ -5,6 +5,7 @@ import { LangProvider } from "@/lib/i18n-context";
 import { NextAuthProvider } from "@/components/session-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { BackToTop } from "@/components/back-to-top";
+import { MobileFooter } from "@/components/mobile-footer";
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import "./globals.css";
 
@@ -50,9 +51,12 @@ export default function RootLayout({
           {children}
           <BackToTop />
 
-          {/* ═══ Global Footer ═══ */}
-          <div className="rainbow-bar" />
-          <footer className="bg-white px-4 py-10 sm:px-6">
+          {/* ═══ Compact Mobile Footer (<sm only) ═══ */}
+          <MobileFooter />
+
+          {/* ═══ Full Footer (sm+) ═══ */}
+          <div className="rainbow-bar hidden sm:block" />
+          <footer className="hidden bg-white px-4 py-10 sm:block sm:px-6">
             <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-8 text-[12px] text-gray-400 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <PreisAlarmLogo size="sm" />
