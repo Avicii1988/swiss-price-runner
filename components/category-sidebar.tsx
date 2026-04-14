@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, ChevronDown, Store, Tag } from "lucide-react";
 import { useState } from "react";
-import { CATEGORIES, SIDEBAR_CATEGORIES } from "@/lib/categories";
-import { getCategoryIcon } from "@/lib/category-icons";
+import { SIDEBAR_CATEGORIES } from "@/lib/categories";
 
 interface DynamicCategory {
   slug: string;
@@ -18,16 +17,8 @@ interface CategorySidebarProps {
   dynamicCategories?: DynamicCategory[];
 }
 
-// Map feed slugs → master parent slug
-const FEED_TO_PARENT: Record<string, string> = {
-  herrendufte: "parfum", damendufte: "parfum", "unisex-dufte": "parfum",
-  geschenksets: "parfum", pflege: "parfum", "make-up": "parfum",
-  haarpflege: "parfum", koerperpflege: "parfum", sonnenpflege: "parfum",
-};
-
 /** Returns true if the slug looks like valid text (not a numeric ID from a feed) */
 function isValidSlug(slug: string): boolean {
-  // Reject pure numbers, very short slugs, or slugs that are just IDs
   if (/^\d+$/.test(slug)) return false;
   if (slug.length < 3) return false;
   return true;
@@ -36,23 +27,16 @@ function isValidSlug(slug: string): boolean {
 export function CategorySidebar({ activeCategorySlug, dynamicCategories }: CategorySidebarProps) {
   const [expandedSlug, setExpandedSlug] = useState<string | null>(activeCategorySlug ?? null);
 
-  // Build a map of feed slug → product count from DB (only valid text slugs)
+  // Build a map of feed slug → product count from DB (only valid text slugs).
+  // We use this to enrich the subcategory rows with live counts — nothing
+  // else. Unmapped / junk categories are intentionally NOT shown here; the
+  // sidebar is strictly the curated master list.
   const feedCounts = new Map<string, number>();
   for (const dc of dynamicCategories ?? []) {
     if (dc.productCount > 0 && isValidSlug(dc.slug) && dc.slug !== "sonstiges" && dc.slug !== "seed") {
       feedCounts.set(dc.slug, dc.productCount);
     }
   }
-
-  // Feed categories that don't belong to any master category (only valid text names)
-  const masterSlugs = new Set(CATEGORIES.map((c) => c.slug));
-  const mappedSlugs = new Set(Object.keys(FEED_TO_PARENT));
-  const HIDDEN = new Set(["sonstiges", "seed", "parfum"]);
-  const unmappedFeed = (dynamicCategories ?? []).filter(
-    (dc) => !masterSlugs.has(dc.slug) && !mappedSlugs.has(dc.slug)
-      && dc.productCount > 0 && isValidSlug(dc.slug)
-      && !HIDDEN.has(dc.slug) && !dc.slug.includes("-gt-"),
-  );
 
   return (
     <nav>
@@ -103,26 +87,6 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
           </div>
         );
       })}
-
-      {/* Unmapped feed categories (only named ones, no junk) */}
-      {unmappedFeed.length > 0 && (
-        <>
-          <div className="my-3 border-t border-gray-100" />
-          {unmappedFeed.slice(0, 8).map((dc) => {
-            const Icon = getCategoryIcon(dc.slug);
-            return (
-              <Link key={dc.slug} href={`/category/${dc.slug}`}
-                className="group flex items-center justify-between py-[5px] text-[13px] text-gray-500 transition hover:text-gray-900">
-                <span className="flex items-center gap-2">
-                  <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" strokeWidth={1.75} />
-                  {dc.name}
-                </span>
-                <span className="text-[10px] text-gray-300">{dc.productCount}</span>
-              </Link>
-            );
-          })}
-        </>
-      )}
 
       {/* Service Links — styled like categories */}
       <div className="mt-5 border-t border-gray-100 pt-3">

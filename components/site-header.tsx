@@ -281,16 +281,40 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
 
       {/* Header */}
       <header ref={headerRef} className="header-shadow sticky top-[9px] z-40 bg-white">
-        {/* ── DESKTOP (lg+) — Galaxus-style compact bar, h-14 ── */}
+        {/* ── DESKTOP (lg+) — Galaxus-style compact bar, h-14 ──
+            Layout is 3-layer:
+              1) logo pinned to the LEFT edge
+              2) icons/login pinned to the RIGHT edge (ml-auto)
+              3) search ABSOLUTELY centered in the viewport so it stays
+                 visually in the middle regardless of logo/login widths.
+        */}
         <div className="hidden lg:block">
-          <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-6 px-6 xl:h-[60px] xl:px-8">
+          <div className="relative mx-auto flex h-14 max-w-[1600px] items-center px-6 xl:h-[60px] xl:px-8">
+            {/* LEFT — logo */}
             <PreisAlarmLogo size="md" />
-            <form ref={searchRef} onSubmit={handleSearchSubmit} className="search-shine relative ml-4 max-w-[720px] flex-1">
+
+            {/* CENTER — search, absolutely centered within the header */}
+            <form
+              ref={searchRef}
+              onSubmit={handleSearchSubmit}
+              className="search-shine absolute left-1/2 top-1/2 w-full max-w-[560px] -translate-x-1/2 -translate-y-1/2 px-4 xl:max-w-[640px]"
+            >
               <div className="flex h-9 items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg xl:h-10">
                 <Search className="ml-4 h-4 w-4 shrink-0 text-gray-400" />
-                <input type="search" enterKeyHint="search" value={query} onChange={(e) => onQueryChange(e.target.value)} onFocus={() => setSearchFocused(true)}
-                  placeholder={t("searchPlaceholder")} className="min-w-0 flex-1 bg-transparent px-2.5 py-1.5 text-[14px] outline-none placeholder:text-gray-400" />
-                <button type="button" onClick={() => showVision?.()} className="group/cam relative mr-1.5 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <input
+                  type="search"
+                  enterKeyHint="search"
+                  value={query}
+                  onChange={(e) => onQueryChange(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  placeholder={t("searchPlaceholder")}
+                  className="min-w-0 flex-1 bg-transparent px-2.5 py-1.5 text-[14px] outline-none placeholder:text-gray-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => showVision?.()}
+                  className="group/cam relative mr-1.5 flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
                   <Camera className="h-4 w-4" />
                   <span className="pointer-events-none absolute -bottom-14 left-1/2 z-50 w-72 -translate-x-1/2 rounded-lg bg-white px-3 py-2.5 text-xs leading-relaxed text-slate-700 opacity-0 shadow-lg ring-1 ring-gray-200 transition group-hover/cam:opacity-100">
                     <strong className="text-slate-800">KI-Bildsuche</strong> — Lade ein Foto hoch und finde das günstigste Angebot in der Schweiz. Powered by OpenAI Vision.
@@ -299,8 +323,9 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               </div>
               {searchResultsDropdown}
             </form>
-            {/* Right: Pin + Heart + Lang + Auth — compact 36px icons */}
-            <div className="flex shrink-0 items-center gap-0.5">
+
+            {/* RIGHT — Lang + Pin + Heart + Auth, strictly right-aligned via ml-auto */}
+            <div className="ml-auto flex shrink-0 items-center gap-0.5">
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
                 <Pin className="h-[18px] w-[18px]" />
@@ -313,19 +338,62 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                   <User className="h-[18px] w-[18px] fill-current" />
                 </Link>
               ) : (
-                <button onClick={() => setShowAuthModal(true)} className="ml-1 rounded-full bg-gray-900 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-gray-800">{t("login")}</button>
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="ml-1 rounded-full bg-gray-900 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-gray-800"
+                >
+                  {t("login")}
+                </button>
               )}
             </div>
           </div>
           <div className="border-b border-gray-200" />
         </div>
 
-        {/* ── MOBILE (<lg) — Galaxus-compact: 2 rows, 44px touch targets ── */}
+        {/* ── MOBILE (<lg) — 2 rows, 44px touch target on row 2 ──
+            Row 1 hosts the utility icons (lang · pin · heart · user/login)
+            on the RIGHT next to the logo. Row 2 stays with Menu + Search
+            so the search is always reachable even when row 1 collapses
+            on scroll-down. */}
         <div className="lg:hidden">
-          {/* Row 1: Logo + lang — collapses on scroll-down */}
+          {/* Row 1: Logo + utility icons — collapses on scroll-down */}
           <div className={`flex items-center justify-between px-4 transition-all duration-300 ${hideTopRow ? "h-0 overflow-hidden opacity-0" : "h-11 opacity-100"}`}>
             <PreisAlarmLogo size="sm" />
-            <LanguageSwitcher current={lang} onChange={setLang} />
+            <div className="flex items-center gap-0.5">
+              <LanguageSwitcher current={lang} onChange={setLang} />
+              <Link
+                href="/account"
+                aria-label="Merkliste"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
+              >
+                <Pin className="h-[18px] w-[18px]" />
+              </Link>
+              <Link
+                href="/account"
+                aria-label="Favoriten"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
+              >
+                <Heart className="h-[18px] w-[18px]" />
+              </Link>
+              {isLoggedIn ? (
+                <Link
+                  href="/account"
+                  aria-label="Account"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-gray-900 hover:bg-gray-100"
+                >
+                  <User className="h-[18px] w-[18px] fill-current" />
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAuthModal(true)}
+                  aria-label="Anmelden"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100"
+                >
+                  <User className="h-[18px] w-[18px]" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Row 2: Menu + Search — always visible, taller click targets */}

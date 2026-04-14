@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Instagram, Facebook, Youtube } from "lucide-react";
+import { Bell, Instagram, Facebook, Youtube } from "lucide-react";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { LangProvider } from "@/lib/i18n-context";
 import { NextAuthProvider } from "@/components/session-provider";
@@ -81,6 +81,29 @@ export default function RootLayout({
           <BackToTop />
           <MobileStickyBar />
 
+          {/* ═══ Preisalarm CTA — dark-navy band, sits directly above
+              the rainbow divider + footer. Visible on every page. ═══ */}
+          <section className="bg-[#1a1f36] px-4 py-12 sm:px-6 sm:py-14">
+            <div className="mx-auto max-w-xl text-center">
+              <span className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/10">
+                <Bell className="h-[18px] w-[18px]" />
+              </span>
+              <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                Preisalarm
+              </h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-gray-300 sm:text-sm">
+                Erstelle einen Alarm und wir informieren dich, sobald der Preis sinkt.
+              </p>
+              <Link
+                href="/account"
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#D81E05] px-7 py-3 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-[#b91a04] active:translate-y-0"
+              >
+                <Bell className="h-4 w-4" />
+                Preisalarm erstellen
+              </Link>
+            </div>
+          </section>
+
           {/* ═══ Global Footer — visible on ALL breakpoints, stacked on mobile ═══ */}
           <div className="rainbow-bar" />
           <footer className="bg-white px-5 py-10 sm:px-6 sm:py-12">
@@ -125,12 +148,6 @@ export default function RootLayout({
                     </a>
                   ))}
                 </div>
-                <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-gray-500">Partner-Shops</p>
-                <nav className="mt-2 flex flex-col gap-1.5">
-                  <span>XXL Parfum · Parfumsale</span>
-                  <span>Import Parfumerie · Coop Vitality</span>
-                  <span>New Balance · Parfum.ch · Ackermann</span>
-                </nav>
               </div>
             </div>
             <div className="mx-auto mt-8 max-w-[1400px] border-t border-[#f0f0f2] pt-5 text-center text-[10px] text-gray-300">
