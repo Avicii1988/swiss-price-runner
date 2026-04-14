@@ -282,22 +282,24 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
       {/* Header */}
       <header ref={headerRef} className="header-shadow sticky top-[9px] z-40 bg-white">
         {/* ── DESKTOP (lg+) — Galaxus-style compact bar, h-14 ──
-            Layout is 3-layer:
-              1) logo pinned to the LEFT edge
-              2) icons/login pinned to the RIGHT edge (ml-auto)
-              3) search ABSOLUTELY centered in the viewport so it stays
-                 visually in the middle regardless of logo/login widths.
-        */}
+            Layout uses symmetric flex-1 sides with a fixed-width search
+            in the middle. Because both sides have `flex-1` (equal share
+            of the remaining space), the search sits at the exact
+            horizontal center of the viewport regardless of how wide the
+            logo or the login pill happen to be. No absolute positioning,
+            no overlap risk when the header shrinks below lg. */}
         <div className="hidden lg:block">
-          <div className="relative mx-auto flex h-14 max-w-[1600px] items-center px-6 xl:h-[60px] xl:px-8">
-            {/* LEFT — logo */}
-            <PreisAlarmLogo size="md" />
+          <div className="mx-auto flex h-14 max-w-[1600px] items-center px-6 xl:h-[60px] xl:px-8">
+            {/* LEFT — logo, anchored to the left of an equal-width column */}
+            <div className="flex flex-1 items-center">
+              <PreisAlarmLogo size="md" />
+            </div>
 
-            {/* CENTER — search, absolutely centered within the header */}
+            {/* CENTER — search, fixed max width, sits in the exact viewport middle */}
             <form
               ref={searchRef}
               onSubmit={handleSearchSubmit}
-              className="search-shine absolute left-1/2 top-1/2 w-full max-w-[560px] -translate-x-1/2 -translate-y-1/2 px-4 xl:max-w-[640px]"
+              className="search-shine relative mx-6 w-full max-w-[560px] shrink-0 xl:max-w-[640px]"
             >
               <div className="flex h-9 items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg xl:h-10">
                 <Search className="ml-4 h-4 w-4 shrink-0 text-gray-400" />
@@ -324,8 +326,8 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
               {searchResultsDropdown}
             </form>
 
-            {/* RIGHT — Lang + Pin + Heart + Auth, strictly right-aligned via ml-auto */}
-            <div className="ml-auto flex shrink-0 items-center gap-0.5">
+            {/* RIGHT — Lang + Pin + Heart + Auth, anchored to the right of an equal-width column */}
+            <div className="flex flex-1 items-center justify-end gap-0.5">
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link href="/account" className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100" title="Merkliste">
                 <Pin className="h-[18px] w-[18px]" />
