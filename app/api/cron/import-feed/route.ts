@@ -353,8 +353,23 @@ async function bulkUpsertBatch(
 ): Promise<{ imported: number; errors: number }> {
   if (prepared.length === 0) return { imported: 0, errors: 0 };
 
+  // De-duplicate within this batch by gtin (the @unique key on Product).
+  // Some feeds (e.g. parfum_ch) list the same product multiple times with
+  // different variant IDs but identical GTINs — PostgreSQL's ON CONFLICT
+  // refuses to update the same target row twice in one statement.
+  // Keep the LAST occurrence so the newest data wins.
+  // Cross-shop GTIN sharing still works — each feed runs its own batch with
+  // its own feed.id, and Price is unique-keyed on (productId, sourceId).
+  const dedupedMap = new Map<string, typeof prepared[number]>();
+  for (const p of prepared) dedupedMap.set(p.gtin, p);
+  const deduped = Array.from(dedupedMap.values());
+  const droppedDupes = prepared.length - deduped.length;
+  if (droppedDupes > 0) {
+    console.log(`[Import ${feed.id}] deduped ${droppedDupes} in-batch gtin duplicates`);
+  }
+
   // Pre-generate IDs so we can use them in BOTH the Product insert and Price insert
-  const withIds = prepared.map((p) => ({ ...p, newId: generateId() }));
+  const withIds = deduped.map((p) => ({ ...p, newId: generateId() }));
 
   // ── Step 1: Bulk Product UPSERT ──
   const productRows = Prisma.join(
@@ -410,7 +425,7 @@ async function bulkUpsertBatch(
       timestamp = NOW()
   `;
 
-  return { imported: productResults.length, errors: prepared.length - productResults.length };
+  return { imported: productResults.length, errors: deduped.length - productResults.length };
 }
 
 async function logImport(feedId: string, skip: number, total: number, imported: number, errors: number, status: string, message: string) {

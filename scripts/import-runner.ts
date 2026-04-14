@@ -375,8 +375,21 @@ async function bulkUpsertBatch(
 ): Promise<{ imported: number; errors: number }> {
   if (prepared.length === 0) return { imported: 0, errors: 0 };
 
+  // De-duplicate within this batch by gtin (the @unique key on Product).
+  // Some feeds (e.g. parfum_ch) list the same product multiple times with
+  // different variant IDs but identical GTINs — PostgreSQL's ON CONFLICT
+  // refuses to update the same target row twice in one statement.
+  // Keep the LAST occurrence so the newest data wins.
+  // NOTE: Cross-shop deduping is not affected — each feed runs its own
+  // bulkUpsertBatch call with its own feed.id, so different shops can
+  // still share a GTIN (separate Price rows via @@unique([productId, sourceId])).
+  const dedupedMap = new Map<string, PreparedItem>();
+  for (const p of prepared) dedupedMap.set(p.gtin, p);
+  const deduped = Array.from(dedupedMap.values());
+  const droppedDupes = prepared.length - deduped.length;
+
   const productRows = Prisma.join(
-    prepared.map((p) => Prisma.sql`(${p.newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())`),
+    deduped.map((p) => Prisma.sql`(${p.newId}, ${p.gtin}, ${p.title}, ${p.brand}, ${p.catSlug}, ${p.catName}, ${p.imageUrl}, true, ${p.priceChf}, ${feed.sourceType}, NOW(), NOW())`),
   );
 
   const updateClause = scrub
@@ -393,7 +406,7 @@ async function bulkUpsertBatch(
   const idByGtin = new Map(productResults.map((r) => [r.gtin, r.id]));
 
   const priceRows = Prisma.join(
-    prepared.flatMap((p) => {
+    deduped.flatMap((p) => {
       const productId = idByGtin.get(p.gtin);
       if (!productId) return [];
       return [Prisma.sql`(${generateId()}, ${productId}, ${feed.id}, ${feed.shopName}, ${p.priceChf}, 0, ${p.affiliateLink}, NOW())`];
@@ -410,7 +423,11 @@ async function bulkUpsertBatch(
       timestamp = NOW()
   `;
 
-  return { imported: productResults.length, errors: prepared.length - productResults.length };
+  if (droppedDupes > 0) {
+    console.log(`   ↳ deduped ${droppedDupes} in-batch gtin duplicate${droppedDupes === 1 ? "" : "s"}`);
+  }
+
+  return { imported: productResults.length, errors: deduped.length - productResults.length };
 }
 
 // ═══════════════════════════════════════════════════════════════════
