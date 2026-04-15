@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Store, Tag, Package } from "lucide-react";
+import { Bell, Tag, Package, Sparkles } from "lucide-react";
 import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
@@ -37,21 +37,23 @@ export default function HomeClient({ dynamicCategories, stats, shelves }: HomeCl
       )}
       <SiteHeader query={query} onQueryChange={setQuery} />
 
-      {/* ═══ Stats bar — Shops · Marken · Angebote ═══ */}
+      {/* ═══ Mission bar — short, punchy positioning line.
+          Replaces the old Shops/Marken/Angebote counter. Tells new
+          visitors in one breath what the site does and hints at the
+          signature feature (Preisalarm). Shop count is hidden (user
+          feedback: revealing "17 Shops" looked thin for a price
+          comparison site in beta). Marken + Angebote counters moved
+          to a dedicated band above the News sidebar. ═══ */}
       <div className="bg-gradient-to-r from-[#1a1f36] to-[#2d3561]">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-center gap-6 px-4 py-2.5 sm:gap-10 sm:px-6">
-          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-white/80">
-            <Store className="h-3.5 w-3.5 text-white/50" />
-            {stats.shops} Shops
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-white/80">
-            <Tag className="h-3.5 w-3.5 text-white/50" />
-            {stats.brands.toLocaleString("de-CH")} Marken
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-white/80">
-            <Package className="h-3.5 w-3.5 text-white/50" />
-            {stats.offers.toLocaleString("de-CH")} Angebote
-          </span>
+        <div className="mx-auto flex max-w-[1400px] items-center justify-center gap-2 px-4 py-2.5 text-center sm:gap-3 sm:px-6">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-white/60" />
+          <p className="text-[12px] font-medium text-white/90 sm:text-[13px]">
+            Schweizer Preisvergleich für Parfum, Beauty &amp; Lifestyle —
+            <span className="hidden text-white/60 sm:inline"> neutral, unabhängig,</span>
+            {" "}mit Echtzeit-
+            <span className="font-semibold text-white">Preisalarm</span>.
+          </p>
+          <Bell className="h-3.5 w-3.5 shrink-0 text-white/60" />
         </div>
       </div>
 
@@ -96,7 +98,37 @@ export default function HomeClient({ dynamicCategories, stats, shelves }: HomeCl
 
           {/* Right — News & Trends */}
           <aside className="hidden w-72 shrink-0 border-l border-[#e1e1e3] pl-8 xl:block">
-            <div className="sticky top-[76px] max-h-[calc(100vh-100px)] overflow-y-auto">
+            <div className="sticky top-[76px] max-h-[calc(100vh-100px)] overflow-y-auto pr-1">
+              {/* Catalogue counter band — dark-navy pill with the two
+                  numbers that matter (brands + offers). Moved here from
+                  the old top stats bar so the hero strip stays editorial
+                  and the catalogue scale lives next to the news list. */}
+              <div className="mb-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1a1f36] to-[#2d3561] p-4 text-white">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-white/60">
+                  Katalog
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="flex items-center gap-1.5 text-[10px] font-medium text-white/60">
+                      <Tag className="h-3 w-3" strokeWidth={2.2} />
+                      Marken
+                    </span>
+                    <p className="mt-0.5 text-xl font-bold tabular-nums tracking-tight">
+                      {stats.brands.toLocaleString("de-CH")}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="flex items-center gap-1.5 text-[10px] font-medium text-white/60">
+                      <Package className="h-3 w-3" strokeWidth={2.2} />
+                      Angebote
+                    </span>
+                    <p className="mt-0.5 text-xl font-bold tabular-nums tracking-tight">
+                      {stats.offers.toLocaleString("de-CH")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
                 News &amp; Trends
               </p>
