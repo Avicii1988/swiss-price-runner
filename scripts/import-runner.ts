@@ -76,6 +76,17 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Ackermann Technik",
     sourceType: "adtraction_feed",
   },
+  bergfreunde: {
+    id: "bergfreunde",
+    // Bergfreunde — Adtraction feed (pfid=1213, gsh=1 → gross CHF, gt=1 → tagged).
+    // Outdoor gear: climbing, hiking, skiing, trail running. CHF-native so it
+    // flows through the Swiss-shop path (buildSwissShopBreakdown) just like
+    // parfum_ch / ackermann_ch. URL can be overridden via BERGFREUNDE_FEED_URL.
+    url: process.env.BERGFREUNDE_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1686076672&asid=2064719298&gsh=1&pfid=1213&gt=1",
+    shopName: "Bergfreunde",
+    sourceType: "adtraction_feed",
+  },
 };
 
 // CATEGORY_MAP, FEED_CATEGORY_DEFAULTS, BEAUTY_KEYWORD_RULES, resolveCategory

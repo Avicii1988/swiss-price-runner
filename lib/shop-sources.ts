@@ -54,6 +54,13 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     color: "#005ca9",
     wordmark: { text: "ackermann", color: "#005ca9", weight: 800 },
   },
+  bergfreunde: {
+    id: "bergfreunde",
+    name: "Bergfreunde",
+    // Corporate forest-green, lifted from bergfreunde.eu's primary accent.
+    color: "#4e7a27",
+    wordmark: { text: "BERGFREUNDE", color: "#4e7a27", weight: 800 },
+  },
   adtraction_xxl_parfum: {
     id: "adtraction_xxl_parfum",
     name: "XXL Parfum",
@@ -80,4 +87,5 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES.new_balance,
   SHOP_SOURCES.parfum_ch,
   SHOP_SOURCES.ackermann_ch,
+  SHOP_SOURCES.bergfreunde,
 ];
