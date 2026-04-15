@@ -9,7 +9,8 @@ import HomeClient from "./home-client";
 export const dynamic = "force-dynamic";
 
 /**
- * Four themed shelves on the homepage — curated, exactly 10 products each.
+ * Four themed shelves on the homepage — curated, 12 products each
+ * (3 cols × 4 rows on the default desktop grid, no orphans).
  * The "trending" slot auto-excludes the slugs covered by the other three
  * so users don't see duplicates across sections.
  */
@@ -52,7 +53,7 @@ export default async function HomePage() {
   const [dynamicCategories, stats, shelves] = await Promise.all([
     getDynamicCategories(),
     getSiteStats(),
-    getThematicShelves(HOME_SHELVES, 10),
+    getThematicShelves(HOME_SHELVES, 12),
   ]);
 
   return (

@@ -162,12 +162,13 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
             </nav>
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-              {/* Image */}
+              {/* Image — no background tint; just the bare product shot
+                  against the page white, Galaxus-style. */}
               <div className="lg:col-span-5">
-                <div className="sticky top-28 rounded-xl bg-gray-50 p-6 sm:p-10">
+                <div className="sticky top-28 p-4 sm:p-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={product.imageUrl || "/icon.svg"} alt={product.title} width={400} height={400}
-                    className="mx-auto h-52 w-52 object-contain sm:h-72 sm:w-72" />
+                    className="mx-auto h-52 w-52 object-contain sm:h-80 sm:w-80" />
                 </div>
               </div>
 

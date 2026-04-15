@@ -7,6 +7,7 @@ import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { ProductShelf } from "@/components/home/product-shelf";
+import { ViewModeToggle, type ViewMode } from "@/components/view-mode-toggle";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 import type { ThematicShelf } from "@/lib/data";
 
@@ -26,6 +27,8 @@ const BLOG_ARTICLES = [
 export default function HomeClient({ dynamicCategories, stats, shelves }: HomeClientProps) {
   const [query, setQuery] = useState("");
   const [alertProduct, setAlertProduct] = useState<MockProductWithHistory | null>(null);
+  // Home-page view mode — defaults to grid. Persisted only for the session.
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   return (
     <div className="min-h-screen bg-white">
@@ -64,6 +67,12 @@ export default function HomeClient({ dynamicCategories, stats, shelves }: HomeCl
 
           {/* Center — themed product shelves */}
           <main className="min-w-0 flex-1">
+            {/* View toolbar — mirrors the control on category pages so
+                users can flip between grid and list across the app. */}
+            <div className="mb-3 flex items-center justify-end">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+
             {shelves.map(({ slot, items }) => (
               <ProductShelf
                 key={slot.key}
@@ -71,7 +80,8 @@ export default function HomeClient({ dynamicCategories, stats, shelves }: HomeCl
                 subtitle={slot.subtitle}
                 items={items}
                 href={slot.href ?? "/"}
-                limit={10}
+                limit={12}
+                layout={viewMode}
               />
             ))}
 

@@ -289,19 +289,19 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             logo or the login pill happen to be. No absolute positioning,
             no overlap risk when the header shrinks below lg. */}
         <div className="hidden lg:block">
-          <div className="mx-auto flex h-14 max-w-[1600px] items-center px-6 xl:h-[60px] xl:px-8">
+          <div className="mx-auto flex h-[72px] max-w-[1760px] items-center px-8 xl:h-[84px] xl:px-12">
             {/* LEFT — logo, anchored to the left of an equal-width column */}
             <div className="flex flex-1 items-center">
-              <PreisAlarmLogo size="md" />
+              <PreisAlarmLogo size="lg" />
             </div>
 
             {/* CENTER — search, fixed max width, sits in the exact viewport middle */}
             <form
               ref={searchRef}
               onSubmit={handleSearchSubmit}
-              className="search-shine relative mx-6 w-full max-w-[560px] shrink-0 xl:max-w-[640px]"
+              className="search-shine relative mx-6 w-full max-w-[620px] shrink-0 xl:max-w-[720px]"
             >
-              <div className="flex h-9 items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg xl:h-10">
+              <div className="flex h-11 items-center rounded-full border border-gray-300 bg-white transition-shadow focus-within:border-transparent focus-within:shadow-lg xl:h-12">
                 <Search className="ml-4 h-4 w-4 shrink-0 text-gray-400" />
                 <input
                   type="search"
@@ -359,8 +359,8 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             on scroll-down. */}
         <div className="lg:hidden">
           {/* Row 1: Logo + utility icons — collapses on scroll-down */}
-          <div className={`flex items-center justify-between px-4 transition-all duration-300 ${hideTopRow ? "h-0 overflow-hidden opacity-0" : "h-11 opacity-100"}`}>
-            <PreisAlarmLogo size="sm" />
+          <div className={`flex items-center justify-between px-4 transition-all duration-300 ${hideTopRow ? "h-0 overflow-hidden opacity-0" : "h-14 opacity-100"}`}>
+            <PreisAlarmLogo size="md" />
             <div className="flex items-center gap-0.5">
               <LanguageSwitcher current={lang} onChange={setLang} />
               <Link

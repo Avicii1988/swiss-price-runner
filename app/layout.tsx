@@ -6,8 +6,7 @@ import { LangProvider } from "@/lib/i18n-context";
 import { NextAuthProvider } from "@/components/session-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { BackToTop } from "@/components/back-to-top";
-import { MobileStickyBar } from "@/components/mobile-sticky-bar";
-import { PreisAlarmLogo } from "@/components/preisalarm-logo";
+import { PreisAlarmLogo, PreisAlarmBell } from "@/components/preisalarm-logo";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -65,38 +64,33 @@ export default function RootLayout({
 }) {
   return (
     <html lang="de-CH">
-      {/*
-        Body reserves 64 + safe-area for the mobile sticky bar so scrollable
-        content is never hidden behind it. Desktop (sm+) removes the padding.
-      */}
-      <body
-        className="min-h-screen bg-white text-gray-900 antialiased"
-        style={{ paddingBottom: "calc(64px + env(safe-area-inset-bottom))" }}
-      >
+      <body className="min-h-screen bg-white text-gray-900 antialiased">
         <NextAuthProvider>
         <LangProvider>
         <AuthProvider>
           <AuthModal />
           {children}
           <BackToTop />
-          <MobileStickyBar />
 
           {/* ═══ Preisalarm CTA — dark-navy band, sits directly above
-              the rainbow divider + footer. Visible on every page. ═══ */}
-          <section className="bg-[#1a1f36] px-4 py-12 sm:px-6 sm:py-14">
+              the rainbow divider + footer. Visible on every page.
+              The icon pill shows the PreisAlarm bell logo (not a
+              generic lucide Bell) so the mark stays consistent with
+              the header wordmark and the favicon. ═══ */}
+          <section className="bg-[#1a1f36] px-4 py-8 sm:px-6 sm:py-10">
             <div className="mx-auto max-w-xl text-center">
-              <span className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 ring-1 ring-white/10">
-                <Bell className="h-[18px] w-[18px]" />
+              <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-white ring-1 ring-white/10">
+                <PreisAlarmBell size={28} />
               </span>
-              <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-[26px]">
                 Preisalarm
               </h2>
-              <p className="mt-2 text-[13px] leading-relaxed text-gray-300 sm:text-sm">
+              <p className="mt-1.5 text-[13px] leading-relaxed text-gray-300 sm:text-sm">
                 Erstelle einen Alarm und wir informieren dich, sobald der Preis sinkt.
               </p>
               <Link
                 href="/account"
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#D81E05] px-7 py-3 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-[#b91a04] active:translate-y-0"
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#D81E05] px-7 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-px hover:bg-[#b91a04] active:translate-y-0"
               >
                 <Bell className="h-4 w-4" />
                 Preisalarm erstellen
@@ -104,10 +98,10 @@ export default function RootLayout({
             </div>
           </section>
 
-          {/* ═══ Global Footer — visible on ALL breakpoints, stacked on mobile ═══ */}
+          {/* ═══ Global Footer — slim: copyright gets its own compact row. ═══ */}
           <div className="rainbow-bar" />
-          <footer className="bg-white px-5 py-10 sm:px-6 sm:py-12">
-            <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-8 text-[12px] text-gray-400 sm:grid-cols-2 lg:grid-cols-4">
+          <footer className="bg-white px-5 py-6 sm:px-6 sm:py-7">
+            <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-6 text-[12px] text-gray-400 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <PreisAlarmLogo size="sm" />
                 <p className="mt-3 leading-relaxed">
@@ -150,7 +144,7 @@ export default function RootLayout({
                 </div>
               </div>
             </div>
-            <div className="mx-auto mt-8 max-w-[1400px] border-t border-[#f0f0f2] pt-5 text-center text-[10px] text-gray-300">
+            <div className="mx-auto mt-5 max-w-[1400px] border-t border-[#f0f0f2] pt-3 text-center text-[10px] text-gray-300">
               &copy; {new Date().getFullYear()} PreisAlarm.ch — Preisvergleich Schweiz
             </div>
           </footer>
