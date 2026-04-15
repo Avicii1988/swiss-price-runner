@@ -42,6 +42,11 @@ model Product {
   /// Extracted size label, kept for the variant selector on the PDP.
   /// Example: "50 ml", "100 ml", "Gr. 42". NULL if no size detected.
   sizeLabel String?
+  /// Merchant description text from the feed (`g:description`). Persisted
+  /// so the recategorize runner can re-scan keywords against the richer
+  /// marketing copy, not just the (often truncated) product title.
+  /// Capped at 2000 chars during import.
+  description String?   @db.Text
   embedding     String?   @db.Text
   /// The vector column exists in DB but is managed via raw SQL only.
   /// Prisma cannot serialize pgvector types, so we exclude it from the model.

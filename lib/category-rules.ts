@@ -19,7 +19,34 @@ export interface CategoryRule {
 }
 
 export const CATEGORY_MAP: CategoryRule[] = [
-  // ── Parfum ───────────────────────────────────────────────────
+  // ── Nischen- & Luxusparfums (matched BEFORE generic parfum block) ─
+  // Brand-specific patterns have to win over the generic "fragrance"
+  // / "eau de parfum" rules below, otherwise Tom Ford, Creed, Byredo &
+  // co. would all fall into the flat `parfum` root. Recategorize relies
+  // on this order: resolveCategoryForExisting returns on first hit.
+  { pattern: "tom ford",                 path: ["parfum", "parfum-nische"], name: "Tom Ford" },
+  { pattern: "creed ",                   path: ["parfum", "parfum-nische"], name: "Creed" },
+  { pattern: "byredo",                   path: ["parfum", "parfum-nische"], name: "Byredo" },
+  { pattern: "le labo",                  path: ["parfum", "parfum-nische"], name: "Le Labo" },
+  { pattern: "diptyque",                 path: ["parfum", "parfum-nische"], name: "Diptyque" },
+  { pattern: "maison francis kurkdjian", path: ["parfum", "parfum-nische"], name: "Maison Francis Kurkdjian" },
+  { pattern: "memo paris",               path: ["parfum", "parfum-nische"], name: "Memo Paris" },
+  { pattern: "penhaligon",               path: ["parfum", "parfum-nische"], name: "Penhaligon's" },
+  { pattern: "serge lutens",             path: ["parfum", "parfum-nische"], name: "Serge Lutens" },
+  { pattern: "frederic malle",           path: ["parfum", "parfum-nische"], name: "Frederic Malle" },
+  { pattern: "roja parfums",             path: ["parfum", "parfum-nische"], name: "Roja" },
+  { pattern: "amouage",                  path: ["parfum", "parfum-nische"], name: "Amouage" },
+  { pattern: "parfums de marly",         path: ["parfum", "parfum-nische"], name: "Parfums de Marly" },
+  { pattern: "clive christian",          path: ["parfum", "parfum-nische"], name: "Clive Christian" },
+  { pattern: "xerjoff",                  path: ["parfum", "parfum-nische"], name: "Xerjoff" },
+  { pattern: "nasomatto",                path: ["parfum", "parfum-nische"], name: "Nasomatto" },
+  { pattern: "orto parisi",              path: ["parfum", "parfum-nische"], name: "Orto Parisi" },
+  { pattern: "initio parfums",           path: ["parfum", "parfum-nische"], name: "Initio" },
+  { pattern: "nishane",                  path: ["parfum", "parfum-nische"], name: "Nishane" },
+  { pattern: "montale",                  path: ["parfum", "parfum-nische"], name: "Montale" },
+  { pattern: "mancera",                  path: ["parfum", "parfum-nische"], name: "Mancera" },
+
+  // ── Parfum (generic) ─────────────────────────────────────────
   { pattern: "men's fragrance",   path: ["parfum", "herrendufte"],   name: "Herrendüfte" },
   { pattern: "men's eau de",      path: ["parfum", "herrendufte"],   name: "Herrendüfte" },
   { pattern: "aftershave",        path: ["parfum", "herrendufte"],   name: "Herrendüfte" },
@@ -61,9 +88,23 @@ export const CATEGORY_MAP: CategoryRule[] = [
   // ── Schuhe (with brand L3) ───────────────────────────────────
   { pattern: "nike air",      path: ["schuhe", "schuhe-sneakers", "sneakers-nike"],       name: "Nike Sneakers" },
   { pattern: "jordan",        path: ["schuhe", "schuhe-sneakers", "sneakers-nike"],       name: "Nike Jordan" },
+  { pattern: "nike dunk",     path: ["schuhe", "schuhe-sneakers", "sneakers-nike"],       name: "Nike Sneakers" },
+  { pattern: "nike pegasus",  path: ["schuhe", "schuhe-sneakers", "sneakers-nike"],       name: "Nike Pegasus" },
+  { pattern: "nike ",         path: ["schuhe", "schuhe-sneakers", "sneakers-nike"],       name: "Nike" },
   { pattern: "adidas",        path: ["schuhe", "schuhe-sneakers", "sneakers-adidas"],     name: "Adidas" },
   { pattern: "new balance",   path: ["schuhe", "schuhe-sneakers", "sneakers-newbalance"], name: "New Balance" },
   { pattern: "on cloud",      path: ["schuhe", "schuhe-sneakers", "sneakers-onrunning"],  name: "On Running" },
+  { pattern: "on running",    path: ["schuhe", "schuhe-sneakers", "sneakers-onrunning"],  name: "On Running" },
+  { pattern: "puma ",         path: ["schuhe", "schuhe-sneakers", "sneakers-puma"],       name: "Puma" },
+  { pattern: "asics",         path: ["schuhe", "schuhe-sneakers", "sneakers-asics"],      name: "Asics" },
+  { pattern: "hoka ",         path: ["schuhe", "schuhe-sneakers", "sneakers-hoka"],       name: "Hoka" },
+  { pattern: "salomon",       path: ["schuhe", "schuhe-sneakers", "sneakers-salomon"],    name: "Salomon" },
+  { pattern: "reebok",        path: ["schuhe", "schuhe-sneakers"],                        name: "Sneakers" },
+  { pattern: "converse",      path: ["schuhe", "schuhe-sneakers"],                        name: "Sneakers" },
+  { pattern: "vans ",         path: ["schuhe", "schuhe-sneakers"],                        name: "Sneakers" },
+  { pattern: "saucony",       path: ["schuhe", "schuhe-sneakers"],                        name: "Sneakers" },
+  { pattern: "mizuno",        path: ["schuhe", "schuhe-sneakers"],                        name: "Sneakers" },
+  { pattern: "brooks ",       path: ["schuhe", "schuhe-sneakers"],                        name: "Sneakers" },
   { pattern: "sneaker",       path: ["schuhe", "schuhe-sneakers"],                        name: "Sneakers" },
   { pattern: "running shoe",  path: ["schuhe", "schuhe-laufschuhe"],                      name: "Laufschuhe" },
   { pattern: "laufschuh",     path: ["schuhe", "schuhe-laufschuhe"],                      name: "Laufschuhe" },
@@ -107,13 +148,18 @@ export const CATEGORY_MAP: CategoryRule[] = [
 
   // ── Laptops ────────────────────────────────────────────────
   { pattern: "macbook",       path: ["laptops", "laptops-macbook"],                       name: "MacBook" },
+  { pattern: "mac mini",      path: ["laptops", "laptops-macbook"],                       name: "Mac Mini" },
+  { pattern: "mac studio",    path: ["laptops", "laptops-macbook"],                       name: "Mac Studio" },
+  { pattern: "imac",          path: ["laptops", "laptops-macbook"],                       name: "iMac" },
   { pattern: "gaming laptop", path: ["laptops", "laptops-windows", "laptops-gaming"],     name: "Gaming Laptops" },
   { pattern: "chromebook",    path: ["laptops", "laptops-chromebook"],                    name: "Chromebook" },
   { pattern: "notebook",      path: ["laptops", "laptops-windows"],                       name: "Windows Laptops" },
   { pattern: "laptop",        path: ["laptops"],                                          name: "Laptops & Computer" },
   { pattern: "monitor",       path: ["laptops", "laptops-monitors"],                      name: "Monitore" },
 
-  // ── Kopfhörer / Audio ───────────────────────────────────────
+  // ── Kopfhörer / Audio (Apple accessories matched before generic over-ear) ─
+  { pattern: "airpod",       path: ["kopfhoerer", "airpods"],                  name: "AirPods" },
+  { pattern: "homepod",      path: ["kopfhoerer", "homepod"],                  name: "HomePod" },
   { pattern: "over-ear",     path: ["kopfhoerer", "kopfhoerer-over-ear"],      name: "Over-Ear" },
   { pattern: "in-ear",       path: ["kopfhoerer", "kopfhoerer-in-ear"],        name: "In-Ear" },
   { pattern: "earbud",       path: ["kopfhoerer", "kopfhoerer-in-ear"],        name: "In-Ear" },
@@ -155,6 +201,24 @@ export const CATEGORY_MAP: CategoryRule[] = [
   { pattern: "smartwatch",      path: ["uhren", "uhren-smartwatch"], name: "Smartwatches" },
   { pattern: "fitness tracker", path: ["uhren", "uhren-smartwatch"], name: "Fitness Tracker" },
   { pattern: "apple watch",     path: ["uhren", "uhren-smartwatch"], name: "Apple Watch" },
+
+  // ── Luxusuhren ─────────────────────────────────────────────
+  { pattern: "rolex",               path: ["uhren", "uhren-luxus"], name: "Rolex" },
+  { pattern: "omega ",              path: ["uhren", "uhren-luxus"], name: "Omega" },
+  { pattern: "patek philippe",      path: ["uhren", "uhren-luxus"], name: "Patek Philippe" },
+  { pattern: "audemars piguet",     path: ["uhren", "uhren-luxus"], name: "Audemars Piguet" },
+  { pattern: "breitling",           path: ["uhren", "uhren-luxus"], name: "Breitling" },
+  { pattern: "iwc schaffhausen",    path: ["uhren", "uhren-luxus"], name: "IWC" },
+  { pattern: "tag heuer",           path: ["uhren", "uhren-luxus"], name: "TAG Heuer" },
+  { pattern: "cartier",             path: ["uhren", "uhren-luxus"], name: "Cartier" },
+  { pattern: "hublot",              path: ["uhren", "uhren-luxus"], name: "Hublot" },
+  { pattern: "panerai",             path: ["uhren", "uhren-luxus"], name: "Panerai" },
+  { pattern: "tudor ",              path: ["uhren", "uhren-luxus"], name: "Tudor" },
+  { pattern: "grand seiko",         path: ["uhren", "uhren-luxus"], name: "Grand Seiko" },
+  { pattern: "vacheron constantin", path: ["uhren", "uhren-luxus"], name: "Vacheron Constantin" },
+  { pattern: "jaeger-lecoultre",    path: ["uhren", "uhren-luxus"], name: "Jaeger-LeCoultre" },
+  { pattern: "luxusuhr",            path: ["uhren", "uhren-luxus"], name: "Luxusuhren" },
+  { pattern: "luxury watch",        path: ["uhren", "uhren-luxus"], name: "Luxusuhren" },
 
   // ── Haushalt ───────────────────────────────────────────────
   { pattern: "staubsauger",    path: ["haushalt", "haushalt-staubsauger"],    name: "Staubsauger" },
@@ -249,11 +313,15 @@ export function resolveCategory(
 
 /**
  * Resolve a category path for an EXISTING product (no feedId available).
- *   1. title + brand + description → CATEGORY_MAP (same keyword scan)
+ *   1. title + brand + description + categoryName → CATEGORY_MAP scan
  *   2. title + description → BEAUTY_KEYWORD_RULES
  *   3. fall back to the current leaf slug (no change recommended)
  *
- * Used by the recategorize runner.
+ * Used by the recategorize runner. Now includes `description` and the
+ * legacy `categoryName` in the haystack so brand signals that live in
+ * marketing copy (e.g. "Tom Ford — Noir Extreme for Men, Woody …")
+ * finally reach the pattern scan even when the product title is
+ * truncated.
  */
 export function resolveCategoryForExisting(
   title: string,
@@ -262,7 +330,7 @@ export function resolveCategoryForExisting(
   currentSlug: string,
   currentName: string | null,
 ): ResolvedCategory {
-  const haystack = `${title} ${brand} ${description}`.toLowerCase();
+  const haystack = `${title} ${brand} ${description} ${currentName ?? ""}`.toLowerCase();
   // Try CATEGORY_MAP patterns against the combined haystack
   for (const entry of CATEGORY_MAP) {
     if (haystack.includes(entry.pattern)) return { path: entry.path, name: entry.name };

@@ -440,6 +440,9 @@ interface PreparedItem {
   baseTitle: string | null;
   /** Extracted size label ("50 ml", "Gr. 42"). NULL if no size detected. */
   sizeLabel: string | null;
+  /** Feed <g:description>, truncated. Persisted so the recategorize
+   *  runner has richer keyword signal than the title alone. */
+  description: string | null;
 }
 
 async function bulkUpsertBatch(
@@ -470,6 +473,7 @@ async function bulkUpsertBatch(
       ${p.priceChf}, ${p.originalPriceChf},
       ${p.shippingCostChf}, ${p.priceIsNet},
       ${p.groupId}, ${p.baseTitle}, ${p.sizeLabel},
+      ${p.description},
       ${feed.sourceType}, NOW(), NOW()
     )`),
   );
@@ -488,6 +492,7 @@ async function bulkUpsertBatch(
         "groupId" = EXCLUDED."groupId",
         "baseTitle" = EXCLUDED."baseTitle",
         "sizeLabel" = EXCLUDED."sizeLabel",
+        description = EXCLUDED.description,
         "isActive" = true,
         "updatedAt" = NOW()`
     : Prisma.sql`
@@ -503,6 +508,7 @@ async function bulkUpsertBatch(
         "groupId" = COALESCE(EXCLUDED."groupId", "Product"."groupId"),
         "baseTitle" = COALESCE(EXCLUDED."baseTitle", "Product"."baseTitle"),
         "sizeLabel" = COALESCE(EXCLUDED."sizeLabel", "Product"."sizeLabel"),
+        description = COALESCE(NULLIF(EXCLUDED.description, ''), "Product".description),
         "isActive" = true,
         "updatedAt" = NOW()`;
 
@@ -513,6 +519,7 @@ async function bulkUpsertBatch(
       price, "originalPriceChf",
       "shippingCostChf", "priceIsNet",
       "groupId", "baseTitle", "sizeLabel",
+      description,
       "sourceType", "createdAt", "updatedAt"
     )
     VALUES ${productRows}
@@ -649,6 +656,7 @@ async function main() {
           groupId,
           baseTitle: baseTitle.slice(0, 500),
           sizeLabel,
+          description: decodedDescription ? decodedDescription.slice(0, 2000) : null,
         });
       }
 

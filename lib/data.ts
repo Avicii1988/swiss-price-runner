@@ -51,8 +51,15 @@ export async function getDynamicCategories(): Promise<
 }
 
 /**
- * Fetch all products from Supabase with latest prices.
- * Falls back to seed data if DB is empty or unreachable.
+ * Fetch a capped slice of products from Supabase with their latest
+ * prices. Falls back to seed data if the DB is empty or unreachable.
+ *
+ * The previous implementation pulled every active row (~16k+) on every
+ * call, which is the root cause of the slow server render on any page
+ * that reaches this function. Capped at 2000 — more than enough for
+ * the catch-all "no parent slug" category view and for the legacy
+ * consumers; specific listings should always use getProductsByCategory
+ * or getProductsPaginated instead.
  */
 export async function getProducts(): Promise<MockProductWithHistory[]> {
   try {
@@ -63,6 +70,8 @@ export async function getProducts(): Promise<MockProductWithHistory[]> {
         categoryName: true, imageUrl: true, shopName: true, sourceType: true,
         affiliateUrl: true, price: true,
       },
+      orderBy: { updatedAt: "desc" },
+      take: 2000,
     });
 
     if (dbProducts.length > 0) {

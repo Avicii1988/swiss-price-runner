@@ -12,7 +12,11 @@
  *   npx tsx scripts/recategorize-runner.ts --only parfum # limit to current category
  *
  * For every product:
- *   1. Use title + brand + description to resolve the best path[] via shared rules
+ *   1. Load title + brand + description + categoryName and hand the
+ *      combined haystack to resolveCategoryForExisting. The description
+ *      column was added so luxury brand signals that live in marketing
+ *      copy (e.g. "Tom Ford Noir — A woody oriental …") finally reach
+ *      the pattern scanner even when the product title is truncated.
  *   2. If the resulting leaf differs from Product.category → queue an UPDATE
  *   3. Upsert all ancestor Category rows (parentId linked)
  *   4. Commit: 1 multi-row UPDATE via VALUES join + 1 ensureCategories call
@@ -136,8 +140,10 @@ async function main() {
         brand: string;
         category: string;
         categoryName: string | null;
+        description: string;
       }>>`
-        SELECT id, gtin, title, brand, category, "categoryName"
+        SELECT id, gtin, title, brand, category, "categoryName",
+               COALESCE(description, '') AS description
         FROM "Product"
         WHERE ${whereSql}
         ORDER BY id ASC
@@ -160,7 +166,7 @@ async function main() {
         const resolved = resolveCategoryForExisting(
           row.title || "",
           row.brand || "",
-          "",                 // description not in this query; title/brand usually enough
+          row.description || "",
           row.category,
           row.categoryName,
         );
