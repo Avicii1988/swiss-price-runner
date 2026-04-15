@@ -84,6 +84,16 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     color: "#111111",
     wordmark: { text: "JELMOLI · MODE", color: "#111111", weight: 900 },
   },
+  bijouteria: {
+    // Bijouteria — Swiss jewelry retailer. Elegant purple (#8e44ad)
+    // reads as "premium / jewelry silver" against white and gives the
+    // ShopLogo chip its own identity next to XXL Parfum's red and the
+    // Jelmoli / Ackermann neutrals.
+    id: "bijouteria",
+    name: "Bijouteria",
+    color: "#8e44ad",
+    wordmark: { text: "BIJOUTERIA", color: "#8e44ad", weight: 800 },
+  },
   bergfreunde: {
     id: "bergfreunde",
     name: "Bergfreunde",
@@ -121,4 +131,5 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES.bergfreunde,
   SHOP_SOURCES.jelmoli,
   SHOP_SOURCES["jelmoli-mode"],
+  SHOP_SOURCES.bijouteria,
 ];

@@ -1,0 +1,69 @@
+name: Import Bijouteria
+
+# Dedicated workflow for the Bijouteria Adtraction feed (pfid=863).
+# Swiss jewelry vertical — silver / gold / titanium schmuck, piercings,
+# rings, earrings, bracelets. Runs the standalone import-runner with
+# the `bijouteria` feed key. URL can be overridden via the
+# BIJOUTERIA_FEED_URL secret — otherwise the baked-in default in
+# scripts/import-runner.ts is used.
+#
+# The "Normalize DB URL" step prevents "prepared statement s0 already
+# exists" by preferring the direct non-pooled URL and auto-applying
+# ?pgbouncer=true&connection_limit=1 when only the pooler is available.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Items per batch"
+        required: false
+        default: "100"
+      scrub:
+        description: "Scrub mode (overwrite all fields, not just fill-in)"
+        required: false
+        default: "false"
+        type: boolean
+      feed_url:
+        description: "Override Adtraction feed URL (optional)"
+        required: false
+        default: ""
+      force_pooled:
+        description: "Force use of the pooled DATABASE_URL (auto-adds ?pgbouncer=true)"
+        required: false
+        default: "false"
+        type: boolean
+  schedule:
+    # Daily at 06:30 UTC (08:30 CEST) — staggered after Jelmoli Mode (06:00)
+    - cron: "30 6 * * *"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Normalize DB URL
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          FORCE_POOLED:   ${{ inputs.force_pooled }}
+        run: node .github/scripts/normalize-db-url.js
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run Bijouteria import
+        run: npx tsx scripts/import-runner.ts --feed bijouteria --limit ${{ inputs.limit || '100' }} ${{ inputs.scrub == true && '--scrub' || '' }}
+        env:
+          BIJOUTERIA_FEED_URL: ${{ inputs.feed_url != '' && inputs.feed_url || secrets.BIJOUTERIA_FEED_URL }}
