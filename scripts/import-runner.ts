@@ -76,6 +76,17 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Ackermann Technik",
     sourceType: "adtraction_feed",
   },
+  "ackermann-mode": {
+    id: "ackermann-mode",
+    // Ackermann Mode — Adtraction feed (pfid=1616, same apid as the Ackermann
+    // Technik feed). Fashion vertical with rich variant data (g:item_group_id,
+    // g:size, g:color all present on every item); URL can be overridden via
+    // ACKERMANN_MODE_FEED_URL for ad-hoc runs.
+    url: process.env.ACKERMANN_MODE_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1703604881&asid=2064719298&gsh=1&pfid=1616&gt=1",
+    shopName: "Ackermann Mode",
+    sourceType: "adtraction_feed",
+  },
   bergfreunde: {
     id: "bergfreunde",
     // Bergfreunde — Adtraction feed (pfid=1213, gsh=1 → gross CHF, gt=1 → tagged).
@@ -171,6 +182,12 @@ interface FeedItem {
   priceType: string;
   /** g:item_group_id — Google Merchant parent SKU used for variant grouping. */
   itemGroupId: string;
+  /** g:size — explicit size string when the feed provides it, more reliable
+   *  than parsing it out of the title (fashion feeds like Ackermann Mode). */
+  size: string;
+  /** g:color — colour variant label, used to split groupId when the feed
+   *  does not set g:item_group_id (so reds don't merge with blues). */
+  color: string;
 }
 
 /** Container tag — most Adtraction feeds use <item>, some use <product>. */
@@ -239,6 +256,11 @@ function parseFeedSlice(xml: string, idx: FeedIndex, offset: number, limit: numb
         "",
       priceType: (tag(block, "g:price_type") || tag(block, "priceType") || "").toLowerCase(),
       itemGroupId: tag(block, "g:item_group_id") || tag(block, "item_group_id") || tag(block, "parentSku") || "",
+      // g:size / g:color — fashion feeds (Ackermann Mode) set these per
+      // variant; parsed so the importer can prefer the feed-supplied value
+      // over what splitTitleBySize() guesses from the product title.
+      size: tag(block, "g:size") || tag(block, "size") || "",
+      color: tag(block, "g:color") || tag(block, "g:colour") || tag(block, "color") || tag(block, "colour") || "",
     });
   }
   return items;
@@ -317,17 +339,29 @@ function splitTitleBySize(title: string): TitleSplit {
 /**
  * Compute a deterministic group id shared by all variants of a product.
  * Preference:
- *   1. Feed-provided `g:item_group_id`             (most reliable)
- *   2. `brand|baseTitle` SHA-like hash             (fallback heuristic)
+ *   1. Feed-provided `g:item_group_id`                    (most reliable)
+ *   2. `brand|baseTitle|color` SHA-like hash              (fallback)
+ *
+ * Colour is folded into the hash so a fashion feed without g:item_group_id
+ * doesn't collapse a "T-Shirt Red / S" and a "T-Shirt Blue / S" into the
+ * same group (the VariantSelector would otherwise show both colours under
+ * one size chip set). When the feed supplies a proper item_group_id the
+ * colour is irrelevant — that ID is the authoritative parent.
  *
  * Returns NULL when neither signal is usable (keeps Product.groupId NULL
  * for truly single-variant SKUs).
  */
-function computeGroupId(itemGroupId: string, brand: string, baseTitle: string): string | null {
+function computeGroupId(
+  itemGroupId: string,
+  brand: string,
+  baseTitle: string,
+  color: string = "",
+): string | null {
   const explicit = (itemGroupId || "").trim();
   if (explicit) return `igi_${hashStr(explicit.toLowerCase())}`;
-  const key = `${(brand || "").trim().toLowerCase()}|${(baseTitle || "").trim().toLowerCase()}`;
-  if (!key || key === "|") return null;
+  const parts = [brand, baseTitle, color].map((p) => (p || "").trim().toLowerCase());
+  const key = parts.join("|");
+  if (!key.replace(/\|/g, "")) return null;
   return `grp_${hashStr(key)}`;
 }
 
@@ -634,12 +668,21 @@ async function main() {
         const shippingCostChf = parseSwissPrice(item.shippingCost);
         const priceIsNet = item.priceType === "net";
 
-        // ── Variant detection: split title by size suffix ──
+        // ── Variant detection: prefer feed-supplied size/colour over
+        //    title heuristics (fashion feeds such as Ackermann Mode set
+        //    g:size and g:color per variant explicitly). Falls back to
+        //    splitTitleBySize() when the feed is silent. Colour is also
+        //    folded into the groupId hash when g:item_group_id is missing
+        //    so colour variants don't collapse into one size chip set. ──
         const decodedTitle = decodeHtml(item.title || gtin);
         const decodedDescription = decodeHtml(item.description || "");
         const decodedBrand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
-        const { baseTitle, sizeLabel } = splitTitleBySize(decodedTitle);
-        const groupId = computeGroupId(item.itemGroupId, decodedBrand, baseTitle);
+        const feedSize = decodeHtml(item.size || "").trim();
+        const feedColor = decodeHtml(item.color || "").trim();
+        const titleSplit = splitTitleBySize(decodedTitle);
+        const baseTitle = titleSplit.baseTitle;
+        const sizeLabel = feedSize || titleSplit.sizeLabel;
+        const groupId = computeGroupId(item.itemGroupId, decodedBrand, baseTitle, feedColor);
 
         // ── Category resolution (in-memory, BEFORE DB write) ──
         const { path: catPath, name: catName } = resolveCategory(

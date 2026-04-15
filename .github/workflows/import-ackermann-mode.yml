@@ -1,0 +1,69 @@
+name: Import Ackermann Mode
+
+# Dedicated workflow for the Ackermann Mode Adtraction feed (pfid=1616).
+# Fashion vertical — the same apid as Ackermann Technik but a separate
+# product feed. Runs the standalone import-runner with the
+# `ackermann-mode` feed key. URL can be overridden via the
+# ACKERMANN_MODE_FEED_URL secret/env — otherwise the baked-in default
+# in scripts/import-runner.ts is used.
+#
+# The "Normalize DB URL" step prevents "prepared statement s0 already
+# exists" by preferring the direct non-pooled URL and auto-applying
+# ?pgbouncer=true&connection_limit=1 when only the pooler is available.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Items per batch"
+        required: false
+        default: "100"
+      scrub:
+        description: "Scrub mode (overwrite all fields, not just fill-in)"
+        required: false
+        default: "false"
+        type: boolean
+      feed_url:
+        description: "Override Adtraction feed URL (optional)"
+        required: false
+        default: ""
+      force_pooled:
+        description: "Force use of the pooled DATABASE_URL (auto-adds ?pgbouncer=true)"
+        required: false
+        default: "false"
+        type: boolean
+  schedule:
+    # Daily at 05:00 UTC (07:00 CEST) — staggered after Bergfreunde (04:30)
+    - cron: "0 5 * * *"
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Normalize DB URL
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          FORCE_POOLED:   ${{ inputs.force_pooled }}
+        run: node .github/scripts/normalize-db-url.js
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run Ackermann Mode import
+        run: npx tsx scripts/import-runner.ts --feed ackermann-mode --limit ${{ inputs.limit || '100' }} ${{ inputs.scrub == true && '--scrub' || '' }}
+        env:
+          ACKERMANN_MODE_FEED_URL: ${{ inputs.feed_url != '' && inputs.feed_url || secrets.ACKERMANN_MODE_FEED_URL }}
