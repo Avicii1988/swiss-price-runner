@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, Truck, PackageCheck } from "lucide-react";
 import { classifyShipping } from "@/lib/pricing/calculator";
+import { ShopLogo } from "@/components/shop-logo";
 import type { ShelfItem } from "@/lib/data";
 
 export type ShelfLayout = "grid" | "list";
@@ -94,9 +95,12 @@ function ShelfCard({ item }: { item: ShelfItem }) {
     ? Math.floor(item.variant!.minPriceChf)
     : Math.floor(bestPrice.totalChf);
 
-  // Shipping hint — use the first source's shipping (Swiss-shop default).
+  // Shipping hint + best shop — use the first source (Swiss-shop default).
   const firstSource = product.sources[0];
   const shipping = classifyShipping(firstSource?.shippingChf ?? null);
+  const bestShop = firstSource
+    ? { sourceId: firstSource.sourceId, sourceName: firstSource.sourceName }
+    : null;
 
   return (
     <Link
@@ -147,6 +151,14 @@ function ShelfCard({ item }: { item: ShelfItem }) {
           </div>
         )}
 
+        {/* Best-shop pill — tells users up front which retailer the price
+            comes from, without making them drill into the PDP. */}
+        {chf > 0 && bestShop && (
+          <div className="mt-1.5">
+            <ShopLogo sourceId={bestShop.sourceId} label={bestShop.sourceName} size="xs" />
+          </div>
+        )}
+
         {/* Shipping chip — tiny, only shown when we have a definitive answer */}
         {shipping.kind === "included" && (
           <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700">
@@ -179,6 +191,11 @@ function ShelfListRow({ item }: { item: ShelfItem }) {
     ? Math.floor(item.variant!.minPriceChf)
     : Math.floor(bestPrice.totalChf);
 
+  const firstSource = product.sources[0];
+  const bestShop = firstSource
+    ? { sourceId: firstSource.sourceId, sourceName: firstSource.sourceName }
+    : null;
+
   return (
     <Link
       href={`/product/${product.gtin}` as Route}
@@ -208,6 +225,11 @@ function ShelfListRow({ item }: { item: ShelfItem }) {
           <p className="mt-0.5 text-[11px] text-gray-400">
             {item.variant!.variantCount} Grössen verfügbar
           </p>
+        )}
+        {chf > 0 && bestShop && (
+          <div className="mt-1.5">
+            <ShopLogo sourceId={bestShop.sourceId} label={bestShop.sourceName} size="xs" />
+          </div>
         )}
       </div>
       {chf > 0 && (

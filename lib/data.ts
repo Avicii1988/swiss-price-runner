@@ -351,6 +351,12 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
   const productShippingChf = p.shippingCostChf == null ? null : Number(p.shippingCostChf);
   const productPriceIsNet = p.priceIsNet === true;
 
+  // Determine CHF price first so it can act as the canonical fallback for
+  // sources whose Price.amountChf is missing or zero (an occasional symptom
+  // of a partial import). The importer writes Price.amountEur = 0 for every
+  // feed row, so we can't trust the EUR column on its own.
+  const directPriceChf = p.price ? Number(p.price) : 0;
+
   const sourceMap = new Map<string, { chf: number; eur: number; url: string; shopName: string }>();
   for (const price of p.prices) {
     if (!sourceMap.has(price.sourceId)) {
@@ -363,27 +369,33 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     }
   }
 
-  // Determine CHF price: Product.price → Price.amountChf fallback → 0
-  const directPriceChf = p.price ? Number(p.price) : 0;
   const latestPriceChf = p.prices.length > 0 ? Number(p.prices[0].amountChf) : 0;
   const bestChf = directPriceChf > 0 ? directPriceChf : latestPriceChf;
 
   const seed = SEED_PRODUCTS.find((s) => s.gtin === p.gtin);
 
+  // All feed imports flow native CHF end-to-end: regardless of whether the
+  // Price row carries a valid amountChf or not, we prefer Product.price
+  // (directPriceChf) as the canonical display price. This defends against
+  // the "0.–" regression we'd see when a half-written Price row zeroed out
+  // the amount even though Product.price was intact.
   const sources = Array.from(sourceMap.entries()).map(([sid, { chf, eur, url, shopName: sName }]) => {
-    // Swiss-shop feed price flows through as native CHF — no EUR round-trip.
-    // enrichProduct picks buildSwissShopBreakdown when nativeChf is set.
-    if (isFeedProduct && chf > 0) {
+    const effectiveChf = chf > 0 ? chf : directPriceChf;
+    if (effectiveChf > 0) {
       return {
         sourceId: sid,
         sourceName: sName || SOURCE_NAMES[sid] || sid,
         url,
         currentPriceEur: 0,
-        nativeChf: chf,
+        nativeChf: effectiveChf,
         shippingChf: productShippingChf,
         priceIsNet: productPriceIsNet,
       };
     }
+    // Last resort: only reached when neither Price.amountChf nor
+    // Product.price are usable. Falls through the DE-import path, which
+    // will produce totalChf=0 for the empty EUR input; the UI prints
+    // "Preis auf Anfrage" for that state.
     return {
       sourceId: sid,
       sourceName: sName || SOURCE_NAMES[sid] || sid,
@@ -392,8 +404,11 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     };
   });
 
-  // Feed product without Price records: virtual source from Product fields
-  if (sources.length === 0 && isFeedProduct && bestChf > 0) {
+  // No Price rows at all but we know the product is a feed item with a
+  // sane Product.price → synthesise a virtual source so the UI still has
+  // something to click. `isFeedProduct` is kept as a safety guard so we
+  // don't invent shops for seed / legacy rows.
+  if (sources.length === 0 && (isFeedProduct || directPriceChf > 0) && bestChf > 0) {
     sources.push({
       sourceId: "feed_default",
       sourceName: p.shopName || "Shop",
