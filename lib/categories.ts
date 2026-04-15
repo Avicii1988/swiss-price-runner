@@ -12,7 +12,6 @@ import {
   Tv,
   Baby,
   Dumbbell,
-  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -65,83 +64,109 @@ function buildTree(specs: NodeSpec[], parentSlug: string | null = null, depth = 
 // ───────────────────────────────────────────────────────────────────
 
 const TREE_SPEC: NodeSpec[] = [
-  // 1. Smartphones
+  // 1. Parfum & Beauty — flagship vertical (XXL / Parfumsale / Import
+  //    Parfumerie / Coop Vitality / Parfum.ch). Every feed in this bucket
+  //    is CHF-native, so the L3 brand leaves under Herren/Damen map
+  //    directly onto existing CATEGORY_MAP patterns.
   {
-    slug: "smartphones",
-    name: "Smartphones",
-    icon: Smartphone,
-    description: "Handys & Zubehör – iPhone, Samsung, Pixel und mehr",
-    productCount: 847,
+    slug: "parfum",
+    name: "Parfum & Beauty",
+    icon: Droplets,
+    description: "Herren- und Damendüfte, Pflege, Make-up und Geschenksets",
+    productCount: 16000,
     children: [
       {
-        slug: "smartphones-apple",
-        name: "Apple iPhone",
-        productCount: 124,
+        slug: "damendufte",
+        name: "Damendüfte",
         children: [
-          { slug: "iphone", name: "iPhone Modelle" },
-          { slug: "ipad", name: "iPad" },
+          { slug: "damendufte-floral", name: "Floral" },
+          { slug: "damendufte-oriental", name: "Oriental" },
+          { slug: "damendufte-zitrus", name: "Zitrus & Frisch" },
         ],
       },
       {
-        slug: "smartphones-samsung",
-        name: "Samsung Galaxy",
-        productCount: 198,
-        children: [{ slug: "samsung-galaxy", name: "Galaxy Serie" }],
+        slug: "herrendufte",
+        name: "Herrendüfte",
+        children: [
+          { slug: "herrendufte-woody", name: "Woody" },
+          { slug: "herrendufte-fresh", name: "Frisch" },
+          { slug: "herrendufte-oriental", name: "Oriental" },
+        ],
       },
-      { slug: "smartphones-google", name: "Google Pixel", productCount: 45 },
-      { slug: "smartphones-xiaomi", name: "Xiaomi", productCount: 156 },
-      { slug: "smartphones-cases", name: "Hüllen & Schutzfolien", productCount: 324 },
+      { slug: "unisex-dufte", name: "Unisex" },
+      { slug: "parfum-nische", name: "Nischen- & Luxusparfum" },
+      { slug: "geschenksets", name: "Geschenksets" },
+      { slug: "pflege", name: "Gesichts- & Körperpflege" },
+      { slug: "make-up", name: "Make-up" },
+      { slug: "haarpflege", name: "Haarpflege" },
+      { slug: "koerperpflege", name: "Körperpflege" },
+      { slug: "sonnenpflege", name: "Sonnenpflege" },
     ],
   },
-  // 2. Laptops & Computer
+
+  // 2. Mode & Bekleidung — expanded to match Jelmoli Mode / Ackermann
+  //    Mode feeds. L3 slugs cover the product types these feeds actually
+  //    ship (Kleider, Hemden, Jacken …) so users can drill past the
+  //    high-level damen/herren split.
   {
-    slug: "laptops",
-    name: "Laptops & Computer",
-    icon: Laptop,
-    description: "Notebooks, Desktops, Monitore und Peripherie",
-    productCount: 1243,
+    slug: "mode",
+    name: "Mode & Bekleidung",
+    icon: Shirt,
+    description: "Damen, Herren, Kinder – Markenmode zum besten Preis",
     children: [
-      { slug: "laptops-macbook", name: "Apple MacBook", productCount: 34 },
       {
-        slug: "laptops-windows",
-        name: "Windows Laptops",
-        productCount: 456,
-        children: [{ slug: "laptops-gaming", name: "Gaming Laptops", productCount: 123 }],
+        slug: "mode-damen",
+        name: "Damenmode",
+        children: [
+          { slug: "damen-kleider", name: "Kleider" },
+          { slug: "damen-oberteile", name: "Oberteile & Blusen" },
+          { slug: "damen-hosen", name: "Hosen & Jeans" },
+          { slug: "damen-roecke", name: "Röcke" },
+          { slug: "damen-jacken", name: "Jacken & Mäntel" },
+          { slug: "damen-strick", name: "Strick & Pullover" },
+          { slug: "damen-unterwaesche", name: "Unterwäsche & Bademode" },
+        ],
       },
-      { slug: "laptops-chromebook", name: "Chromebooks", productCount: 67 },
-      { slug: "laptops-monitors", name: "Monitore", productCount: 234 },
-      { slug: "laptops-accessories", name: "Zubehör", productCount: 329 },
+      {
+        slug: "mode-herren",
+        name: "Herrenmode",
+        children: [
+          { slug: "herren-hemden", name: "Hemden" },
+          { slug: "herren-tshirts", name: "T-Shirts & Polos" },
+          { slug: "herren-hosen", name: "Hosen & Jeans" },
+          { slug: "herren-anzuege", name: "Anzüge & Sakkos" },
+          { slug: "herren-jacken", name: "Jacken & Mäntel" },
+          { slug: "herren-strick", name: "Strick & Pullover" },
+          { slug: "herren-unterwaesche", name: "Unterwäsche & Socken" },
+        ],
+      },
+      { slug: "mode-kinder", name: "Kindermode" },
+      { slug: "mode-sport", name: "Sportbekleidung" },
+      {
+        slug: "mode-taschen",
+        name: "Taschen & Accessoires",
+        children: [
+          { slug: "taschen-handtaschen", name: "Handtaschen" },
+          { slug: "taschen-rucksaecke", name: "Rucksäcke" },
+          { slug: "taschen-koffer", name: "Koffer & Reisegepäck" },
+          { slug: "taschen-geldbeutel", name: "Portemonnaies" },
+          { slug: "mode-guertel", name: "Gürtel" },
+          { slug: "mode-schals", name: "Schals & Tücher" },
+        ],
+      },
     ],
   },
-  // 3. Kopfhörer & Audio
-  {
-    slug: "kopfhoerer",
-    name: "Kopfhörer & Audio",
-    icon: Headphones,
-    description: "Bluetooth, Noise Cancelling, In-Ear und Over-Ear",
-    productCount: 632,
-    children: [
-      { slug: "kopfhoerer-over-ear", name: "Over-Ear", productCount: 145 },
-      { slug: "kopfhoerer-in-ear", name: "In-Ear / Earbuds", productCount: 234 },
-      { slug: "kopfhoerer-nc", name: "Noise Cancelling", productCount: 89 },
-      { slug: "kopfhoerer-sport", name: "Sport & Fitness", productCount: 67 },
-      { slug: "kopfhoerer-lautsprecher", name: "Lautsprecher", productCount: 97 },
-      { slug: "airpods", name: "Apple AirPods", productCount: 0 },
-      { slug: "homepod", name: "Apple HomePod", productCount: 0 },
-    ],
-  },
-  // 4. Schuhe
+
+  // 3. Schuhe — unchanged structurally, already feed-aligned.
   {
     slug: "schuhe",
     name: "Schuhe",
     icon: ShoppingBag,
     description: "Sneakers, Laufschuhe, Wanderschuhe und mehr",
-    productCount: 1567,
     children: [
       {
         slug: "schuhe-sneakers",
         name: "Sneakers",
-        productCount: 456,
         children: [
           { slug: "sneakers-nike", name: "Nike" },
           { slug: "sneakers-adidas", name: "Adidas" },
@@ -156,194 +181,225 @@ const TREE_SPEC: NodeSpec[] = [
       {
         slug: "schuhe-laufschuhe",
         name: "Laufschuhe",
-        productCount: 234,
         children: [
           { slug: "laufschuhe-nike", name: "Nike" },
           { slug: "laufschuhe-onrunning", name: "On Running" },
           { slug: "laufschuhe-asics", name: "Asics" },
         ],
       },
-      { slug: "schuhe-wandern", name: "Wanderschuhe", productCount: 178 },
-      { slug: "schuhe-damen", name: "Damenschuhe", productCount: 0 },
-      { slug: "schuhe-herren", name: "Herrenschuhe", productCount: 0 },
+      { slug: "schuhe-wandern", name: "Wanderschuhe" },
+      { slug: "schuhe-business", name: "Business- & Lederschuhe" },
+      { slug: "schuhe-stiefel", name: "Stiefel" },
+      { slug: "schuhe-sandalen", name: "Sandalen" },
+      { slug: "schuhe-damen", name: "Damenschuhe" },
+      { slug: "schuhe-herren", name: "Herrenschuhe" },
+      { slug: "schuhe-kinder", name: "Kinderschuhe" },
     ],
   },
-  // 5. Gaming & Entertainment
-  {
-    slug: "gaming",
-    name: "Gaming & Entertainment",
-    icon: Gamepad2,
-    description: "Konsolen, Spiele, VR-Headsets und Zubehör",
-    productCount: 934,
-    children: [
-      { slug: "gaming-konsolen", name: "Konsolen", productCount: 23 },
-      { slug: "gaming-ps5", name: "PlayStation 5", productCount: 145 },
-      { slug: "gaming-xbox", name: "Xbox Series", productCount: 134 },
-      { slug: "gaming-nintendo", name: "Nintendo Switch", productCount: 189 },
-      { slug: "gaming-pc", name: "PC Gaming", productCount: 267 },
-      { slug: "gaming-vr", name: "VR Headsets", productCount: 34 },
-      { slug: "gaming-zubehoer", name: "Controller & Zubehör", productCount: 142 },
-    ],
-  },
-  // 6. Haushalt & Küche
-  {
-    slug: "haushalt",
-    name: "Haushalt & Küche",
-    icon: Home,
-    description: "Staubsauger, Küchengeräte, Kaffeemaschinen",
-    productCount: 1876,
-    children: [
-      { slug: "haushalt-staubsauger", name: "Staubsauger", productCount: 234 },
-      { slug: "haushalt-kaffee", name: "Kaffeemaschinen", productCount: 189 },
-      { slug: "haushalt-kuechengeraete", name: "Küchengeräte", productCount: 345 },
-      { slug: "haushalt-luftreiniger", name: "Luftreiniger", productCount: 67 },
-      { slug: "haushalt-smart-home", name: "Smart Home", productCount: 234 },
-      { slug: "haushalt-waschen", name: "Waschen & Trocknen", productCount: 145 },
-    ],
-  },
-  // 7. Mode & Bekleidung
-  {
-    slug: "mode",
-    name: "Mode & Bekleidung",
-    icon: Shirt,
-    description: "Damen, Herren, Kinder – Markenmode zum besten Preis",
-    productCount: 4523,
-    children: [
-      { slug: "mode-damen", name: "Damenmode", productCount: 1567 },
-      { slug: "mode-herren", name: "Herrenmode", productCount: 1234 },
-      { slug: "mode-kinder", name: "Kindermode", productCount: 567 },
-      { slug: "mode-sport", name: "Sportbekleidung", productCount: 789 },
-      { slug: "mode-taschen", name: "Taschen & Accessoires", productCount: 366 },
-    ],
-  },
-  // 8. Parfum & Düfte
-  {
-    slug: "parfum",
-    name: "Parfum & Düfte",
-    icon: Droplets,
-    description: "Herren- und Damendüfte, Beauty und Pflege",
-    productCount: 16000,
-    children: [
-      {
-        slug: "damendufte",
-        name: "Damendüfte",
-        productCount: 0,
-        children: [
-          { slug: "damendufte-floral", name: "Floral" },
-          { slug: "damendufte-oriental", name: "Oriental" },
-          { slug: "damendufte-zitrus", name: "Zitrus & Frisch" },
-        ],
-      },
-      {
-        slug: "herrendufte",
-        name: "Herrendüfte",
-        productCount: 0,
-        children: [
-          { slug: "herrendufte-woody", name: "Woody" },
-          { slug: "herrendufte-fresh", name: "Frisch" },
-          { slug: "herrendufte-oriental", name: "Oriental" },
-        ],
-      },
-      { slug: "unisex-dufte", name: "Unisex", productCount: 0 },
-      { slug: "parfum-nische", name: "Nischen- & Luxusparfum", productCount: 0 },
-      { slug: "geschenksets", name: "Geschenksets", productCount: 0 },
-      { slug: "pflege", name: "Gesichts- & Körperpflege", productCount: 0 },
-      { slug: "make-up", name: "Make-up", productCount: 0 },
-      { slug: "haarpflege", name: "Haarpflege", productCount: 0 },
-      { slug: "koerperpflege", name: "Körperpflege", productCount: 0 },
-      { slug: "sonnenpflege", name: "Sonnenpflege", productCount: 0 },
-    ],
-  },
-  // 9. Uhren & Schmuck
+
+  // 4. Uhren & Schmuck — keep the L1 combined, expand Schmuck L3 so
+  //    Bijouteria-shaped queries (ohrringe / halsketten / ringe / etc.)
+  //    land on a concrete leaf instead of the flat `uhren-schmuck` node.
   {
     slug: "uhren",
     name: "Uhren & Schmuck",
     icon: Watch,
-    description: "Smartwatches, Luxusuhren und Schmuck",
-    productCount: 876,
+    description: "Smartwatches, Luxusuhren, Silber- und Goldschmuck",
     children: [
-      { slug: "uhren-smartwatch", name: "Smartwatches", productCount: 234 },
-      { slug: "uhren-luxus", name: "Luxusuhren", productCount: 145 },
-      { slug: "uhren-sport", name: "Sportuhren", productCount: 167 },
-      { slug: "uhren-schmuck", name: "Schmuck", productCount: 330 },
+      { slug: "uhren-smartwatch", name: "Smartwatches" },
+      { slug: "uhren-luxus", name: "Luxusuhren" },
+      { slug: "uhren-sport", name: "Sportuhren" },
+      {
+        slug: "uhren-schmuck",
+        name: "Schmuck",
+        children: [
+          { slug: "schmuck-ohrringe", name: "Ohrringe" },
+          { slug: "schmuck-halsketten", name: "Halsketten & Anhänger" },
+          { slug: "schmuck-armbaender", name: "Armbänder & Armreifen" },
+          { slug: "schmuck-ringe", name: "Ringe" },
+          { slug: "schmuck-eheringe", name: "Ehe- & Verlobungsringe" },
+          { slug: "schmuck-piercing", name: "Piercings" },
+          { slug: "schmuck-silber", name: "Silberschmuck" },
+          { slug: "schmuck-gold", name: "Goldschmuck" },
+          { slug: "schmuck-titan", name: "Titanschmuck" },
+        ],
+      },
     ],
   },
-  // 10. TV & Audio
+
+  // 5. Sport & Outdoor — Bergfreunde-driven expansion. Outdoor is the
+  //    active catalogue (climbing, hiking, running, skiing, camping)
+  //    so we front-load it above fitness / velo.
+  {
+    slug: "sport",
+    name: "Sport & Outdoor",
+    icon: Dumbbell,
+    description: "Outdoor, Klettern, Wandern, Ski, Fitness und Velo",
+    children: [
+      { slug: "sport-wandern", name: "Wandern & Trekking" },
+      { slug: "sport-klettern", name: "Klettern & Bergsport" },
+      { slug: "sport-running", name: "Running & Trailrunning" },
+      { slug: "sport-ski", name: "Ski & Snowboard" },
+      { slug: "sport-camping", name: "Camping & Zelte" },
+      { slug: "sport-fitness", name: "Fitness & Yoga" },
+      { slug: "sport-velo", name: "Velos & E-Bikes" },
+      { slug: "sport-wassersport", name: "Wassersport & Schwimmen" },
+      { slug: "sport-wearables", name: "Fitness Tracker" },
+    ],
+  },
+
+  // 6. Haushalt & Küche — Ackermann Technik / Jelmoli Technik. Kaffee
+  //    gets per-brand L3 because the Swiss catalogue is dense here.
+  {
+    slug: "haushalt",
+    name: "Haushalt & Küche",
+    icon: Home,
+    description: "Kaffeemaschinen, Küchengeräte, Staubsauger und Waschen",
+    children: [
+      {
+        slug: "haushalt-kaffee",
+        name: "Kaffeemaschinen",
+        children: [
+          { slug: "kaffee-nespresso", name: "Nespresso" },
+          { slug: "kaffee-jura", name: "Jura" },
+          { slug: "kaffee-delonghi", name: "De'Longhi" },
+          { slug: "kaffee-sage", name: "Sage" },
+          { slug: "kaffee-melitta", name: "Melitta" },
+        ],
+      },
+      { slug: "haushalt-kuechengeraete", name: "Küchengeräte" },
+      { slug: "haushalt-staubsauger", name: "Staubsauger" },
+      { slug: "haushalt-waschen", name: "Waschen & Trocknen" },
+      { slug: "haushalt-luftreiniger", name: "Luftreiniger" },
+      { slug: "haushalt-smart-home", name: "Smart Home" },
+      { slug: "haushalt-wohnen", name: "Wohnen & Einrichten" },
+      { slug: "haushalt-garten", name: "Garten & Balkon" },
+    ],
+  },
+
+  // 7. TV & Audio — Jelmoli Technik + part of Ackermann.
   {
     slug: "tv-audio",
     name: "TV & Audio",
     icon: Tv,
-    description: "Fernseher, Soundbars, Streaming und Hi-Fi",
-    productCount: 543,
+    description: "Fernseher, Soundbars, Hi-Fi und Beamer",
     children: [
-      { slug: "tv-oled", name: "OLED TVs", productCount: 89 },
-      { slug: "tv-qled", name: "QLED TVs", productCount: 78 },
-      { slug: "tv-soundbar", name: "Soundbars", productCount: 134 },
-      { slug: "tv-streaming", name: "Streaming Geräte", productCount: 45 },
-      { slug: "tv-hifi", name: "Hi-Fi Systeme", productCount: 97 },
-      { slug: "tv-beamer", name: "Beamer", productCount: 100 },
+      { slug: "tv-oled", name: "OLED TVs" },
+      { slug: "tv-qled", name: "QLED TVs" },
+      { slug: "tv-soundbar", name: "Soundbars" },
+      { slug: "tv-hifi", name: "Hi-Fi Systeme" },
+      { slug: "tv-streaming", name: "Streaming Geräte" },
+      { slug: "tv-beamer", name: "Beamer" },
+      { slug: "apple-tv", name: "Apple TV" },
     ],
   },
+
+  // 8. Smartphones
+  {
+    slug: "smartphones",
+    name: "Smartphones & Tablets",
+    icon: Smartphone,
+    description: "Handys, Tablets und Zubehör",
+    children: [
+      {
+        slug: "smartphones-apple",
+        name: "Apple iPhone & iPad",
+        children: [
+          { slug: "iphone", name: "iPhone Modelle" },
+          { slug: "ipad", name: "iPad" },
+        ],
+      },
+      {
+        slug: "smartphones-samsung",
+        name: "Samsung Galaxy",
+        children: [{ slug: "samsung-galaxy", name: "Galaxy Serie" }],
+      },
+      { slug: "smartphones-google", name: "Google Pixel" },
+      { slug: "smartphones-xiaomi", name: "Xiaomi" },
+      { slug: "smartphones-cases", name: "Hüllen & Schutzfolien" },
+    ],
+  },
+
+  // 9. Laptops & Computer
+  {
+    slug: "laptops",
+    name: "Laptops & Computer",
+    icon: Laptop,
+    description: "Notebooks, Desktops, Monitore und Peripherie",
+    children: [
+      { slug: "laptops-macbook", name: "Apple MacBook" },
+      {
+        slug: "laptops-windows",
+        name: "Windows Laptops",
+        children: [{ slug: "laptops-gaming", name: "Gaming Laptops" }],
+      },
+      { slug: "laptops-chromebook", name: "Chromebooks" },
+      { slug: "laptops-monitors", name: "Monitore" },
+      { slug: "laptops-accessories", name: "Zubehör" },
+    ],
+  },
+
+  // 10. Kopfhörer & Audio
+  {
+    slug: "kopfhoerer",
+    name: "Kopfhörer & Audio",
+    icon: Headphones,
+    description: "Bluetooth, Noise Cancelling, In-Ear und Over-Ear",
+    children: [
+      { slug: "kopfhoerer-over-ear", name: "Over-Ear" },
+      { slug: "kopfhoerer-in-ear", name: "In-Ear / Earbuds" },
+      { slug: "kopfhoerer-nc", name: "Noise Cancelling" },
+      { slug: "kopfhoerer-sport", name: "Sport & Fitness" },
+      { slug: "kopfhoerer-lautsprecher", name: "Lautsprecher" },
+      { slug: "airpods", name: "Apple AirPods" },
+      { slug: "homepod", name: "Apple HomePod" },
+    ],
+  },
+
   // 11. Foto & Video
   {
     slug: "foto",
     name: "Foto & Video",
     icon: Camera,
     description: "Kameras, Objektive, Drohnen und Zubehör",
-    productCount: 678,
     children: [
-      { slug: "foto-dslr", name: "Spiegelreflex", productCount: 123 },
-      { slug: "foto-mirrorless", name: "Systemkameras", productCount: 156 },
-      { slug: "foto-drohnen", name: "Drohnen", productCount: 67 },
-      { slug: "foto-action", name: "Action Cams", productCount: 89 },
-      { slug: "foto-objektive", name: "Objektive", productCount: 243 },
+      { slug: "foto-dslr", name: "Spiegelreflex" },
+      { slug: "foto-mirrorless", name: "Systemkameras" },
+      { slug: "foto-drohnen", name: "Drohnen" },
+      { slug: "foto-action", name: "Action Cams" },
+      { slug: "foto-objektive", name: "Objektive" },
     ],
   },
-  // 12. Sport & Outdoor
+
+  // 12. Gaming & Entertainment
   {
-    slug: "sport",
-    name: "Sport & Outdoor",
-    icon: Dumbbell,
-    description: "Fitness, Velo, Wandern, Ski und Outdoor",
-    productCount: 2134,
+    slug: "gaming",
+    name: "Gaming & Entertainment",
+    icon: Gamepad2,
+    description: "Konsolen, Spiele, VR-Headsets und Zubehör",
     children: [
-      { slug: "sport-fitness", name: "Fitnessgeräte", productCount: 345 },
-      { slug: "sport-velo", name: "Velos & E-Bikes", productCount: 234 },
-      { slug: "sport-wandern", name: "Wandern & Trekking", productCount: 345 },
-      { slug: "sport-ski", name: "Ski & Snowboard", productCount: 234 },
-      { slug: "sport-camping", name: "Camping", productCount: 345 },
-      { slug: "sport-wearables", name: "Fitness Tracker", productCount: 167 },
+      { slug: "gaming-ps5", name: "PlayStation 5" },
+      { slug: "gaming-xbox", name: "Xbox Series" },
+      { slug: "gaming-nintendo", name: "Nintendo Switch" },
+      { slug: "gaming-konsolen", name: "Konsolen" },
+      { slug: "gaming-pc", name: "PC Gaming" },
+      { slug: "gaming-vr", name: "VR Headsets" },
+      { slug: "gaming-zubehoer", name: "Controller & Zubehör" },
     ],
   },
+
   // 13. Baby & Kind
   {
     slug: "baby",
     name: "Baby & Kind",
     icon: Baby,
     description: "Kinderwagen, Spielzeug, Babyausstattung",
-    productCount: 1234,
     children: [
-      { slug: "baby-kinderwagen", name: "Kinderwagen", productCount: 189 },
-      { slug: "baby-spielzeug", name: "Spielzeug", productCount: 456 },
-      { slug: "baby-moebel", name: "Kindermöbel", productCount: 234 },
-      { slug: "baby-sicherheit", name: "Autositze", productCount: 145 },
-      { slug: "baby-pflege", name: "Babypflege", productCount: 210 },
-    ],
-  },
-  // 14. Bücher & Medien
-  {
-    slug: "buecher",
-    name: "Bücher & Medien",
-    icon: BookOpen,
-    description: "Bücher, eBooks, Hörbücher und Filme",
-    productCount: 5678,
-    children: [
-      { slug: "buecher-belletristik", name: "Belletristik", productCount: 1234 },
-      { slug: "buecher-sachbuch", name: "Sachbücher", productCount: 987 },
-      { slug: "buecher-kinderbuch", name: "Kinderbücher", productCount: 567 },
-      { slug: "buecher-ebook", name: "eBook Reader", productCount: 34 },
-      { slug: "buecher-filme", name: "Filme & Serien", productCount: 1456 },
-      { slug: "buecher-musik", name: "Musik", productCount: 1400 },
+      { slug: "baby-kinderwagen", name: "Kinderwagen" },
+      { slug: "baby-spielzeug", name: "Spielzeug" },
+      { slug: "baby-moebel", name: "Kindermöbel" },
+      { slug: "baby-sicherheit", name: "Autositze" },
+      { slug: "baby-pflege", name: "Babypflege" },
     ],
   },
 ];
@@ -441,10 +497,19 @@ export function getCategoryBySlug(slug: string): Category | undefined {
   return CATEGORIES.find((c) => c.slug === slug);
 }
 
-/** Sidebar display order — main content first, tech later, niche last. */
+/**
+ * Sidebar display order — ranked by real feed coverage. Lifestyle
+ * verticals (parfum, mode, schuhe, uhren/schmuck, outdoor) sit at the
+ * top because that's where the catalogue density is, tech + appliance
+ * verticals follow, niche surfaces (baby) anchor the bottom. Any slug
+ * not resolved in CATEGORIES is silently dropped by the filter below,
+ * so trimming old L1s (buecher) does not break the sidebar.
+ */
 const SIDEBAR_ORDER = [
-  "parfum", "mode", "schuhe", "uhren", "sport", "haushalt", "baby",
-  "smartphones", "laptops", "kopfhoerer", "tv-audio", "foto", "gaming", "buecher",
+  "parfum", "mode", "schuhe", "uhren", "sport",
+  "haushalt", "tv-audio",
+  "smartphones", "laptops", "kopfhoerer", "foto", "gaming",
+  "baby",
 ];
 
 export const SIDEBAR_CATEGORIES: Category[] = SIDEBAR_ORDER
