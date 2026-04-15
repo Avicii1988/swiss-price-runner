@@ -309,6 +309,10 @@ export const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: stri
   new_balance:       { path: ["schuhe", "schuhe-sneakers", "sneakers-newbalance"], name: "New Balance" },
   parfum_ch:         { path: ["parfum"],   name: "Parfum & Düfte" },
   ackermann_ch:      { path: ["haushalt"], name: "Haushalt & Küche" },
+  // Ackermann Mode → fashion vertical. Shoe + outdoor-brand patterns
+  // higher up in CATEGORY_MAP still win first; this default only kicks
+  // in when nothing else matched (generic apparel with no brand hit).
+  "ackermann-mode":  { path: ["mode"], name: "Mode & Bekleidung" },
   // Bergfreunde → default to Wandern & Trekking; explicit brand rules
   // above (Mammut, Patagonia, Dynafit, …) override whenever the title
   // or description names a known outdoor brand.

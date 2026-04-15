@@ -54,6 +54,16 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     color: "#005ca9",
     wordmark: { text: "ackermann", color: "#005ca9", weight: 800 },
   },
+  "ackermann-mode": {
+    // Ackermann fashion sub-brand — shares the navy corporate tone with
+    // Ackermann Technik but keeps a distinct wordmark suffix so the
+    // best-shop pill on ProductCard / ProductShelf stays readable when
+    // both shops appear on the same product.
+    id: "ackermann-mode",
+    name: "Ackermann Mode",
+    color: "#005ca9",
+    wordmark: { text: "ackermann · mode", color: "#005ca9", weight: 800 },
+  },
   bergfreunde: {
     id: "bergfreunde",
     name: "Bergfreunde",
@@ -87,5 +97,6 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES.new_balance,
   SHOP_SOURCES.parfum_ch,
   SHOP_SOURCES.ackermann_ch,
+  SHOP_SOURCES["ackermann-mode"],
   SHOP_SOURCES.bergfreunde,
 ];
