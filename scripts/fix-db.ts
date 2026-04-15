@@ -17,6 +17,7 @@
  *   │ groupId                │ TEXT             │ NULL            │
  *   │ baseTitle              │ TEXT             │ NULL            │
  *   │ sizeLabel              │ TEXT             │ NULL            │
+ *   │ description            │ TEXT             │ NULL            │
  *   └────────────────────────┴──────────────────┴─────────────────┘
  *
  *   Indexes:
@@ -51,6 +52,7 @@ const REQUIRED_COLUMNS: ColumnSpec[] = [
   { name: "groupId", ddlType: `TEXT` },
   { name: "baseTitle", ddlType: `TEXT` },
   { name: "sizeLabel", ddlType: `TEXT` },
+  { name: "description", ddlType: `TEXT` },
 ];
 
 type IndexSpec = {

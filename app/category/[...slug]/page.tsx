@@ -8,7 +8,13 @@ import { parseCategorySlugs } from "@/lib/categories";
 import { prettifySlug } from "@/lib/category-icons";
 import CategoryClient from "./client";
 
-export const dynamic = "force-dynamic"; // categories depend on active filters + imports
+/**
+ * ISR — same motivation as the landing page. Filters are applied
+ * client-side inside CategoryClient, so a 5-minute cache does not
+ * affect filter/sort interactivity; it only caches the big
+ * getProductsByCategory slice + the COUNT(*).
+ */
+export const revalidate = 300;
 
 export default async function CategoryPage({
   params,

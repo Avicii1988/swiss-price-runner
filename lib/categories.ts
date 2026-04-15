@@ -126,6 +126,8 @@ const TREE_SPEC: NodeSpec[] = [
       { slug: "kopfhoerer-nc", name: "Noise Cancelling", productCount: 89 },
       { slug: "kopfhoerer-sport", name: "Sport & Fitness", productCount: 67 },
       { slug: "kopfhoerer-lautsprecher", name: "Lautsprecher", productCount: 97 },
+      { slug: "airpods", name: "Apple AirPods", productCount: 0 },
+      { slug: "homepod", name: "Apple HomePod", productCount: 0 },
     ],
   },
   // 4. Schuhe
@@ -145,6 +147,10 @@ const TREE_SPEC: NodeSpec[] = [
           { slug: "sneakers-adidas", name: "Adidas" },
           { slug: "sneakers-newbalance", name: "New Balance" },
           { slug: "sneakers-onrunning", name: "On Running" },
+          { slug: "sneakers-puma", name: "Puma" },
+          { slug: "sneakers-asics", name: "Asics" },
+          { slug: "sneakers-hoka", name: "Hoka" },
+          { slug: "sneakers-salomon", name: "Salomon" },
         ],
       },
       {
@@ -239,6 +245,7 @@ const TREE_SPEC: NodeSpec[] = [
         ],
       },
       { slug: "unisex-dufte", name: "Unisex", productCount: 0 },
+      { slug: "parfum-nische", name: "Nischen- & Luxusparfum", productCount: 0 },
       { slug: "geschenksets", name: "Geschenksets", productCount: 0 },
       { slug: "pflege", name: "Gesichts- & Körperpflege", productCount: 0 },
       { slug: "make-up", name: "Make-up", productCount: 0 },
