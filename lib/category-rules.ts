@@ -186,6 +186,34 @@ export const CATEGORY_MAP: CategoryRule[] = [
   { pattern: "isomatte",          path: ["sport", "sport-camping"],  name: "Isomatte" },
   { pattern: "camping",           path: ["sport", "sport-camping"],  name: "Camping" },
 
+  // ── Premium Fashion ─────────────────────────────────────────
+  // Placed BEFORE the generic Mode block + AFTER the Parfum /
+  // Outdoor blocks so brand-ambiguous fragrances ("Hugo Boss EDT",
+  // "Calvin Klein Obsession") still match the parfum rules higher
+  // up in the file. Brand-only hits land on `mode` root or a
+  // gender-leaning sub when the catalogue skew is strong enough.
+  { pattern: "hugo boss",         path: ["mode", "mode-herren"], name: "Hugo Boss" },
+  { pattern: "boss orange",       path: ["mode", "mode-herren"], name: "Boss Orange" },
+  { pattern: "boss hugo",         path: ["mode", "mode-herren"], name: "Hugo Boss" },
+  { pattern: "boss ",             path: ["mode", "mode-herren"], name: "Boss" },
+  { pattern: "polo ralph lauren", path: ["mode", "mode-herren"], name: "Polo Ralph Lauren" },
+  { pattern: "ralph lauren",      path: ["mode"],                name: "Ralph Lauren" },
+  { pattern: "gant ",             path: ["mode", "mode-herren"], name: "Gant" },
+  { pattern: "tommy hilfiger",    path: ["mode"],                name: "Tommy Hilfiger" },
+  { pattern: "tommy jeans",       path: ["mode"],                name: "Tommy Jeans" },
+  { pattern: "lacoste",           path: ["mode"],                name: "Lacoste" },
+  // Calvin Klein / Armani: fragrance rules higher up win for EDP/EDT
+  // titles; these patterns only fire when the haystack carries fashion
+  // context (jeans, underwear, knit, etc. — all un-matched by parfum).
+  { pattern: "calvin klein jeans",path: ["mode"],                name: "Calvin Klein Jeans" },
+  { pattern: "ck jeans",          path: ["mode"],                name: "Calvin Klein" },
+  { pattern: "michael kors",      path: ["mode", "mode-damen"],  name: "Michael Kors" },
+  { pattern: "giorgio armani",    path: ["mode"],                name: "Giorgio Armani" },
+  { pattern: "emporio armani",    path: ["mode"],                name: "Emporio Armani" },
+  { pattern: "armani jeans",      path: ["mode"],                name: "Armani Jeans" },
+  { pattern: "armani exchange",   path: ["mode"],                name: "Armani Exchange" },
+  { pattern: "bogner",            path: ["mode"],                name: "Bogner" },
+
   // ── Mode ────────────────────────────────────────────────────
   { pattern: "damenmode",     path: ["mode", "mode-damen"],   name: "Damenmode" },
   { pattern: "herrenmode",    path: ["mode", "mode-herren"],  name: "Herrenmode" },
@@ -404,6 +432,10 @@ export const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: stri
   // any item that names a known brand or product type; only truly
   // unmatched SKUs land on the haushalt root.
   jelmoli:           { path: ["haushalt"], name: "Haushalt & Küche" },
+  // Jelmoli Mode → fashion umbrella. Premium-fashion brand rules
+  // higher up (Hugo Boss, Ralph Lauren, Lacoste …) override first;
+  // the default catches generic SKUs without a known brand signal.
+  "jelmoli-mode":    { path: ["mode"], name: "Mode & Bekleidung" },
 };
 
 // ═══════════════════════════════════════════════════════════════════

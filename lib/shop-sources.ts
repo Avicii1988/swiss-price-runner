@@ -74,6 +74,16 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     color: "#111111",
     wordmark: { text: "JELMOLI", color: "#111111", weight: 900 },
   },
+  "jelmoli-mode": {
+    // Jelmoli fashion sub-brand — same #111111 corporate monochrome as
+    // Technik, but the wordmark carries a distinct "· MODE" suffix so
+    // the best-shop pill on ProductCard / ProductShelf stays readable
+    // when a gtin appears in both feeds.
+    id: "jelmoli-mode",
+    name: "Jelmoli Mode",
+    color: "#111111",
+    wordmark: { text: "JELMOLI · MODE", color: "#111111", weight: 900 },
+  },
   bergfreunde: {
     id: "bergfreunde",
     name: "Bergfreunde",
@@ -110,4 +120,5 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES["ackermann-mode"],
   SHOP_SOURCES.bergfreunde,
   SHOP_SOURCES.jelmoli,
+  SHOP_SOURCES["jelmoli-mode"],
 ];
