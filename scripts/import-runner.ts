@@ -110,6 +110,21 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Jelmoli Mode",
     sourceType: "adtraction_feed",
   },
+  bijouteria: {
+    id: "bijouteria",
+    // Bijouteria — Adtraction feed (pfid=863). Swiss jewelry retailer:
+    // silver / gold / titanium schmuck, piercings, earrings, rings,
+    // bracelets. CHF-native so it rides the Swiss-shop path
+    // (buildSwissShopBreakdown). The parser already captures
+    // g:description which is the main signal for material grade
+    // ("925 Silber", "750 Gold") — see BEAUTY_KEYWORD_RULES-style
+    // description scan inside resolveCategory. URL override via
+    // BIJOUTERIA_FEED_URL.
+    url: process.env.BIJOUTERIA_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1628909729&asid=2064719298&gsh=1&pfid=863&gt=1",
+    shopName: "Bijouteria",
+    sourceType: "adtraction_feed",
+  },
   bergfreunde: {
     id: "bergfreunde",
     // Bergfreunde — Adtraction feed (pfid=1213, gsh=1 → gross CHF, gt=1 → tagged).

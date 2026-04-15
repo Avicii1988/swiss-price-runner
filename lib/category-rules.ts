@@ -356,6 +356,60 @@ export const CATEGORY_MAP: CategoryRule[] = [
   { pattern: "luxusuhr",            path: ["uhren", "uhren-luxus"], name: "Luxusuhren" },
   { pattern: "luxury watch",        path: ["uhren", "uhren-luxus"], name: "Luxusuhren" },
 
+  // ── Schmuck (Bijouteria & co.) ─────────────────────────────
+  // Placed AFTER the Uhren + Luxusuhren blocks so "Apple Watch Armband"
+  // or "Rolex Bracelet" still hit their watch-specific rules first; the
+  // jewelry block catches everything else. Both the German nouns and the
+  // material-grade signals ("925 Silber", "750 Gold", "Sterling Silver")
+  // are covered — the importer now persists g:description so these
+  // strings reach resolveCategoryForExisting via the combined haystack.
+  { pattern: "silberschmuck",   path: ["uhren", "uhren-schmuck"], name: "Silberschmuck" },
+  { pattern: "goldschmuck",     path: ["uhren", "uhren-schmuck"], name: "Goldschmuck" },
+  { pattern: "titanschmuck",    path: ["uhren", "uhren-schmuck"], name: "Titanschmuck" },
+  { pattern: "edelstahlschmuck",path: ["uhren", "uhren-schmuck"], name: "Edelstahlschmuck" },
+  { pattern: "ohrringe",        path: ["uhren", "uhren-schmuck"], name: "Ohrringe" },
+  { pattern: "ohrstecker",      path: ["uhren", "uhren-schmuck"], name: "Ohrstecker" },
+  { pattern: "ohrhänger",       path: ["uhren", "uhren-schmuck"], name: "Ohrhänger" },
+  { pattern: "halskette",       path: ["uhren", "uhren-schmuck"], name: "Halsketten" },
+  { pattern: "collier",         path: ["uhren", "uhren-schmuck"], name: "Colliers" },
+  { pattern: "anhänger",        path: ["uhren", "uhren-schmuck"], name: "Anhänger" },
+  { pattern: "armband",         path: ["uhren", "uhren-schmuck"], name: "Armbänder" },
+  { pattern: "armreif",         path: ["uhren", "uhren-schmuck"], name: "Armreifen" },
+  { pattern: "armkette",        path: ["uhren", "uhren-schmuck"], name: "Armketten" },
+  { pattern: "ehering",         path: ["uhren", "uhren-schmuck"], name: "Eheringe" },
+  { pattern: "trauring",        path: ["uhren", "uhren-schmuck"], name: "Trauringe" },
+  { pattern: "verlobungsring",  path: ["uhren", "uhren-schmuck"], name: "Verlobungsringe" },
+  { pattern: "damenring",       path: ["uhren", "uhren-schmuck"], name: "Damenringe" },
+  { pattern: "herrenring",      path: ["uhren", "uhren-schmuck"], name: "Herrenringe" },
+  { pattern: "ringe",           path: ["uhren", "uhren-schmuck"], name: "Ringe" },
+  { pattern: "piercing",        path: ["uhren", "uhren-schmuck"], name: "Piercings" },
+  { pattern: "manschettenknopf",path: ["uhren", "uhren-schmuck"], name: "Manschettenknöpfe" },
+  // English equivalents — some feeds localise-en even for CH distribution.
+  { pattern: "necklace",        path: ["uhren", "uhren-schmuck"], name: "Halsketten" },
+  { pattern: "earring",         path: ["uhren", "uhren-schmuck"], name: "Ohrringe" },
+  { pattern: "bracelet",        path: ["uhren", "uhren-schmuck"], name: "Armbänder" },
+  { pattern: "pendant",         path: ["uhren", "uhren-schmuck"], name: "Anhänger" },
+  // Material grade signals — hit the description scan. 925 silver + 750
+  // gold are canonical on jewelry feeds and almost never appear outside
+  // the schmuck context.
+  { pattern: "925 silber",       path: ["uhren", "uhren-schmuck"], name: "Silberschmuck" },
+  { pattern: "925er silber",     path: ["uhren", "uhren-schmuck"], name: "Silberschmuck" },
+  { pattern: "sterlingsilber",   path: ["uhren", "uhren-schmuck"], name: "Silberschmuck" },
+  { pattern: "sterling silver",  path: ["uhren", "uhren-schmuck"], name: "Silberschmuck" },
+  { pattern: "750 gold",         path: ["uhren", "uhren-schmuck"], name: "Goldschmuck" },
+  { pattern: "750er gold",       path: ["uhren", "uhren-schmuck"], name: "Goldschmuck" },
+  { pattern: "585 gold",         path: ["uhren", "uhren-schmuck"], name: "Goldschmuck" },
+  { pattern: "585er gold",       path: ["uhren", "uhren-schmuck"], name: "Goldschmuck" },
+  { pattern: "375 gold",         path: ["uhren", "uhren-schmuck"], name: "Goldschmuck" },
+  { pattern: "weissgold",        path: ["uhren", "uhren-schmuck"], name: "Weissgold" },
+  { pattern: "weißgold",         path: ["uhren", "uhren-schmuck"], name: "Weissgold" },
+  { pattern: "gelbgold",         path: ["uhren", "uhren-schmuck"], name: "Gelbgold" },
+  { pattern: "rotgold",          path: ["uhren", "uhren-schmuck"], name: "Rotgold" },
+  { pattern: "roségold",         path: ["uhren", "uhren-schmuck"], name: "Roségold" },
+  { pattern: "rosegold",         path: ["uhren", "uhren-schmuck"], name: "Roségold" },
+  // Generic fallback
+  { pattern: "schmuck",          path: ["uhren", "uhren-schmuck"], name: "Schmuck" },
+
   // ── Haushalt / Küche ───────────────────────────────────────
   // Coffee-machine brands — take precedence over generic kaffeemaschine
   // so a "Jura E8" lands in haushalt-kaffee with a branded category
@@ -436,6 +490,11 @@ export const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: stri
   // higher up (Hugo Boss, Ralph Lauren, Lacoste …) override first;
   // the default catches generic SKUs without a known brand signal.
   "jelmoli-mode":    { path: ["mode"], name: "Mode & Bekleidung" },
+  // Bijouteria → every feed item is jewelry, so the default lands on
+  // the Schmuck L2. Brand / material keywords higher up resolve to
+  // the same leaf; the default only applies when neither title nor
+  // description carried a recognisable signal.
+  bijouteria:        { path: ["uhren", "uhren-schmuck"], name: "Schmuck" },
 };
 
 // ═══════════════════════════════════════════════════════════════════
