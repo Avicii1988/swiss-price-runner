@@ -63,7 +63,7 @@ const HOME_SHELVES: ThematicSlot[] = [
   {
     key: "apple-ecosystem",
     subtitle: "Tech · Premium",
-    title: "Top Apple Ecosystem",
+    title: "Apple Ecosystem",
     categorySlugs: APPLE_SLUGS,
     href: "/category/smartphones-apple",
   },
