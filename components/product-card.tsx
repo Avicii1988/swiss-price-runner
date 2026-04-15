@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Bell, Heart, Pin } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
+import { ShopLogo } from "@/components/shop-logo";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 const FALLBACK_IMG = "/placeholder-product.svg";
@@ -28,6 +29,21 @@ function formatPrice(chf: number): string {
   return rounded.toFixed(2);
 }
 
+/**
+ * Resolve the best-shop source for a product: the source whose breakdown
+ * equals `bestPrice`. Falls back to the first source if the match is
+ * inconclusive. Centralised so grid + list render the same pill.
+ */
+function bestShopFor(item: MockProductWithHistory): { sourceId: string; sourceName: string } | null {
+  if (!item.product.sources || item.product.sources.length === 0) return null;
+  if (item.bestSource) {
+    const hit = item.product.sources.find((s) => s.sourceName === item.bestSource);
+    if (hit) return { sourceId: hit.sourceId, sourceName: hit.sourceName };
+  }
+  const [first] = item.product.sources;
+  return { sourceId: first.sourceId, sourceName: first.sourceName };
+}
+
 interface ProductCardProps {
   item: MockProductWithHistory;
   onAlert?: (item: MockProductWithHistory) => void;
@@ -41,12 +57,17 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
   const sources = product.sources?.length ?? 0;
   const faved = isFavorite(product.gtin);
   const pinned = isPinned(product.gtin);
+  const bestShop = bestShopFor(item);
 
   const authAction = (fn: () => void) => {
     if (!isLoggedIn) { setShowAuthModal(true); return; }
     fn();
   };
 
+  // ───────────────────────────────────────────────────────────────
+  // LIST LAYOUT — horizontal row, matches the screenshot treatment:
+  //   [image] · [category link · price · brand title · N Angebote] · [icons]
+  // ───────────────────────────────────────────────────────────────
   if (layout === "list") {
     const categoryLabel = product.categoryName || product.category || "Produkt";
     return (
@@ -66,7 +87,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
 
             {/* Price — bold */}
             <p className="mt-0.5 text-[18px] font-bold text-gray-900">
-              {hasPrice ? formatPrice(bestPrice.totalChf) : "–"}
+              {hasPrice ? formatPrice(bestPrice.totalChf) : "Preis auf Anfrage"}
             </p>
 
             {/* Brand bold + title */}
@@ -75,14 +96,24 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
               {product.title.replace(product.brand, "").trim()}
             </p>
 
-            {/* Bottom row: offers + icons */}
-            <div className="mt-auto flex items-center justify-between pt-2">
-              {sources > 0 ? (
-                <p className="text-[11px] text-gray-400">
-                  {sources > 1 ? `${sources} Angebote` : "1 Angebot"}
-                </p>
-              ) : <span />}
-              <div className="flex items-center gap-2">
+            {/* Bottom row: best-shop pill + offers + icons */}
+            <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+              <div className="flex min-w-0 items-center gap-2">
+                {bestShop && hasPrice && (
+                  <ShopLogo sourceId={bestShop.sourceId} label={bestShop.sourceName} size="sm" />
+                )}
+                {sources > 0 && (
+                  <p className="truncate text-[11px] text-gray-400">
+                    {sources > 1 ? `${sources} Angebote` : "1 Angebot"}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
+                  className={`p-1 transition ${faved ? "text-[#D81E05]" : "text-gray-400 hover:text-[#D81E05]"}`}
+                  title="Favorit">
+                  <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
+                </button>
                 <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
                   className={`p-1 transition ${pinned ? "text-[#0076bd]" : "text-[#0076bd]/70 hover:text-[#0076bd]"}`}
                   title="Merken">
@@ -90,7 +121,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
                 </button>
                 {onAlert && (
                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
-                    className="p-1 text-[#0076bd]/70 transition hover:text-[#D81E05]"
+                    className="p-1 text-gray-400 transition hover:text-[#D81E05]"
                     title="Preisalarm">
                     <Bell className="h-4 w-4" />
                   </button>
@@ -103,28 +134,24 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
     );
   }
 
+  // ───────────────────────────────────────────────────────────────
+  // GRID LAYOUT — stacked card, matches the screenshot treatment:
+  //   [icons top-right · image · price · brand title · best-shop + N Angebote]
+  // ───────────────────────────────────────────────────────────────
   return (
     <div className="group relative flex flex-col bg-white transition-colors duration-200 hover:bg-[#f8f8f9]">
       {/* Icons — subtle on mobile, fade in on desktop hover */}
       <div className="absolute right-2 top-2 z-10 flex gap-1.5 opacity-40 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100">
-        <div className="relative">
-          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
-            className={`peer flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-all duration-200 hover:scale-110 ${faved ? "text-red-500" : "text-gray-500 hover:text-red-500"}`}>
-            <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
-          </button>
-          <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
-            Favorit
-          </span>
-        </div>
-        <div className="relative">
-          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
-            className={`peer flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-all duration-200 hover:scale-110 ${pinned ? "text-blue-500" : "text-gray-500 hover:text-blue-500"}`}>
-            <Pin className={`h-4 w-4 ${pinned ? "fill-current" : ""}`} />
-          </button>
-          <span className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
-            Merken
-          </span>
-        </div>
+        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
+          className={`flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-all duration-200 hover:scale-110 ${faved ? "text-[#D81E05]" : "text-gray-500 hover:text-[#D81E05]"}`}
+          title="Favorit">
+          <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
+        </button>
+        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
+          className={`flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-all duration-200 hover:scale-110 ${pinned ? "text-[#0076bd]" : "text-gray-500 hover:text-[#0076bd]"}`}
+          title="Merken">
+          <Pin className={`h-4 w-4 ${pinned ? "fill-current" : ""}`} />
+        </button>
       </div>
 
       <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col p-3 sm:p-4">
@@ -140,7 +167,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
 
         {/* Price — Galaxus bold */}
         <span className="mt-2 text-xl font-bold tracking-tight text-gray-900">
-          {hasPrice ? formatPrice(bestPrice.totalChf) : "–"}
+          {hasPrice ? formatPrice(bestPrice.totalChf) : "Preis auf Anfrage"}
         </span>
 
         {/* Brand + Title */}
@@ -149,24 +176,24 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           {product.title.replace(product.brand, "").trim()}
         </p>
 
-        {/* Bottom: "Ab X.– bei Y Shops" + bell */}
-        <div className="mt-auto flex items-center justify-between pt-2">
-          {sources > 0 ? (
-            <p className="text-[10px] text-gray-400">
-              {hasPrice && <span className="font-medium text-gray-500">Ab {formatPrice(bestPrice.totalChf)}</span>}
-              {sources > 1 ? ` bei ${sources} Shops` : ` · 1 Angebot`}
-            </p>
-          ) : <span />}
+        {/* Bottom: best-shop pill + N Angebote + bell */}
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            {bestShop && hasPrice && (
+              <ShopLogo sourceId={bestShop.sourceId} label={bestShop.sourceName} size="xs" />
+            )}
+            {sources > 0 && (
+              <p className="truncate text-[10px] text-gray-400">
+                {sources > 1 ? `${sources} Angebote` : "1 Angebot"}
+              </p>
+            )}
+          </div>
           {onAlert && (
-            <div className="relative">
-              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
-                className="peer flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-all duration-200 hover:scale-110 hover:text-[#D81E05]">
-                <Bell className="h-4 w-4" />
-              </button>
-              <span className="pointer-events-none absolute -top-7 right-0 whitespace-nowrap rounded bg-gray-900 px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity peer-hover:opacity-100">
-                Preisalarm
-              </span>
-            </div>
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
+              className="shrink-0 text-gray-400 transition-all duration-200 hover:scale-110 hover:text-[#D81E05]"
+              title="Preisalarm">
+              <Bell className="h-4 w-4" />
+            </button>
           )}
         </div>
       </Link>

@@ -26,7 +26,7 @@ import { VariantSelector } from "@/components/variant-selector";
 import type { VariantSibling } from "@/lib/data";
 import { classifyShipping } from "@/lib/pricing/calculator";
 import { useAuth } from "@/lib/auth/auth-context";
-import { calculateSwissPrice } from "@/lib/pricing/calculator";
+import { calculateSwissPrice, buildSwissShopBreakdown } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 import { getCategoryBySlug } from "@/lib/categories";
@@ -87,13 +87,26 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
   // Best source URL for affiliate link
   const bestSourceUrl = product.affiliateUrl || product.sources.find((s) => s.sourceName === bestSource)?.url || "#";
 
-  // Safe price calculation — only if sources exist
-  const sourceBreakdowns = product.sources.map((s) => ({
-    ...s,
-    breakdown: calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE }),
-    isBest: s.sourceName === bestSource,
-    url: s.url || product.affiliateUrl || "#",
-  }));
+  // Per-source breakdown — must match the pipeline used by enrichProduct
+  // in lib/data.ts, otherwise the PDP recomputes EUR→CHF with amountEur=0
+  // for every Swiss-shop source and shows "0.–". The Swiss-shop branch
+  // (nativeChf present) passes straight through buildSwissShopBreakdown;
+  // the DE-import branch stays on calculateSwissPrice as before.
+  const sourceBreakdowns = product.sources.map((s) => {
+    const breakdown = s.nativeChf != null && s.nativeChf > 0
+      ? buildSwissShopBreakdown({
+          grossChf: s.nativeChf,
+          shippingChf: s.shippingChf ?? null,
+          priceIsNet: s.priceIsNet === true,
+        })
+      : calculateSwissPrice({ amountEur: s.currentPriceEur, exchangeRate: EXCHANGE_RATE });
+    return {
+      ...s,
+      breakdown,
+      isBest: s.sourceName === bestSource,
+      url: s.url || product.affiliateUrl || "#",
+    };
+  });
 
   const discount = avgChf30d > 0 && bestPrice.totalChf > 0 && bestPrice.totalChf < avgChf30d
     ? Math.round(((avgChf30d - bestPrice.totalChf) / avgChf30d) * 100) : 0;
@@ -317,10 +330,18 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
                   <div className="mt-3 space-y-2">
                     {sourceBreakdowns.sort((a, b) => a.breakdown.totalChf - b.breakdown.totalChf).map((s) => {
                       const shop = getShopSource(s.sourceId);
+                      // Swiss-shop feeds carry EUR = 0 by construction. Only
+                      // show the EUR sub-line when the source is a true
+                      // DE-import where EUR is the source-of-truth.
+                      const showEurLine = s.currentPriceEur > 0;
+                      const ctaPrice = s.breakdown.totalChf > 0
+                        ? `${s.breakdown.totalChf.toFixed(0)}.–`
+                        : "Preis prüfen";
                       return (
                       <div key={s.sourceId} className={`flex flex-col gap-2 rounded-lg px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${s.isBest ? "border-2 border-green-200 bg-green-50" : "border border-gray-100 bg-gray-50"}`}>
                         <div className="flex items-center gap-3">
-                          {/* Shop wordmark logo */}
+                          {/* Shop wordmark — shared component so the chip
+                              stays in sync with the product-card version. */}
                           <span className="inline-flex h-7 min-w-[90px] items-center justify-center rounded border border-gray-200 bg-white px-2.5 text-[10px] tracking-wider"
                             style={{ color: shop.wordmark.color, fontWeight: shop.wordmark.weight }}>
                             {shop.wordmark.text}
@@ -330,12 +351,14 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
                               {shop.name}
                               {s.isBest && <span className="ml-2 rounded bg-green-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Bester Preis</span>}
                             </p>
-                            <p className="text-[11px] text-gray-400">EUR {s.currentPriceEur.toFixed(2)}</p>
+                            {showEurLine && (
+                              <p className="text-[11px] text-gray-400">EUR {s.currentPriceEur.toFixed(2)}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <ShippingTooltip breakdown={s.breakdown} sourceId={s.sourceId} />
-                          <span className="text-lg font-bold text-gray-900">{s.breakdown.totalChf.toFixed(0)}.–</span>
+                          <span className="text-lg font-bold text-gray-900">{ctaPrice}</span>
                           <a
                             href={s.url || "#"}
                             target="_blank"
