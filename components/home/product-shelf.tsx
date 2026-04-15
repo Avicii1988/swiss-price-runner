@@ -6,6 +6,8 @@ import { ArrowRight, Truck, PackageCheck } from "lucide-react";
 import { classifyShipping } from "@/lib/pricing/calculator";
 import type { ShelfItem } from "@/lib/data";
 
+export type ShelfLayout = "grid" | "list";
+
 interface ProductShelfProps {
   title: string;
   /** Optional editorial subtitle shown above the title ("Tech · Premium"). */
@@ -13,22 +15,27 @@ interface ProductShelfProps {
   items: ShelfItem[];
   /** "Alle anzeigen" link target (canonical category URL). */
   href: string;
-  /** Max products to render (default 10). */
+  /** Max products to render (default 12 — 3-col grid × 4 rows). */
   limit?: number;
+  /** Grid (default) or single-column list layout. */
+  layout?: ShelfLayout;
 }
 
 /**
- * Home-page thematic shelf — clean white cards in a responsive grid.
+ * Home-page thematic shelf — clean white cards in a responsive layout.
  *
- * Layout: 2 cols mobile / 3 tablet / 5 desktop. 10 items fills perfectly
- * as 2×5 or 5×2 without orphans on those breakpoints.
+ * Grid layout (default): 2 cols mobile → 3 cols from `sm` onwards.
+ *   12 items fill perfectly as 2×6 (mobile) or 3×4 (desktop).
+ *
+ * List layout: single column of horizontal cards (thumbnail + copy),
+ *   used when the user toggles "Liste" in the home-page toolbar.
  *
  * Variant handling: when a shelf item represents a group of multiple
  * variants (e.g. 30/50/100 ml of the same perfume), the card shows
  * "Ab CHF X" using the group's minimum price and a small "+N Grössen"
  * pill in the upper-left corner.
  */
-export function ProductShelf({ title, subtitle, items, href, limit = 10 }: ProductShelfProps) {
+export function ProductShelf({ title, subtitle, items, href, limit = 12, layout = "grid" }: ProductShelfProps) {
   if (items.length === 0) return null;
   const visible = items.slice(0, limit);
   const target = href as Route;
@@ -56,12 +63,19 @@ export function ProductShelf({ title, subtitle, items, href, limit = 10 }: Produ
         </Link>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5 xl:grid-cols-5">
-        {visible.map((item) => (
-          <ShelfCard key={item.product.gtin} item={item} />
-        ))}
-      </div>
+      {layout === "list" ? (
+        <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-black/[0.06] bg-white">
+          {visible.map((item) => (
+            <ShelfListRow key={item.product.gtin} item={item} />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5">
+          {visible.map((item) => (
+            <ShelfCard key={item.product.gtin} item={item} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -147,6 +161,67 @@ function ShelfCard({ item }: { item: ShelfItem }) {
           </p>
         )}
       </div>
+    </Link>
+  );
+}
+
+/**
+ * Compact horizontal row variant of ShelfCard for list view — thumbnail on the
+ * left, brand/title/price on the right, no internal padding on the wrapper so
+ * the surrounding divide-y creates the row separators.
+ */
+function ShelfListRow({ item }: { item: ShelfItem }) {
+  const { product, bestPrice } = item;
+  const brand = product.brand;
+  const title = product.title.replace(brand, "").trim();
+  const isGrouped = item.variant != null && item.variant.variantCount > 1;
+  const chf = isGrouped
+    ? Math.floor(item.variant!.minPriceChf)
+    : Math.floor(bestPrice.totalChf);
+
+  return (
+    <Link
+      href={`/product/${product.gtin}` as Route}
+      className="group flex items-center gap-4 px-3 py-3 transition hover:bg-gray-50 sm:px-4"
+    >
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f7f7f8] sm:h-20 sm:w-20">
+        {product.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={product.imageUrl}
+            alt={product.title}
+            width={80}
+            height={80}
+            loading="lazy"
+            className="h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-[1.04]"
+          />
+        ) : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+          {brand}
+        </p>
+        <p className="mt-0.5 truncate text-[13px] text-gray-900">
+          {title || product.title}
+        </p>
+        {isGrouped && (
+          <p className="mt-0.5 text-[11px] text-gray-400">
+            {item.variant!.variantCount} Grössen verfügbar
+          </p>
+        )}
+      </div>
+      {chf > 0 && (
+        <div className="shrink-0 text-right">
+          {isGrouped && (
+            <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400">
+              ab
+            </p>
+          )}
+          <p className="text-[15px] font-semibold tracking-tight text-gray-900">
+            {chf}.<span className="text-[11px] text-gray-400">–</span>
+          </p>
+        </div>
+      )}
     </Link>
   );
 }

@@ -37,6 +37,12 @@ interface PageProps {
   breadcrumbs: { label: string; href: string }[];
   dynamicCategories?: { slug: string; name: string; productCount: number }[];
   feedCategoryName?: string;
+  /**
+   * Real count of active products in the category — from a SELECT COUNT(*)
+   * in page.tsx, not limited by the getProductsByCategory slice cap.
+   * The header badge displays this so we never show a misleading "500".
+   */
+  totalCount?: number;
 }
 
 type SortOption = "popular" | "price_asc" | "price_desc" | "drop";
@@ -50,6 +56,7 @@ export default function CategoryClient({
   breadcrumbs,
   dynamicCategories,
   feedCategoryName,
+  totalCount,
 }: PageProps) {
   const [selectedProduct, setSelectedProduct] =
     useState<MockProductWithHistory | null>(null);
@@ -225,13 +232,35 @@ export default function CategoryClient({
               categorySlug={activeCategorySlug}
             />
 
-            {/* Sort toolbar */}
+            {/* Sort toolbar — "Produkte"-badge uses the true DB count where
+                available. When client-side filters narrow the result we show
+                "X von Y", so users see both the filter impact and the real
+                category size. Falls back to `filtered.length` when the server
+                couldn't supply a count (feed categories, etc.). */}
             <div className="mb-4 flex items-center justify-between">
               <p className="text-xs text-gray-500">
-                <span className="font-semibold text-gray-900">
-                  {filtered.length}
-                </span>{" "}
-                Produkte
+                {typeof totalCount === "number" && totalCount > 0 && totalCount !== filtered.length ? (
+                  <>
+                    <span className="font-semibold text-gray-900">
+                      {filtered.length.toLocaleString("de-CH")}
+                    </span>{" "}
+                    von{" "}
+                    <span className="font-semibold text-gray-900">
+                      {totalCount.toLocaleString("de-CH")}
+                    </span>{" "}
+                    Produkten
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-gray-900">
+                      {(totalCount && totalCount > 0
+                        ? totalCount
+                        : filtered.length
+                      ).toLocaleString("de-CH")}
+                    </span>{" "}
+                    Produkte
+                  </>
+                )}
               </p>
               <div className="flex items-center gap-2">
                 {/* Sort */}

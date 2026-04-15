@@ -1,4 +1,9 @@
-import { getProductsByCategory, getProducts, getDynamicCategories } from "@/lib/data";
+import {
+  getProductsByCategory,
+  getProducts,
+  getDynamicCategories,
+  countProductsByCategory,
+} from "@/lib/data";
 import { parseCategorySlugs } from "@/lib/categories";
 import { prettifySlug } from "@/lib/category-icons";
 import CategoryClient from "./client";
@@ -15,9 +20,10 @@ export default async function CategoryPage({
   const { parentCategory, activeSubCategory, breadcrumbs } =
     parseCategorySlugs(slugs);
 
-  const [products, dynamicCategories] = await Promise.all([
+  const [products, dynamicCategories, totalCount] = await Promise.all([
     parentSlug ? getProductsByCategory(parentSlug) : getProducts(),
     getDynamicCategories(),
+    parentSlug ? countProductsByCategory(parentSlug) : Promise.resolve(0),
   ]);
 
   // If it's a feed category (not in master list), build breadcrumbs from dynamic data
@@ -49,6 +55,7 @@ export default async function CategoryPage({
       breadcrumbs={finalBreadcrumbs}
       dynamicCategories={dynamicCategories}
       feedCategoryName={feedCategoryName}
+      totalCount={totalCount}
     />
   );
 }
