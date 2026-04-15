@@ -98,6 +98,18 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Jelmoli",
     sourceType: "adtraction_feed",
   },
+  "jelmoli-mode": {
+    id: "jelmoli-mode",
+    // Jelmoli Mode — sibling feed to `jelmoli` (same apid, pfid=1615).
+    // Fashion vertical: premium menswear / womenswear. Rich variant data
+    // (g:item_group_id, g:size, g:color) — the shared parser + grouping
+    // logic added for Ackermann Mode applies here without changes.
+    // URL override via JELMOLI_MODE_FEED_URL.
+    url: process.env.JELMOLI_MODE_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1703190487&asid=2064719298&gsh=1&pfid=1615&gt=1",
+    shopName: "Jelmoli Mode",
+    sourceType: "adtraction_feed",
+  },
   bergfreunde: {
     id: "bergfreunde",
     // Bergfreunde — Adtraction feed (pfid=1213, gsh=1 → gross CHF, gt=1 → tagged).
