@@ -120,6 +120,72 @@ export const CATEGORY_MAP: CategoryRule[] = [
   { pattern: "sandals",       path: ["schuhe"],                                           name: "Schuhe" },
   { pattern: "boots",         path: ["schuhe"],                                           name: "Schuhe" },
 
+  // ── Outdoor / Wandern / Klettern / Ski ──────────────────────
+  // Bergfreunde-heavy block. Placed AFTER Schuhe so shoe-specific
+  // keywords ("wanderschuh", "trail shoe") still win for outdoor
+  // brands that also sell footwear, and BEFORE Mode so brand-specific
+  // apparel (Mammut hoodie, Patagonia jacket) doesn't leak into the
+  // generic `mode` bucket via "jacke" / "hoodie" / "pullover".
+  //
+  // Shoe-leaning brands → schuhe-wandern
+  { pattern: "la sportiva",       path: ["schuhe", "schuhe-wandern"], name: "La Sportiva" },
+  { pattern: "scarpa",            path: ["schuhe", "schuhe-wandern"], name: "Scarpa" },
+  { pattern: "lowa ",             path: ["schuhe", "schuhe-wandern"], name: "Lowa" },
+  { pattern: "meindl",            path: ["schuhe", "schuhe-wandern"], name: "Meindl" },
+  { pattern: "hanwag",            path: ["schuhe", "schuhe-wandern"], name: "Hanwag" },
+  { pattern: "merrell",           path: ["schuhe", "schuhe-wandern"], name: "Merrell" },
+  { pattern: "keen ",             path: ["schuhe", "schuhe-wandern"], name: "Keen" },
+  // Ski-touring specialists → sport-ski
+  { pattern: "dynafit",           path: ["sport", "sport-ski"],      name: "Dynafit" },
+  { pattern: "völkl",             path: ["sport", "sport-ski"],      name: "Völkl" },
+  { pattern: "voelkl",            path: ["sport", "sport-ski"],      name: "Völkl" },
+  { pattern: "k2 ski",            path: ["sport", "sport-ski"],      name: "K2" },
+  // Camping-first brands → sport-camping
+  { pattern: "msr ",              path: ["sport", "sport-camping"],  name: "MSR" },
+  { pattern: "hilleberg",         path: ["sport", "sport-camping"],  name: "Hilleberg" },
+  { pattern: "exped",             path: ["sport", "sport-camping"],  name: "Exped" },
+  // Generic outdoor / trekking gear → sport-wandern
+  { pattern: "mammut",            path: ["sport", "sport-wandern"],  name: "Mammut" },
+  { pattern: "patagonia",         path: ["sport", "sport-wandern"],  name: "Patagonia" },
+  { pattern: "the north face",    path: ["sport", "sport-wandern"],  name: "The North Face" },
+  { pattern: "north face",        path: ["sport", "sport-wandern"],  name: "The North Face" },
+  { pattern: "arc'teryx",         path: ["sport", "sport-wandern"],  name: "Arc'teryx" },
+  { pattern: "arcteryx",          path: ["sport", "sport-wandern"],  name: "Arc'teryx" },
+  { pattern: "fjällräven",        path: ["sport", "sport-wandern"],  name: "Fjällräven" },
+  { pattern: "fjallraven",        path: ["sport", "sport-wandern"],  name: "Fjällräven" },
+  { pattern: "deuter",            path: ["sport", "sport-wandern"],  name: "Deuter" },
+  { pattern: "osprey",            path: ["sport", "sport-wandern"],  name: "Osprey" },
+  { pattern: "haglöfs",           path: ["sport", "sport-wandern"],  name: "Haglöfs" },
+  { pattern: "haglofs",           path: ["sport", "sport-wandern"],  name: "Haglöfs" },
+  { pattern: "vaude",             path: ["sport", "sport-wandern"],  name: "Vaude" },
+  { pattern: "jack wolfskin",     path: ["sport", "sport-wandern"],  name: "Jack Wolfskin" },
+  { pattern: "marmot",            path: ["sport", "sport-wandern"],  name: "Marmot" },
+  { pattern: "columbia",          path: ["sport", "sport-wandern"],  name: "Columbia" },
+  { pattern: "rab ",              path: ["sport", "sport-wandern"],  name: "Rab" },
+  { pattern: "mountain equipment",path: ["sport", "sport-wandern"],  name: "Mountain Equipment" },
+  { pattern: "helly hansen",      path: ["sport", "sport-wandern"],  name: "Helly Hansen" },
+  { pattern: "icebreaker",        path: ["sport", "sport-wandern"],  name: "Icebreaker" },
+  { pattern: "ortovox",           path: ["sport", "sport-wandern"],  name: "Ortovox" },
+  { pattern: "black diamond",     path: ["sport", "sport-wandern"],  name: "Black Diamond" },
+  { pattern: "petzl",             path: ["sport", "sport-wandern"],  name: "Petzl" },
+  { pattern: "edelrid",           path: ["sport", "sport-wandern"],  name: "Edelrid" },
+  { pattern: "leki ",             path: ["sport", "sport-wandern"],  name: "Leki" },
+  { pattern: "thermarest",        path: ["sport", "sport-wandern"],  name: "Therm-a-Rest" },
+  { pattern: "therm-a-rest",      path: ["sport", "sport-wandern"],  name: "Therm-a-Rest" },
+  // Generic outdoor nouns — last-resort category hints
+  { pattern: "kletterseil",       path: ["sport", "sport-wandern"],  name: "Kletterausrüstung" },
+  { pattern: "klettergurt",       path: ["sport", "sport-wandern"],  name: "Kletterausrüstung" },
+  { pattern: "karabiner",         path: ["sport", "sport-wandern"],  name: "Kletterausrüstung" },
+  { pattern: "steigeisen",        path: ["sport", "sport-wandern"],  name: "Kletterausrüstung" },
+  { pattern: "trekkingstock",     path: ["sport", "sport-wandern"],  name: "Trekkingstöcke" },
+  { pattern: "wanderstock",       path: ["sport", "sport-wandern"],  name: "Trekkingstöcke" },
+  { pattern: "schlafsack",        path: ["sport", "sport-wandern"],  name: "Schlafsack" },
+  { pattern: "wanderrucksack",    path: ["sport", "sport-wandern"],  name: "Wanderrucksack" },
+  { pattern: "trekkingrucksack",  path: ["sport", "sport-wandern"],  name: "Trekkingrucksack" },
+  { pattern: "zelt",              path: ["sport", "sport-camping"],  name: "Zelt" },
+  { pattern: "isomatte",          path: ["sport", "sport-camping"],  name: "Isomatte" },
+  { pattern: "camping",           path: ["sport", "sport-camping"],  name: "Camping" },
+
   // ── Mode ────────────────────────────────────────────────────
   { pattern: "damenmode",     path: ["mode", "mode-damen"],   name: "Damenmode" },
   { pattern: "herrenmode",    path: ["mode", "mode-herren"],  name: "Herrenmode" },
@@ -243,6 +309,10 @@ export const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: stri
   new_balance:       { path: ["schuhe", "schuhe-sneakers", "sneakers-newbalance"], name: "New Balance" },
   parfum_ch:         { path: ["parfum"],   name: "Parfum & Düfte" },
   ackermann_ch:      { path: ["haushalt"], name: "Haushalt & Küche" },
+  // Bergfreunde → default to Wandern & Trekking; explicit brand rules
+  // above (Mammut, Patagonia, Dynafit, …) override whenever the title
+  // or description names a known outdoor brand.
+  bergfreunde:       { path: ["sport", "sport-wandern"], name: "Wandern & Trekking" },
 };
 
 // ═══════════════════════════════════════════════════════════════════
