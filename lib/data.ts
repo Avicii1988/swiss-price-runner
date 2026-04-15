@@ -153,19 +153,39 @@ export async function getFeatured(): Promise<MockProductWithHistory[]> {
   return SEED_PRODUCTS.filter((p) => p.featured).slice(0, 3).map(enrichProduct);
 }
 
+/**
+ * Parfum parent → list of legacy flat subcategory slugs that should be
+ * folded into the parent category page. Kept in one place so
+ * getProductsByCategory and countProductsByCategory stay in sync.
+ */
+const PARFUM_SUB_SLUGS = [
+  "herrendufte",
+  "damendufte",
+  "unisex-dufte",
+  "geschenksets",
+  "pflege",
+  "make-up",
+  "haarpflege",
+  "koerperpflege",
+  "sonnenpflege",
+];
+
 export async function getProductsByCategory(slug: string): Promise<MockProductWithHistory[]> {
   try {
-    // Direct DB query with WHERE filter + LIMIT (was loading all 16k+ products!)
+    // Direct DB query with WHERE filter + LIMIT.
+    // Cap raised from 500 → 1000: the old 500-row slice was being
+    // displayed as the "total" product count for every category, which
+    // made every big category look artificially identical. With the new
+    // countProductsByCategory query driving the header badge, the
+    // slice only needs to be big enough to support filtering+sorting,
+    // so 1000 is a comfortable middle ground.
     const dbProducts = await db.product.findMany({
       where: {
         isActive: true,
         price: { gt: 0 },
         OR: [
           { category: slug },
-          // Also match Parfum & Düfte subcategories under parent "parfum"
-          ...(slug === "parfum"
-            ? [{ category: { in: ["herrendufte", "damendufte", "unisex-dufte", "geschenksets", "pflege", "make-up", "haarpflege", "koerperpflege", "sonnenpflege"] } }]
-            : []),
+          ...(slug === "parfum" ? [{ category: { in: PARFUM_SUB_SLUGS } }] : []),
         ],
       },
       select: {
@@ -174,12 +194,37 @@ export async function getProductsByCategory(slug: string): Promise<MockProductWi
         affiliateUrl: true, price: true,
       },
       orderBy: { updatedAt: "desc" },
-      take: 500, // Cap at 500 for category pages
+      take: 1000,
     });
     return dbProducts.map((p) => buildFromDb({ ...p, prices: [] }));
   } catch {
     const all = SEED_PRODUCTS.filter((p) => p.category === slug);
     return all.map(enrichProduct);
+  }
+}
+
+/**
+ * Total active products in a category — a single SELECT COUNT(*) with
+ * the same WHERE clause as getProductsByCategory. Used by the category
+ * header so the "X Produkte"-badge reflects the true DB count rather
+ * than the slice cap from getProductsByCategory (which was previously
+ * misread as "500 Produkte" in every category).
+ */
+export async function countProductsByCategory(slug: string): Promise<number> {
+  if (!slug) return 0;
+  try {
+    return await db.product.count({
+      where: {
+        isActive: true,
+        price: { gt: 0 },
+        OR: [
+          { category: slug },
+          ...(slug === "parfum" ? [{ category: { in: PARFUM_SUB_SLUGS } }] : []),
+        ],
+      },
+    });
+  } catch {
+    return 0;
   }
 }
 

@@ -11,14 +11,25 @@ export const dynamic = "force-dynamic";
 /**
  * Four themed shelves on the homepage — curated, 12 products each
  * (3 cols × 4 rows on the default desktop grid, no orphans).
- * The "trending" slot auto-excludes the slugs covered by the other three
- * so users don't see duplicates across sections.
+ *
+ * Order matters: shelves render top-to-bottom and the first slot owns
+ * the above-the-fold attention. Trending Now leads so the landing page
+ * always opens with fresh, editor-surfaced inventory. Apple / Sneakers
+ * / Beauty follow as topical verticals. The trending slot auto-excludes
+ * every curated slug below it so the same product never shows twice.
  */
 const APPLE_SLUGS    = ["iphone", "uhren-smartwatch"];
 const SNEAKER_SLUGS  = ["sneakers-newbalance"];
 const BEAUTY_SLUGS   = ["parfum", "damendufte"];
 
 const HOME_SHELVES: ThematicSlot[] = [
+  {
+    key: "trending-now",
+    subtitle: "Editors Picks",
+    title: "Trending Now",
+    excludeSlugs: [...APPLE_SLUGS, ...SNEAKER_SLUGS, ...BEAUTY_SLUGS],
+    href: "/category/parfum",
+  },
   {
     key: "apple-ecosystem",
     subtitle: "Tech · Premium",
@@ -38,13 +49,6 @@ const HOME_SHELVES: ThematicSlot[] = [
     subtitle: "Beauty · Düfte",
     title: "Beauty & Fragrances",
     categorySlugs: BEAUTY_SLUGS,
-    href: "/category/parfum",
-  },
-  {
-    key: "trending-now",
-    subtitle: "Editors Picks",
-    title: "Trending Now",
-    excludeSlugs: [...APPLE_SLUGS, ...SNEAKER_SLUGS, ...BEAUTY_SLUGS],
     href: "/category/parfum",
   },
 ];
