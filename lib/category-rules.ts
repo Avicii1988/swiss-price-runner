@@ -201,6 +201,29 @@ export const CATEGORY_MAP: CategoryRule[] = [
   { pattern: "pullover",      path: ["mode"],                 name: "Mode & Bekleidung" },
   { pattern: "hoodie",        path: ["mode"],                 name: "Mode & Bekleidung" },
 
+  // ── TV brands (disambiguated by product type) ───────────────
+  // Placed BEFORE Smartphones so "Samsung Fernseher" / "Samsung OLED"
+  // doesn't get swept into the generic `samsung` → smartphones bucket
+  // further down. Each pattern pairs a brand with an unambiguous TV
+  // keyword so it only matches home-entertainment SKUs.
+  { pattern: "samsung tv",         path: ["tv-audio"],              name: "Samsung TV" },
+  { pattern: "samsung fernseher",  path: ["tv-audio"],              name: "Samsung TV" },
+  { pattern: "samsung oled",       path: ["tv-audio", "tv-oled"],   name: "Samsung OLED" },
+  { pattern: "samsung qled",       path: ["tv-audio", "tv-qled"],   name: "Samsung QLED" },
+  { pattern: "samsung neo qled",   path: ["tv-audio", "tv-qled"],   name: "Samsung Neo QLED" },
+  { pattern: "sony bravia",        path: ["tv-audio"],              name: "Sony Bravia" },
+  { pattern: "lg oled",            path: ["tv-audio", "tv-oled"],   name: "LG OLED" },
+  { pattern: "lg qned",            path: ["tv-audio"],              name: "LG QNED" },
+  { pattern: "lg nanocell",        path: ["tv-audio"],              name: "LG NanoCell" },
+  { pattern: "philips oled",       path: ["tv-audio", "tv-oled"],   name: "Philips OLED" },
+  { pattern: "philips ambilight",  path: ["tv-audio"],              name: "Philips Ambilight" },
+  { pattern: "philips fernseher",  path: ["tv-audio"],              name: "Philips TV" },
+  { pattern: "panasonic viera",    path: ["tv-audio"],              name: "Panasonic" },
+  { pattern: "loewe",              path: ["tv-audio"],              name: "Loewe" },
+  { pattern: "grundig",            path: ["tv-audio"],              name: "Grundig" },
+  { pattern: "hisense",            path: ["tv-audio"],              name: "Hisense" },
+  { pattern: "tcl ",               path: ["tv-audio"],              name: "TCL" },
+
   // ── Smartphones ─────────────────────────────────────────────
   { pattern: "iphone",    path: ["smartphones", "smartphones-apple", "iphone"],          name: "iPhone" },
   { pattern: "ipad",      path: ["smartphones", "smartphones-apple", "ipad"],            name: "iPad" },
@@ -224,17 +247,36 @@ export const CATEGORY_MAP: CategoryRule[] = [
   { pattern: "monitor",       path: ["laptops", "laptops-monitors"],                      name: "Monitore" },
 
   // ── Kopfhörer / Audio (Apple accessories matched before generic over-ear) ─
-  { pattern: "airpod",       path: ["kopfhoerer", "airpods"],                  name: "AirPods" },
-  { pattern: "homepod",      path: ["kopfhoerer", "homepod"],                  name: "HomePod" },
-  { pattern: "over-ear",     path: ["kopfhoerer", "kopfhoerer-over-ear"],      name: "Over-Ear" },
-  { pattern: "in-ear",       path: ["kopfhoerer", "kopfhoerer-in-ear"],        name: "In-Ear" },
-  { pattern: "earbud",       path: ["kopfhoerer", "kopfhoerer-in-ear"],        name: "In-Ear" },
-  { pattern: "noise cancel", path: ["kopfhoerer", "kopfhoerer-nc"],            name: "Noise Cancelling" },
-  { pattern: "kopfhörer",    path: ["kopfhoerer"],                             name: "Kopfhörer & Audio" },
-  { pattern: "kopfhoerer",   path: ["kopfhoerer"],                             name: "Kopfhörer & Audio" },
-  { pattern: "headphone",    path: ["kopfhoerer"],                             name: "Kopfhörer & Audio" },
-  { pattern: "lautsprecher", path: ["kopfhoerer", "kopfhoerer-lautsprecher"],  name: "Lautsprecher" },
-  { pattern: "speaker",      path: ["kopfhoerer", "kopfhoerer-lautsprecher"],  name: "Lautsprecher" },
+  { pattern: "airpod",          path: ["kopfhoerer", "airpods"],                 name: "AirPods" },
+  { pattern: "homepod",         path: ["kopfhoerer", "homepod"],                 name: "HomePod" },
+  { pattern: "soundbar",        path: ["tv-audio", "tv-soundbar"],               name: "Soundbar" },
+  // Hi-Fi + home-audio brands — matched before generic over-ear/in-ear rules
+  // so a "Bose Soundbar 900" is correctly routed as TV-Audio (via soundbar
+  // above) while "Bose QuietComfort" lands in Kopfhörer.
+  { pattern: "sonos",           path: ["kopfhoerer", "kopfhoerer-lautsprecher"], name: "Sonos" },
+  { pattern: "bose ",           path: ["kopfhoerer"],                            name: "Bose" },
+  { pattern: "sennheiser",      path: ["kopfhoerer"],                            name: "Sennheiser" },
+  { pattern: "marshall",        path: ["kopfhoerer", "kopfhoerer-lautsprecher"], name: "Marshall" },
+  { pattern: "bang & olufsen",  path: ["kopfhoerer"],                            name: "Bang & Olufsen" },
+  { pattern: "bang olufsen",    path: ["kopfhoerer"],                            name: "Bang & Olufsen" },
+  { pattern: "b&o ",            path: ["kopfhoerer"],                            name: "Bang & Olufsen" },
+  { pattern: "harman kardon",   path: ["kopfhoerer"],                            name: "Harman Kardon" },
+  { pattern: "teufel",          path: ["kopfhoerer", "kopfhoerer-lautsprecher"], name: "Teufel" },
+  { pattern: "denon",           path: ["kopfhoerer"],                            name: "Denon" },
+  { pattern: "onkyo",           path: ["kopfhoerer"],                            name: "Onkyo" },
+  { pattern: "yamaha aventage", path: ["kopfhoerer"],                            name: "Yamaha" },
+  { pattern: "jbl ",            path: ["kopfhoerer", "kopfhoerer-lautsprecher"], name: "JBL" },
+  { pattern: "kef ",            path: ["kopfhoerer"],                            name: "KEF" },
+  { pattern: "bowers & wilkins",path: ["kopfhoerer"],                            name: "Bowers & Wilkins" },
+  { pattern: "over-ear",        path: ["kopfhoerer", "kopfhoerer-over-ear"],     name: "Over-Ear" },
+  { pattern: "in-ear",          path: ["kopfhoerer", "kopfhoerer-in-ear"],       name: "In-Ear" },
+  { pattern: "earbud",          path: ["kopfhoerer", "kopfhoerer-in-ear"],       name: "In-Ear" },
+  { pattern: "noise cancel",    path: ["kopfhoerer", "kopfhoerer-nc"],           name: "Noise Cancelling" },
+  { pattern: "kopfhörer",       path: ["kopfhoerer"],                            name: "Kopfhörer & Audio" },
+  { pattern: "kopfhoerer",      path: ["kopfhoerer"],                            name: "Kopfhörer & Audio" },
+  { pattern: "headphone",       path: ["kopfhoerer"],                            name: "Kopfhörer & Audio" },
+  { pattern: "lautsprecher",    path: ["kopfhoerer", "kopfhoerer-lautsprecher"], name: "Lautsprecher" },
+  { pattern: "speaker",         path: ["kopfhoerer", "kopfhoerer-lautsprecher"], name: "Lautsprecher" },
 
   // ── TV / Audio ─────────────────────────────────────────────
   { pattern: "oled tv",   path: ["tv-audio", "tv-oled"],     name: "OLED TVs" },
@@ -286,10 +328,50 @@ export const CATEGORY_MAP: CategoryRule[] = [
   { pattern: "luxusuhr",            path: ["uhren", "uhren-luxus"], name: "Luxusuhren" },
   { pattern: "luxury watch",        path: ["uhren", "uhren-luxus"], name: "Luxusuhren" },
 
-  // ── Haushalt ───────────────────────────────────────────────
+  // ── Haushalt / Küche ───────────────────────────────────────
+  // Coffee-machine brands — take precedence over generic kaffeemaschine
+  // so a "Jura E8" lands in haushalt-kaffee with a branded category
+  // name instead of the anonymous generic.
+  { pattern: "nespresso",       path: ["haushalt", "haushalt-kaffee"],         name: "Nespresso" },
+  { pattern: "jura ",           path: ["haushalt", "haushalt-kaffee"],         name: "Jura" },
+  { pattern: "de'longhi",       path: ["haushalt", "haushalt-kaffee"],         name: "De'Longhi" },
+  { pattern: "delonghi",        path: ["haushalt", "haushalt-kaffee"],         name: "De'Longhi" },
+  { pattern: "sage appliances", path: ["haushalt", "haushalt-kaffee"],         name: "Sage" },
+  { pattern: "melitta",         path: ["haushalt", "haushalt-kaffee"],         name: "Melitta" },
+  { pattern: "kaffeemaschine",  path: ["haushalt", "haushalt-kaffee"],         name: "Kaffeemaschinen" },
+  { pattern: "espressomaschine",path: ["haushalt", "haushalt-kaffee"],         name: "Kaffeemaschinen" },
+
+  // Kitchen appliance / white-goods brands
+  { pattern: "kitchenaid",     path: ["haushalt", "haushalt-kuechengeraete"], name: "KitchenAid" },
+  { pattern: "kenwood",        path: ["haushalt", "haushalt-kuechengeraete"], name: "Kenwood" },
+  { pattern: "krups",          path: ["haushalt", "haushalt-kuechengeraete"], name: "Krups" },
+  { pattern: "wmf ",           path: ["haushalt", "haushalt-kuechengeraete"], name: "WMF" },
+  { pattern: "tefal",          path: ["haushalt", "haushalt-kuechengeraete"], name: "Tefal" },
+  { pattern: "moulinex",       path: ["haushalt", "haushalt-kuechengeraete"], name: "Moulinex" },
+  { pattern: "smeg",           path: ["haushalt", "haushalt-kuechengeraete"], name: "Smeg" },
+  { pattern: "bosch küche",    path: ["haushalt", "haushalt-kuechengeraete"], name: "Bosch" },
+  { pattern: "miele ",         path: ["haushalt", "haushalt-kuechengeraete"], name: "Miele" },
+  { pattern: "siemens küche",  path: ["haushalt", "haushalt-kuechengeraete"], name: "Siemens" },
+
+  // Appliance categories — common Jelmoli SKUs
+  { pattern: "airfryer",            path: ["haushalt", "haushalt-kuechengeraete"], name: "Airfryer" },
+  { pattern: "heissluftfritteuse",  path: ["haushalt", "haushalt-kuechengeraete"], name: "Airfryer" },
+  { pattern: "wasserkocher",        path: ["haushalt", "haushalt-kuechengeraete"], name: "Wasserkocher" },
+  { pattern: "toaster",             path: ["haushalt", "haushalt-kuechengeraete"], name: "Toaster" },
+  { pattern: "standmixer",          path: ["haushalt", "haushalt-kuechengeraete"], name: "Standmixer" },
+  { pattern: "stabmixer",           path: ["haushalt", "haushalt-kuechengeraete"], name: "Stabmixer" },
+  { pattern: "küchenmaschine",      path: ["haushalt", "haushalt-kuechengeraete"], name: "Küchenmaschine" },
+
+  // Laundry / big white goods
+  { pattern: "waschmaschine",  path: ["haushalt", "haushalt-waschen"],        name: "Waschmaschine" },
+  { pattern: "wäschetrockner", path: ["haushalt", "haushalt-waschen"],        name: "Wäschetrockner" },
+  { pattern: "trockner",       path: ["haushalt", "haushalt-waschen"],        name: "Wäschetrockner" },
+  { pattern: "geschirrspüler", path: ["haushalt", "haushalt-waschen"],        name: "Geschirrspüler" },
+  { pattern: "kühlschrank",    path: ["haushalt", "haushalt-waschen"],        name: "Kühlschrank" },
+
+  // Generic fallbacks (last — so all brand-specific rules above win first)
   { pattern: "staubsauger",    path: ["haushalt", "haushalt-staubsauger"],    name: "Staubsauger" },
   { pattern: "vacuum",         path: ["haushalt", "haushalt-staubsauger"],    name: "Staubsauger" },
-  { pattern: "kaffeemaschine", path: ["haushalt", "haushalt-kaffee"],         name: "Kaffeemaschinen" },
   { pattern: "küche",          path: ["haushalt", "haushalt-kuechengeraete"], name: "Küchengeräte" },
   { pattern: "kuechengerät",   path: ["haushalt", "haushalt-kuechengeraete"], name: "Küchengeräte" },
   { pattern: "luftreiniger",   path: ["haushalt", "haushalt-luftreiniger"],   name: "Luftreiniger" },
@@ -317,6 +399,11 @@ export const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: stri
   // above (Mammut, Patagonia, Dynafit, …) override whenever the title
   // or description names a known outdoor brand.
   bergfreunde:       { path: ["sport", "sport-wandern"], name: "Wandern & Trekking" },
+  // Jelmoli Technik → electronics umbrella. Specific keyword rules
+  // above (TV brands, home audio, kitchen appliances) override for
+  // any item that names a known brand or product type; only truly
+  // unmatched SKUs land on the haushalt root.
+  jelmoli:           { path: ["haushalt"], name: "Haushalt & Küche" },
 };
 
 // ═══════════════════════════════════════════════════════════════════

@@ -87,6 +87,17 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Ackermann Mode",
     sourceType: "adtraction_feed",
   },
+  jelmoli: {
+    id: "jelmoli",
+    // Jelmoli Technik — Adtraction feed (pfid=2014). Swiss department-store
+    // technik vertical: TVs, home audio, kitchen appliances. CHF-native so
+    // it rides the Swiss-shop path (buildSwissShopBreakdown). URL override
+    // via JELMOLI_FEED_URL.
+    url: process.env.JELMOLI_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1703190487&asid=2064719298&gsh=1&pfid=2014&gt=1",
+    shopName: "Jelmoli",
+    sourceType: "adtraction_feed",
+  },
   bergfreunde: {
     id: "bergfreunde",
     // Bergfreunde — Adtraction feed (pfid=1213, gsh=1 → gross CHF, gt=1 → tagged).
