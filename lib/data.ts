@@ -181,31 +181,41 @@ const PARFUM_SUB_SLUGS = [
 
 export async function getProductsByCategory(slug: string): Promise<MockProductWithHistory[]> {
   try {
-    // Direct DB query with WHERE filter + LIMIT.
-    // Cap raised from 500 → 1000: the old 500-row slice was being
-    // displayed as the "total" product count for every category, which
-    // made every big category look artificially identical. With the new
-    // countProductsByCategory query driving the header badge, the
-    // slice only needs to be big enough to support filtering+sorting,
-    // so 1000 is a comfortable middle ground.
-    const dbProducts = await db.product.findMany({
-      where: {
-        isActive: true,
-        price: { gt: 0 },
-        OR: [
-          { category: slug },
-          ...(slug === "parfum" ? [{ category: { in: PARFUM_SUB_SLUGS } }] : []),
-        ],
-      },
-      select: {
-        id: true, gtin: true, title: true, brand: true, category: true,
-        categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-        affiliateUrl: true, price: true,
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 1000,
-    });
-    return dbProducts.map((p) => buildFromDb({ ...p, prices: [] }));
+    // Raw SQL so we can rank by shop count — products carried by the
+    // most distinct shops surface first, Galaxus-style. The shop_counts
+    // CTE groups Price once; a LEFT JOIN bridges to Product (rows with
+    // no Price default to shop_count = 1 via COALESCE). Previously the
+    // Prisma findMany() sorted only by updatedAt, so single-shop recent
+    // imports drowned out multi-shop comparison-worthy hits.
+    const parfumOr = slug === "parfum"
+      ? Prisma.sql`OR p.category IN (${Prisma.join(PARFUM_SUB_SLUGS)})`
+      : Prisma.empty;
+
+    const rows = await db.$queryRaw<Array<{
+      id: string; gtin: string; title: string; brand: string; category: string;
+      categoryName: string | null; imageUrl: string | null; shopName: string | null;
+      sourceType: string | null; affiliateUrl: string | null;
+      price: string;
+    }>>`
+      WITH shop_counts AS (
+        SELECT "productId", COUNT(DISTINCT "sourceId")::int AS shop_count
+        FROM "Price"
+        GROUP BY "productId"
+      )
+      SELECT p.id, p.gtin, p.title, p.brand, p.category, p."categoryName",
+             p."imageUrl", p."shopName", p."sourceType", p."affiliateUrl",
+             p.price
+      FROM "Product" p
+      LEFT JOIN shop_counts sc ON sc."productId" = p.id
+      WHERE p."isActive" = true
+        AND p.price IS NOT NULL AND p.price > 0
+        AND (p.category = ${slug} ${parfumOr})
+      ORDER BY COALESCE(sc.shop_count, 1) DESC,
+               p."updatedAt" DESC
+      LIMIT 1000
+    `;
+
+    return rows.map((p) => buildFromDb({ ...p, prices: [] }));
   } catch {
     const all = SEED_PRODUCTS.filter((p) => p.category === slug);
     return all.map(enrichProduct);
@@ -703,6 +713,12 @@ export async function getThematicShelves(
         }
         const whereSql = Prisma.join(whereClauses, " AND ");
 
+        // Shop-count priority: rank products carried by the most
+        // distinct shops first, then by recency. Rows with no Price
+        // records (just a Product.price) count as 1 shop. The
+        // shop_counts CTE groups the Price table once and is reused
+        // across every shelf; the LEFT JOIN on `reps` adds zero cost
+        // when the product has never been priced.
         const rows = await db.$queryRaw<Array<{
           id: string; gtin: string; title: string; brand: string; category: string;
           categoryName: string | null; imageUrl: string | null; shopName: string | null;
@@ -711,6 +727,7 @@ export async function getThematicShelves(
           shippingCostChf: string | null; priceIsNet: boolean;
           groupId: string | null;
           variant_count: number; min_price: string;
+          shop_count: number;
         }>>`
           WITH agg AS (
             SELECT
@@ -721,20 +738,29 @@ export async function getThematicShelves(
             WHERE ${whereSql}
             GROUP BY COALESCE("groupId", gtin)
           ),
+          shop_counts AS (
+            SELECT "productId", COUNT(DISTINCT "sourceId")::int AS shop_count
+            FROM "Price"
+            GROUP BY "productId"
+          ),
           reps AS (
             SELECT DISTINCT ON (COALESCE(p."groupId", p.gtin))
-              p.*, a.variant_count, a.min_price
+              p.*,
+              a.variant_count,
+              a.min_price,
+              COALESCE(sc.shop_count, 1)::int AS shop_count
             FROM "Product" p
             JOIN agg a ON a.grp_key = COALESCE(p."groupId", p.gtin)
+            LEFT JOIN shop_counts sc ON sc."productId" = p.id
             WHERE ${whereSql}
             ORDER BY COALESCE(p."groupId", p.gtin), p.price ASC
           )
           SELECT id, gtin, title, brand, category, "categoryName", "imageUrl",
                  "shopName", "sourceType", "affiliateUrl", price, "originalPriceChf",
                  "shippingCostChf", "priceIsNet", "groupId",
-                 variant_count, min_price
+                 variant_count, min_price, shop_count
           FROM reps
-          ORDER BY "updatedAt" DESC
+          ORDER BY shop_count DESC, "updatedAt" DESC
           LIMIT ${perShelf}
         `;
 
