@@ -65,13 +65,13 @@ export function ProductShelf({ title, subtitle, items, href, limit = 12, layout 
       </div>
 
       {layout === "list" ? (
-        <div className="flex flex-col divide-y divide-gray-100 overflow-hidden rounded-2xl border border-black/[0.06] bg-white">
+        <div className="flex flex-col divide-y divide-[#f0f0f2] bg-white">
           {visible.map((item) => (
             <ShelfListRow key={item.product.gtin} item={item} />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-3.5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
           {visible.map((item) => (
             <ShelfCard key={item.product.gtin} item={item} />
           ))}
@@ -105,7 +105,7 @@ function ShelfCard({ item }: { item: ShelfItem }) {
   return (
     <Link
       href={`/product/${product.gtin}` as Route}
-      className="group relative block overflow-hidden rounded-2xl border border-black/[0.06] bg-white transition duration-500 ease-out hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.12)]"
+      className="group relative block bg-white transition-colors duration-200 hover:bg-[#f8f8f9]"
     >
       {/* Variant badge — top-left, only when grouped */}
       {isGrouped && (
@@ -114,7 +114,7 @@ function ShelfCard({ item }: { item: ShelfItem }) {
         </span>
       )}
 
-      <div className="aspect-square bg-[#f7f7f8]">
+      <div className="aspect-square">
         {product.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -123,7 +123,7 @@ function ShelfCard({ item }: { item: ShelfItem }) {
             width={280}
             height={280}
             loading="lazy"
-            className="h-full w-full object-contain p-4 transition-transform duration-500 ease-out group-hover:scale-[1.03] sm:p-5"
+            className="h-full w-full object-contain p-4 transition-transform duration-300 ease-out group-hover:scale-[1.03] sm:p-5"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-gray-300">
@@ -131,7 +131,7 @@ function ShelfCard({ item }: { item: ShelfItem }) {
           </div>
         )}
       </div>
-      <div className="px-3 py-3 sm:px-3.5">
+      <div className="px-2 py-3 sm:px-3">
         <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-gray-500">
           {brand}
         </p>
@@ -201,7 +201,7 @@ function ShelfListRow({ item }: { item: ShelfItem }) {
       href={`/product/${product.gtin}` as Route}
       className="group flex items-center gap-4 px-3 py-3 transition hover:bg-gray-50 sm:px-4"
     >
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f7f7f8] sm:h-20 sm:w-20">
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden bg-white sm:h-20 sm:w-20">
         {product.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
