@@ -64,6 +64,16 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     color: "#005ca9",
     wordmark: { text: "ackermann · mode", color: "#005ca9", weight: 800 },
   },
+  jelmoli: {
+    // Jelmoli Technik — Swiss department-store brand. Their in-store
+    // signage is monochrome black-on-white with a small red accent; we
+    // lean on the black for the ShopLogo chip so the wordmark keeps its
+    // premium-retail feel without clashing with XXL Parfum's red.
+    id: "jelmoli",
+    name: "Jelmoli",
+    color: "#111111",
+    wordmark: { text: "JELMOLI", color: "#111111", weight: 900 },
+  },
   bergfreunde: {
     id: "bergfreunde",
     name: "Bergfreunde",
@@ -99,4 +109,5 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES.ackermann_ch,
   SHOP_SOURCES["ackermann-mode"],
   SHOP_SOURCES.bergfreunde,
+  SHOP_SOURCES.jelmoli,
 ];
