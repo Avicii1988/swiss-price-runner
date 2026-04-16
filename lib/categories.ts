@@ -316,7 +316,10 @@ const TREE_SPEC: NodeSpec[] = [
       },
       { slug: "smartphones-google", name: "Google Pixel" },
       { slug: "smartphones-xiaomi", name: "Xiaomi" },
+      { slug: "smartphones-tablets", name: "Tablets (Android / Huawei / Lenovo)" },
+      { slug: "smartphones-wearables", name: "Smart Wearables" },
       { slug: "smartphones-cases", name: "Hüllen & Schutzfolien" },
+      { slug: "smartphones-zubehoer", name: "Ladekabel & Zubehör" },
     ],
   },
 

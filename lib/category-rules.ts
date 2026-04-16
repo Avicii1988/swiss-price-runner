@@ -302,16 +302,42 @@ export const CATEGORY_MAP: CategoryRule[] = [
   { pattern: "hisense",            path: ["tv-audio"],              name: "Hisense" },
   { pattern: "tcl ",               path: ["tv-audio"],              name: "TCL" },
 
-  // ── Smartphones ─────────────────────────────────────────────
-  { pattern: "iphone",    path: ["smartphones", "smartphones-apple", "iphone"],          name: "iPhone" },
-  { pattern: "ipad",      path: ["smartphones", "smartphones-apple", "ipad"],            name: "iPad" },
-  { pattern: "galaxy",    path: ["smartphones", "smartphones-samsung", "samsung-galaxy"],name: "Galaxy" },
-  { pattern: "samsung",   path: ["smartphones", "smartphones-samsung"],                  name: "Samsung" },
-  { pattern: "pixel",     path: ["smartphones", "smartphones-google"],                   name: "Google Pixel" },
-  { pattern: "xiaomi",    path: ["smartphones", "smartphones-xiaomi"],                   name: "Xiaomi" },
-  { pattern: "smartphone",path: ["smartphones"],                                         name: "Smartphones" },
-  { pattern: "handy",     path: ["smartphones"],                                         name: "Smartphones" },
-  { pattern: "tablet",    path: ["smartphones"],                                         name: "Smartphones" },
+  // ── Smartphones & Tablets ───────────────────────────────────
+  // Accessory / case patterns come first so "iPhone Hülle" lands on
+  // `smartphones-cases` instead of being swept into the phone bucket
+  // by the shorter `iphone` pattern below.
+  { pattern: "handyhülle",     path: ["smartphones", "smartphones-cases"],    name: "Handyhülle" },
+  { pattern: "handyhuelle",    path: ["smartphones", "smartphones-cases"],    name: "Handyhülle" },
+  { pattern: "schutzhülle",    path: ["smartphones", "smartphones-cases"],    name: "Schutzhülle" },
+  { pattern: "panzerglas",     path: ["smartphones", "smartphones-cases"],    name: "Panzerglas" },
+  { pattern: "schutzfolie",    path: ["smartphones", "smartphones-cases"],    name: "Schutzfolie" },
+  { pattern: "displayfolie",   path: ["smartphones", "smartphones-cases"],    name: "Displayfolie" },
+  { pattern: "handyzubehör",   path: ["smartphones", "smartphones-zubehoer"], name: "Handyzubehör" },
+  { pattern: "handyzubehoer",  path: ["smartphones", "smartphones-zubehoer"], name: "Handyzubehör" },
+  { pattern: "ladekabel",      path: ["smartphones", "smartphones-zubehoer"], name: "Ladekabel" },
+  { pattern: "ladegerät",      path: ["smartphones", "smartphones-zubehoer"], name: "Ladegerät" },
+  { pattern: "usb-c kabel",    path: ["smartphones", "smartphones-zubehoer"], name: "USB-C Kabel" },
+  { pattern: "powerbank",      path: ["smartphones", "smartphones-zubehoer"], name: "Powerbank" },
+  { pattern: "kfz-halterung",  path: ["smartphones", "smartphones-zubehoer"], name: "KFZ-Halterung" },
+  // Phone / tablet brands
+  { pattern: "iphone",     path: ["smartphones", "smartphones-apple", "iphone"],          name: "iPhone" },
+  { pattern: "ipad",       path: ["smartphones", "smartphones-apple", "ipad"],            name: "iPad" },
+  { pattern: "galaxy tab", path: ["smartphones", "smartphones-tablets"],                  name: "Samsung Galaxy Tab" },
+  { pattern: "galaxy",     path: ["smartphones", "smartphones-samsung", "samsung-galaxy"],name: "Galaxy" },
+  { pattern: "samsung",    path: ["smartphones", "smartphones-samsung"],                  name: "Samsung" },
+  { pattern: "pixel",      path: ["smartphones", "smartphones-google"],                   name: "Google Pixel" },
+  { pattern: "xiaomi",     path: ["smartphones", "smartphones-xiaomi"],                   name: "Xiaomi" },
+  { pattern: "oneplus",    path: ["smartphones"],                                         name: "OnePlus" },
+  { pattern: "oppo ",      path: ["smartphones"],                                         name: "Oppo" },
+  { pattern: "nothing phone", path: ["smartphones"],                                      name: "Nothing" },
+  { pattern: "motorola",   path: ["smartphones"],                                         name: "Motorola" },
+  { pattern: "huawei",     path: ["smartphones"],                                         name: "Huawei" },
+  { pattern: "smartphone", path: ["smartphones"],                                         name: "Smartphones" },
+  { pattern: "handy",      path: ["smartphones"],                                         name: "Smartphones" },
+  // Generic "tablet" routes to the new Android / Huawei / Lenovo L2
+  // instead of the smartphones root. Apple iPads keep hitting `ipad`
+  // above first, so they still drill to the Apple vertical.
+  { pattern: "tablet",     path: ["smartphones", "smartphones-tablets"],                  name: "Tablets" },
 
   // ── Laptops ────────────────────────────────────────────────
   { pattern: "macbook",       path: ["laptops", "laptops-macbook"],                       name: "MacBook" },
@@ -550,6 +576,11 @@ export const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: stri
   // the same leaf; the default only applies when neither title nor
   // description carried a recognisable signal.
   bijouteria:        { path: ["uhren", "uhren-schmuck"], name: "Schmuck" },
+  // Mobilezone → smartphones umbrella. Brand + accessory keyword
+  // rules above (iphone / ipad / galaxy / handyhülle / ladekabel …)
+  // fire first, so only truly un-classified SKUs (e.g. generic
+  // prepaid SIM cards) drop onto the smartphones root.
+  mobilezone:        { path: ["smartphones"], name: "Smartphones & Tablets" },
 };
 
 // ═══════════════════════════════════════════════════════════════════

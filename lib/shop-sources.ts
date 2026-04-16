@@ -103,6 +103,17 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     domain: "bergfreunde.eu",
     wordmark: { text: "BERGFREUNDE", color: "#4e7a27", weight: 800 },
   },
+  mobilezone: {
+    // Swiss mobile + telecoms retailer — phones, tablets, wearables,
+    // accessories. Corporate red (#DA291C) differs from XXL Parfum's
+    // #E30613 just enough that the ShopLogo chips don't collide when a
+    // gtin shows up in both feeds.
+    id: "mobilezone",
+    name: "Mobilezone",
+    color: "#DA291C",
+    domain: "mobilezone.ch",
+    wordmark: { text: "MOBILEZONE", color: "#DA291C", weight: 900 },
+  },
   adtraction_xxl_parfum: {
     id: "adtraction_xxl_parfum",
     name: "XXL Parfum",
@@ -142,4 +153,5 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES.jelmoli,
   SHOP_SOURCES["jelmoli-mode"],
   SHOP_SOURCES.bijouteria,
+  SHOP_SOURCES.mobilezone,
 ];

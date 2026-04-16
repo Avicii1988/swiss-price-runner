@@ -136,6 +136,17 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Bergfreunde",
     sourceType: "adtraction_feed",
   },
+  mobilezone: {
+    id: "mobilezone",
+    // Mobilezone — Swiss mobile + telecoms retailer. Adtraction feed
+    // (pfid=1418, gsh=1 → gross CHF, gt=0). CHF-native so prices run
+    // through buildSwissShopBreakdown like every other Swiss-shop feed.
+    // URL override via MOBILEZONE_FEED_URL.
+    url: process.env.MOBILEZONE_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1703574016&asid=2064719298&gsh=1&pfid=1418&gt=0",
+    shopName: "Mobilezone",
+    sourceType: "adtraction_feed",
+  },
 };
 
 // CATEGORY_MAP, FEED_CATEGORY_DEFAULTS, BEAUTY_KEYWORD_RULES, resolveCategory

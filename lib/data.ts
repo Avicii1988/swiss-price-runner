@@ -181,15 +181,29 @@ const PARFUM_SUB_SLUGS = [
 
 export async function getProductsByCategory(slug: string): Promise<MockProductWithHistory[]> {
   try {
-    // Raw SQL so we can rank by shop count — products carried by the
-    // most distinct shops surface first, Galaxus-style. The shop_counts
-    // CTE groups Price once; a LEFT JOIN bridges to Product (rows with
-    // no Price default to shop_count = 1 via COALESCE). Previously the
-    // Prisma findMany() sorted only by updatedAt, so single-shop recent
-    // imports drowned out multi-shop comparison-worthy hits.
+    // Raw SQL so we can rank deterministically.
+    //
+    // Sort strategy:
+    //   · L1 root (e.g. /category/smartphones): rank by shop_count DESC so
+    //     the overview leads with multi-shop comparison-worthy hits.
+    //   · L2 / L3 subcategories (e.g. /category/smartphones-apple,
+    //     /category/damen-kleider): rank by price DESC so the flagship /
+    //     most expensive SKU leads — the "most teuren zuerst" rule the
+    //     product team asked for. shop_count stays as the secondary
+    //     tiebreaker so multi-shop items still bubble up within the same
+    //     price band.
     const parfumOr = slug === "parfum"
       ? Prisma.sql`OR p.category IN (${Prisma.join(PARFUM_SUB_SLUGS)})`
       : Prisma.empty;
+
+    const node = findCategoryNode(slug);
+    const isSubcategory = node ? node.depth >= 1 : false;
+    const orderBy = isSubcategory
+      ? Prisma.sql`ORDER BY p.price DESC NULLS LAST,
+                            COALESCE(sc.shop_count, 1) DESC,
+                            p."updatedAt" DESC`
+      : Prisma.sql`ORDER BY COALESCE(sc.shop_count, 1) DESC,
+                            p."updatedAt" DESC`;
 
     const rows = await db.$queryRaw<Array<{
       id: string; gtin: string; title: string; brand: string; category: string;
@@ -215,8 +229,7 @@ export async function getProductsByCategory(slug: string): Promise<MockProductWi
       WHERE p."isActive" = true
         AND p.price IS NOT NULL AND p.price > 0
         AND (p.category = ${slug} ${parfumOr})
-      ORDER BY COALESCE(sc.shop_count, 1) DESC,
-               p."updatedAt" DESC
+      ${orderBy}
       LIMIT 1000
     `;
 
