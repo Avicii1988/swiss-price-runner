@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Bell, Heart, Pin } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ShopLogo } from "@/components/shop-logo";
+import { formatChf } from "@/lib/pricing/format";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 const FALLBACK_IMG = "/placeholder-product.svg";
@@ -21,14 +22,6 @@ function proxyUrl(url: string | null | undefined): string {
   return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
-function formatPrice(chf: number): string {
-  if (chf <= 0) return "–";
-  const rounded = Math.round(chf * 100) / 100;
-  const frac = rounded % 1;
-  if (frac === 0) return `${Math.floor(rounded)}.–`;
-  return rounded.toFixed(2);
-}
-
 /**
  * Resolve the best-shop source for a product: the source whose breakdown
  * equals `bestPrice`. Falls back to the first source if the match is
@@ -44,6 +37,23 @@ function bestShopFor(item: MockProductWithHistory): { sourceId: string; sourceNa
   return { sourceId: first.sourceId, sourceName: first.sourceName };
 }
 
+/**
+ * Collect the unique sourceIds that carry this product, best shop first.
+ * Feeds the mini-logo row at the bottom of the card. We deliberately
+ * strip the synthetic `feed_default` id so only real retailers show up.
+ */
+function offerSourceIds(item: MockProductWithHistory): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const s of item.product.sources ?? []) {
+    if (!s.sourceId || s.sourceId === "feed_default") continue;
+    if (seen.has(s.sourceId)) continue;
+    seen.add(s.sourceId);
+    ids.push(s.sourceId);
+  }
+  return ids;
+}
+
 interface ProductCardProps {
   item: MockProductWithHistory;
   onAlert?: (item: MockProductWithHistory) => void;
@@ -54,7 +64,9 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
   const { product, bestPrice } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, isPinned, togglePin, setShowAuthModal } = useAuth();
   const hasPrice = bestPrice.totalChf > 0;
-  const sources = product.sources?.length ?? 0;
+  const priceLabel = hasPrice ? formatChf(bestPrice.totalChf) : null;
+  const shopIds = offerSourceIds(item);
+  const offerCount = shopIds.length || (product.sources?.length ?? 0);
   const faved = isFavorite(product.gtin);
   const pinned = isPinned(product.gtin);
   const bestShop = bestShopFor(item);
@@ -64,9 +76,17 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
     fn();
   };
 
+  // `X Angebote ab CHF 19.95` / `1 Angebot ab CHF 19.95` / empty.
+  const offerLine = (() => {
+    if (!priceLabel) return null;
+    if (offerCount >= 2) return `${offerCount} Angebote ab CHF ${priceLabel}`;
+    if (offerCount === 1) return `1 Angebot ab CHF ${priceLabel}`;
+    return `ab CHF ${priceLabel}`;
+  })();
+
   // ───────────────────────────────────────────────────────────────
   // LIST LAYOUT — horizontal row, matches the screenshot treatment:
-  //   [image] · [category link · price · brand title · N Angebote] · [icons]
+  //   [image] · [category link · price · brand title · offer line + mini logos] · [icons]
   // ───────────────────────────────────────────────────────────────
   if (layout === "list") {
     const categoryLabel = product.categoryName || product.category || "Produkt";
@@ -85,9 +105,9 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
             {/* Category label (blue, small) */}
             <p className="text-[13px] font-medium text-[#0076bd]">{categoryLabel}</p>
 
-            {/* Price — bold */}
+            {/* Price — bold, exact rappen */}
             <p className="mt-0.5 text-[18px] font-bold text-gray-900">
-              {hasPrice ? formatPrice(bestPrice.totalChf) : "Preis auf Anfrage"}
+              {hasPrice ? `CHF ${priceLabel}` : "Preis auf Anfrage"}
             </p>
 
             {/* Brand bold + title */}
@@ -96,16 +116,18 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
               {product.title.replace(product.brand, "").trim()}
             </p>
 
-            {/* Bottom row: best-shop pill + offers + icons */}
+            {/* Bottom row: offer line + mini logos + icons */}
             <div className="mt-auto flex items-center justify-between gap-2 pt-2">
               <div className="flex min-w-0 items-center gap-2">
-                {bestShop && hasPrice && (
-                  <ShopLogo sourceId={bestShop.sourceId} label={bestShop.sourceName} size="sm" />
+                {offerLine && (
+                  <p className="truncate text-[11px] text-gray-500">{offerLine}</p>
                 )}
-                {sources > 0 && (
-                  <p className="truncate text-[11px] text-gray-400">
-                    {sources > 1 ? `${sources} Angebote` : "1 Angebot"}
-                  </p>
+                {shopIds.length > 0 && (
+                  <div className="flex shrink-0 items-center -space-x-1.5">
+                    {shopIds.slice(0, 4).map((sid) => (
+                      <ShopLogo key={sid} sourceId={sid} iconOnly size="sm" />
+                    ))}
+                  </div>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -135,8 +157,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
   }
 
   // ───────────────────────────────────────────────────────────────
-  // GRID LAYOUT — stacked card, matches the screenshot treatment:
-  //   [icons top-right · image · price · brand title · best-shop + N Angebote]
+  // GRID LAYOUT — stacked card, matches the screenshot treatment
   // ───────────────────────────────────────────────────────────────
   return (
     <div className="group relative flex flex-col bg-white transition-colors duration-200 hover:bg-[#f8f8f9]">
@@ -165,9 +186,9 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           </div>
         </div>
 
-        {/* Price — Galaxus bold */}
+        {/* Price — Galaxus bold, exact rappen */}
         <span className="mt-2 text-xl font-bold tracking-tight text-gray-900">
-          {hasPrice ? formatPrice(bestPrice.totalChf) : "Preis auf Anfrage"}
+          {hasPrice ? `CHF ${priceLabel}` : "Preis auf Anfrage"}
         </span>
 
         {/* Brand + Title */}
@@ -176,18 +197,27 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           {product.title.replace(product.brand, "").trim()}
         </p>
 
-        {/* Bottom: best-shop pill + N Angebote + bell */}
-        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-          <div className="flex min-w-0 items-center gap-1.5">
-            {bestShop && hasPrice && (
-              <ShopLogo sourceId={bestShop.sourceId} label={bestShop.sourceName} size="xs" />
-            )}
-            {sources > 0 && (
-              <p className="truncate text-[10px] text-gray-400">
-                {sources > 1 ? `${sources} Angebote` : "1 Angebot"}
-              </p>
+        {/* Offer count line */}
+        {offerLine && (
+          <p className="mt-1.5 text-[11px] font-medium text-gray-500">{offerLine}</p>
+        )}
+
+        {/* Mini-logo row — one chip per shop that carries this gtin */}
+        {shopIds.length > 0 && (
+          <div className="mt-1.5 flex items-center -space-x-1.5">
+            {shopIds.slice(0, 5).map((sid) => (
+              <ShopLogo key={sid} sourceId={sid} iconOnly size="sm" />
+            ))}
+            {shopIds.length > 5 && (
+              <span className="ml-2 text-[10px] font-medium text-gray-400">
+                +{shopIds.length - 5}
+              </span>
             )}
           </div>
+        )}
+
+        {/* Bottom: bell aligned right */}
+        <div className="mt-auto flex items-center justify-end pt-2">
           {onAlert && (
             <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
               className="shrink-0 text-gray-400 transition-all duration-200 hover:scale-110 hover:text-[#D81E05]"

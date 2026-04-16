@@ -31,6 +31,9 @@ import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 import { getCategoryBySlug } from "@/lib/categories";
 import { getShopSource } from "@/lib/shop-sources";
+import { ShopLogo } from "@/components/shop-logo";
+import { BrandLogo } from "@/components/brand-logo";
+import { formatChf } from "@/lib/pricing/format";
 
 const SOURCE_COLORS: Record<string, string> = {
   amazon_de: "#FF9900",
@@ -192,18 +195,27 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
                   <span className="mb-2 inline-block rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white">-{discount}%</span>
                 )}
 
-                {/* Price */}
+                {/* Price — exact rappen, no rounding to whole francs */}
                 <div className="flex items-baseline gap-3">
-                  <span className="text-4xl font-bold text-gray-900">{bestPrice.totalChf > 0 ? `${bestPrice.totalChf.toFixed(0)}.–` : "Preis auf Anfrage"}</span>
+                  <span className="text-4xl font-bold text-gray-900">
+                    {bestPrice.totalChf > 0 ? `CHF ${formatChf(bestPrice.totalChf)}` : "Preis auf Anfrage"}
+                  </span>
                   {discount >= 3 && (
-                    <span className="text-base text-gray-400 line-through">statt {Math.round(avgChf30d)}.–</span>
+                    <span className="text-base text-gray-400 line-through">
+                      statt CHF {formatChf(avgChf30d)}
+                    </span>
                   )}
                 </div>
 
-                {/* Brand + Title */}
-                <h1 className="mt-2 text-xl font-bold text-gray-900 sm:text-2xl">
-                  <span className="font-extrabold">{product.brand}</span> {product.title.replace(product.brand, "").trim()}
-                </h1>
+                {/* Brand + Title — official brand logo (Clearbit) flanks
+                    the brand name so the hero looks brand-authentic and
+                    falls back to a coloured initial chip on error. */}
+                <div className="mt-2 flex items-center gap-3">
+                  <BrandLogo name={product.brand} size="sm" shape="circle" />
+                  <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
+                    <span className="font-extrabold">{product.brand}</span> {product.title.replace(product.brand, "").trim()}
+                  </h1>
+                </div>
                 <p className="mt-1 text-sm text-gray-500">{cat?.name ?? product.category} · GTIN {product.gtin}</p>
 
                 {/* Badges */}
@@ -211,7 +223,7 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
                   <PriceDropBadge currentChf={bestPrice.totalChf} avgChf30d={avgChf30d} />
                   {isDropping && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                      <TrendingDown className="h-3.5 w-3.5" /> CHF {Math.abs(priceDrop30d).toFixed(0)} in 30d
+                      <TrendingDown className="h-3.5 w-3.5" /> CHF {formatChf(Math.abs(priceDrop30d))} in 30d
                     </span>
                   )}
                   {hasSources && (() => {
@@ -334,18 +346,15 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
                       // show the EUR sub-line when the source is a true
                       // DE-import where EUR is the source-of-truth.
                       const showEurLine = s.currentPriceEur > 0;
-                      const ctaPrice = s.breakdown.totalChf > 0
-                        ? `${s.breakdown.totalChf.toFixed(0)}.–`
-                        : "Preis prüfen";
+                      const hasChf = s.breakdown.totalChf > 0;
+                      const ctaPrice = hasChf ? `CHF ${formatChf(s.breakdown.totalChf)}` : "Preis prüfen";
                       return (
                       <div key={s.sourceId} className={`flex flex-col gap-2 rounded-lg px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${s.isBest ? "border-2 border-green-200 bg-green-50" : "border border-gray-100 bg-gray-50"}`}>
                         <div className="flex items-center gap-3">
-                          {/* Shop wordmark — shared component so the chip
-                              stays in sync with the product-card version. */}
-                          <span className="inline-flex h-7 min-w-[90px] items-center justify-center rounded border border-gray-200 bg-white px-2.5 text-[10px] tracking-wider"
-                            style={{ color: shop.wordmark.color, fontWeight: shop.wordmark.weight }}>
-                            {shop.wordmark.text}
-                          </span>
+                          {/* Official shop logo (Clearbit) with a graceful
+                              text-wordmark fallback — single component keeps
+                              card + PDP branding identical. */}
+                          <ShopLogo sourceId={s.sourceId} size="md" />
                           <div>
                             <p className="text-sm font-semibold text-gray-900">
                               {shop.name}
@@ -383,7 +392,7 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
                           {product.shopName || "Partner-Shop"}
                           <span className="ml-2 rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Partner</span>
                         </p>
-                        {bestPrice.totalChf > 0 && <p className="mt-1 text-2xl font-bold text-gray-900">{bestPrice.totalChf.toFixed(2)} CHF</p>}
+                        {bestPrice.totalChf > 0 && <p className="mt-1 text-2xl font-bold text-gray-900">CHF {formatChf(bestPrice.totalChf)}</p>}
                       </div>
                       <a href={product.affiliateUrl} target="_blank" rel="sponsored nofollow noopener"
                         className="flex items-center gap-1.5 rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-700">
@@ -423,7 +432,7 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-lg sm:hidden">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-lg font-bold text-gray-900">{bestPrice.totalChf > 0 ? `${bestPrice.totalChf.toFixed(0)}.–` : "—"}</p>
+            <p className="text-lg font-bold text-gray-900">{bestPrice.totalChf > 0 ? `CHF ${formatChf(bestPrice.totalChf)}` : "—"}</p>
             <p className="text-[10px] text-gray-400">{bestSource}</p>
           </div>
           <div className="flex gap-2">

@@ -1,13 +1,20 @@
 /**
- * Shop source mapping — logos, colors, names.
+ * Shop source mapping — logos, colors, names, domains.
  * Keyed by sourceId (used in Price.sourceId column).
+ *
+ * Each shop now carries a canonical `domain` so the UI can fetch an
+ * official logo via `https://logo.clearbit.com/<domain>`. The wordmark
+ * stays as a deterministic text fallback for when Clearbit 404s or is
+ * blocked by the client (ad-blockers, offline mode, CI snapshots).
  */
 
 export interface ShopSource {
   id: string;
   name: string;
   color: string;
-  /** Text-based wordmark style for inline shop branding */
+  /** Shop homepage domain — powers the Clearbit logo lookup. */
+  domain: string;
+  /** Text wordmark used when the remote logo isn't available. */
   wordmark: { text: string; color: string; weight: number };
 }
 
@@ -16,95 +23,91 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     id: "xxl_parfum",
     name: "XXL Parfum",
     color: "#E30613",
+    domain: "xxl-parfum.ch",
     wordmark: { text: "XXL PARFUM", color: "#E30613", weight: 900 },
   },
   parfumsale: {
     id: "parfumsale",
     name: "Parfumsale",
     color: "#0076bd",
+    domain: "parfumsale.ch",
     wordmark: { text: "parfumsale", color: "#0076bd", weight: 700 },
   },
   import_parfumerie: {
     id: "import_parfumerie",
     name: "Import Parfumerie",
     color: "#1a1a1a",
+    domain: "importparfumerie.ch",
     wordmark: { text: "Import Parfumerie", color: "#1a1a1a", weight: 700 },
   },
   coop_vitality: {
     id: "coop_vitality",
     name: "Coop Vitality",
     color: "#f39200",
+    domain: "coop-vitality.ch",
     wordmark: { text: "Coop Vitality", color: "#f39200", weight: 800 },
   },
   new_balance: {
     id: "new_balance",
     name: "New Balance",
     color: "#d2002e",
+    domain: "newbalance.ch",
     wordmark: { text: "new balance", color: "#d2002e", weight: 800 },
   },
   parfum_ch: {
     id: "parfum_ch",
     name: "Parfum.ch",
     color: "#111111",
+    domain: "parfum.ch",
     wordmark: { text: "parfum.ch", color: "#111111", weight: 800 },
   },
   ackermann_ch: {
     id: "ackermann_ch",
     name: "Ackermann Technik",
     color: "#005ca9",
+    domain: "ackermann.ch",
     wordmark: { text: "ackermann", color: "#005ca9", weight: 800 },
   },
   "ackermann-mode": {
-    // Ackermann fashion sub-brand — shares the navy corporate tone with
-    // Ackermann Technik but keeps a distinct wordmark suffix so the
-    // best-shop pill on ProductCard / ProductShelf stays readable when
-    // both shops appear on the same product.
     id: "ackermann-mode",
     name: "Ackermann Mode",
     color: "#005ca9",
+    domain: "ackermann.ch",
     wordmark: { text: "ackermann · mode", color: "#005ca9", weight: 800 },
   },
   jelmoli: {
-    // Jelmoli Technik — Swiss department-store brand. Their in-store
-    // signage is monochrome black-on-white with a small red accent; we
-    // lean on the black for the ShopLogo chip so the wordmark keeps its
-    // premium-retail feel without clashing with XXL Parfum's red.
     id: "jelmoli",
     name: "Jelmoli",
     color: "#111111",
+    domain: "jelmoli.ch",
     wordmark: { text: "JELMOLI", color: "#111111", weight: 900 },
   },
   "jelmoli-mode": {
-    // Jelmoli fashion sub-brand — same #111111 corporate monochrome as
-    // Technik, but the wordmark carries a distinct "· MODE" suffix so
-    // the best-shop pill on ProductCard / ProductShelf stays readable
-    // when a gtin appears in both feeds.
     id: "jelmoli-mode",
     name: "Jelmoli Mode",
     color: "#111111",
+    domain: "jelmoli.ch",
     wordmark: { text: "JELMOLI · MODE", color: "#111111", weight: 900 },
   },
   bijouteria: {
-    // Bijouteria — Swiss jewelry retailer. Elegant purple (#8e44ad)
-    // reads as "premium / jewelry silver" against white and gives the
-    // ShopLogo chip its own identity next to XXL Parfum's red and the
-    // Jelmoli / Ackermann neutrals.
     id: "bijouteria",
     name: "Bijouteria",
     color: "#8e44ad",
+    domain: "bijouteria.ch",
     wordmark: { text: "BIJOUTERIA", color: "#8e44ad", weight: 800 },
   },
   bergfreunde: {
     id: "bergfreunde",
     name: "Bergfreunde",
-    // Corporate forest-green, lifted from bergfreunde.eu's primary accent.
     color: "#4e7a27",
+    domain: "bergfreunde.eu",
     wordmark: { text: "BERGFREUNDE", color: "#4e7a27", weight: 800 },
   },
   adtraction_xxl_parfum: {
     id: "adtraction_xxl_parfum",
     name: "XXL Parfum",
     color: "#E30613",
+    domain: "xxl-parfum.ch",
     wordmark: { text: "XXL PARFUM", color: "#E30613", weight: 900 },
   },
 };
@@ -114,8 +117,15 @@ export function getShopSource(sourceId: string): ShopSource {
     id: sourceId,
     name: sourceId,
     color: "#888",
+    domain: "",
     wordmark: { text: sourceId, color: "#666", weight: 600 },
   };
+}
+
+/** Clearbit logo URL for a shop — empty string when the shop has no domain. */
+export function getShopLogoUrl(sourceId: string): string {
+  const shop = getShopSource(sourceId);
+  return shop.domain ? `https://logo.clearbit.com/${shop.domain}` : "";
 }
 
 /** Get all active shop sources for UI dropdowns */

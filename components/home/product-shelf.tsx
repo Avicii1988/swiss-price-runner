@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { ArrowRight, Truck, PackageCheck } from "lucide-react";
 import { classifyShipping } from "@/lib/pricing/calculator";
 import { ShopLogo } from "@/components/shop-logo";
+import { formatChf } from "@/lib/pricing/format";
 import type { ShelfItem } from "@/lib/data";
 
 export type ShelfLayout = "grid" | "list";
@@ -20,6 +21,19 @@ interface ProductShelfProps {
   limit?: number;
   /** Grid (default) or single-column list layout. */
   layout?: ShelfLayout;
+}
+
+/** Extract the unique sourceIds that carry a shelf item (excl. synthetic). */
+function offerSourceIds(item: ShelfItem): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const s of item.product.sources ?? []) {
+    if (!s.sourceId || s.sourceId === "feed_default") continue;
+    if (seen.has(s.sourceId)) continue;
+    seen.add(s.sourceId);
+    ids.push(s.sourceId);
+  }
+  return ids;
 }
 
 /**
@@ -81,25 +95,26 @@ export function ProductShelf({ title, subtitle, items, href, limit = 12, layout 
   );
 }
 
-/**
- * Minimal product card for shelves — image, brand, truncated title, price.
- * Shipping chip + variant badge render only when data is present so the
- * card stays clean for simple products.
- */
 function ShelfCard({ item }: { item: ShelfItem }) {
   const { product, bestPrice } = item;
   const brand = product.brand;
   const title = product.title.replace(brand, "").trim();
   const isGrouped = item.variant != null && item.variant.variantCount > 1;
-  const chf = isGrouped
-    ? Math.floor(item.variant!.minPriceChf)
-    : Math.floor(bestPrice.totalChf);
 
-  // Shipping hint + best shop — use the first source (Swiss-shop default).
+  const rawPrice = isGrouped ? item.variant!.minPriceChf : bestPrice.totalChf;
+  const priceLabel = rawPrice > 0 ? formatChf(rawPrice) : null;
+  const shopIds = offerSourceIds(item);
+  const offerCount = shopIds.length || (product.sources?.length ?? 0);
+
+  // Shipping hint — read from the first source (Swiss-shop default).
   const firstSource = product.sources[0];
   const shipping = classifyShipping(firstSource?.shippingChf ?? null);
-  const bestShop = firstSource
-    ? { sourceId: firstSource.sourceId, sourceName: firstSource.sourceName }
+
+  // "N Angebote ab CHF X.YY" / "1 Angebot ab CHF X.YY" / null.
+  const offerLine = priceLabel
+    ? offerCount >= 2
+      ? `${offerCount} Angebote ab CHF ${priceLabel}`
+      : `1 Angebot ab CHF ${priceLabel}`
     : null;
 
   return (
@@ -107,7 +122,6 @@ function ShelfCard({ item }: { item: ShelfItem }) {
       href={`/product/${product.gtin}` as Route}
       className="group relative block bg-white transition-colors duration-200 hover:bg-[#f8f8f9]"
     >
-      {/* Variant badge — top-left, only when grouped */}
       {isGrouped && (
         <span className="absolute left-2.5 top-2.5 z-10 rounded-full bg-black/80 px-2 py-0.5 text-[10px] font-medium tracking-tight text-white backdrop-blur">
           {item.variant!.variantCount} Grössen
@@ -138,7 +152,7 @@ function ShelfCard({ item }: { item: ShelfItem }) {
         <p className="mt-0.5 line-clamp-2 min-h-[34px] text-[12px] leading-snug text-gray-900">
           {title || product.title}
         </p>
-        {chf > 0 && (
+        {priceLabel && (
           <div className="mt-2 flex items-baseline gap-1.5">
             {isGrouped && (
               <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
@@ -146,16 +160,27 @@ function ShelfCard({ item }: { item: ShelfItem }) {
               </span>
             )}
             <span className="text-[15px] font-semibold tracking-tight text-gray-900">
-              {chf}.<span className="text-[11px] text-gray-400">–</span>
+              CHF {priceLabel}
             </span>
           </div>
         )}
 
-        {/* Best-shop pill — tells users up front which retailer the price
-            comes from, without making them drill into the PDP. */}
-        {chf > 0 && bestShop && (
-          <div className="mt-1.5">
-            <ShopLogo sourceId={bestShop.sourceId} label={bestShop.sourceName} size="xs" />
+        {/* N Angebote ab CHF X.YY */}
+        {offerLine && (
+          <p className="mt-1 text-[10px] font-medium text-gray-500">{offerLine}</p>
+        )}
+
+        {/* Mini-logo row — the shops that actually carry this gtin */}
+        {shopIds.length > 0 && (
+          <div className="mt-1.5 flex items-center -space-x-1.5">
+            {shopIds.slice(0, 4).map((sid) => (
+              <ShopLogo key={sid} sourceId={sid} iconOnly size="xs" />
+            ))}
+            {shopIds.length > 4 && (
+              <span className="ml-2 text-[10px] font-medium text-gray-400">
+                +{shopIds.length - 4}
+              </span>
+            )}
           </div>
         )}
 
@@ -169,7 +194,7 @@ function ShelfCard({ item }: { item: ShelfItem }) {
         {shipping.kind === "paid" && (
           <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-gray-500">
             <Truck className="h-3 w-3" strokeWidth={2} />
-            + CHF {Math.round(shipping.chf)} Versand
+            + CHF {formatChf(shipping.chf)} Versand
           </p>
         )}
       </div>
@@ -187,13 +212,16 @@ function ShelfListRow({ item }: { item: ShelfItem }) {
   const brand = product.brand;
   const title = product.title.replace(brand, "").trim();
   const isGrouped = item.variant != null && item.variant.variantCount > 1;
-  const chf = isGrouped
-    ? Math.floor(item.variant!.minPriceChf)
-    : Math.floor(bestPrice.totalChf);
 
-  const firstSource = product.sources[0];
-  const bestShop = firstSource
-    ? { sourceId: firstSource.sourceId, sourceName: firstSource.sourceName }
+  const rawPrice = isGrouped ? item.variant!.minPriceChf : bestPrice.totalChf;
+  const priceLabel = rawPrice > 0 ? formatChf(rawPrice) : null;
+  const shopIds = offerSourceIds(item);
+  const offerCount = shopIds.length || (product.sources?.length ?? 0);
+
+  const offerLine = priceLabel
+    ? offerCount >= 2
+      ? `${offerCount} Angebote ab CHF ${priceLabel}`
+      : `1 Angebot ab CHF ${priceLabel}`
     : null;
 
   return (
@@ -226,13 +254,20 @@ function ShelfListRow({ item }: { item: ShelfItem }) {
             {item.variant!.variantCount} Grössen verfügbar
           </p>
         )}
-        {chf > 0 && bestShop && (
-          <div className="mt-1.5">
-            <ShopLogo sourceId={bestShop.sourceId} label={bestShop.sourceName} size="xs" />
+        {shopIds.length > 0 && (
+          <div className="mt-1.5 flex items-center -space-x-1.5">
+            {shopIds.slice(0, 4).map((sid) => (
+              <ShopLogo key={sid} sourceId={sid} iconOnly size="xs" />
+            ))}
+            {shopIds.length > 4 && (
+              <span className="ml-2 text-[10px] font-medium text-gray-400">
+                +{shopIds.length - 4}
+              </span>
+            )}
           </div>
         )}
       </div>
-      {chf > 0 && (
+      {priceLabel && (
         <div className="shrink-0 text-right">
           {isGrouped && (
             <p className="text-[9px] font-medium uppercase tracking-wider text-gray-400">
@@ -240,8 +275,11 @@ function ShelfListRow({ item }: { item: ShelfItem }) {
             </p>
           )}
           <p className="text-[15px] font-semibold tracking-tight text-gray-900">
-            {chf}.<span className="text-[11px] text-gray-400">–</span>
+            CHF {priceLabel}
           </p>
+          {offerLine && (
+            <p className="mt-0.5 text-[10px] text-gray-400">{offerLine}</p>
+          )}
         </div>
       )}
     </Link>

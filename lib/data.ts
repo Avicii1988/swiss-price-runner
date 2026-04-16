@@ -196,15 +196,20 @@ export async function getProductsByCategory(slug: string): Promise<MockProductWi
       categoryName: string | null; imageUrl: string | null; shopName: string | null;
       sourceType: string | null; affiliateUrl: string | null;
       price: string;
+      shop_ids: string[] | null;
     }>>`
       WITH shop_counts AS (
-        SELECT "productId", COUNT(DISTINCT "sourceId")::int AS shop_count
+        SELECT
+          "productId",
+          COUNT(DISTINCT "sourceId")::int AS shop_count,
+          array_agg(DISTINCT "sourceId") AS shop_ids
         FROM "Price"
         GROUP BY "productId"
       )
       SELECT p.id, p.gtin, p.title, p.brand, p.category, p."categoryName",
              p."imageUrl", p."shopName", p."sourceType", p."affiliateUrl",
-             p.price
+             p.price,
+             sc.shop_ids AS shop_ids
       FROM "Product" p
       LEFT JOIN shop_counts sc ON sc."productId" = p.id
       WHERE p."isActive" = true
@@ -215,7 +220,9 @@ export async function getProductsByCategory(slug: string): Promise<MockProductWi
       LIMIT 1000
     `;
 
-    return rows.map((p) => buildFromDb({ ...p, prices: [] }));
+    return rows.map((p) =>
+      buildFromDb({ ...p, prices: [], shopIds: p.shop_ids ?? undefined }),
+    );
   } catch {
     const all = SEED_PRODUCTS.filter((p) => p.category === slug);
     return all.map(enrichProduct);
@@ -353,6 +360,13 @@ type DbProduct = {
   shippingCostChf?: unknown | null;
   priceIsNet?: boolean | null;
   prices: { amountChf: unknown; amountEur: unknown; sourceId: string; shopName?: string | null; url?: string | null; timestamp?: Date }[];
+  /**
+   * Optional list of sourceIds that carry this product. Populated by
+   * listing queries (shelves, category) from the Price table so the
+   * card UI can render a "X Angebote" count + a mini-logo row without
+   * a per-card round-trip. PDP reads full Price rows and ignores this.
+   */
+  shopIds?: string[];
 };
 
 function buildFromDb(p: DbProduct): MockProductWithHistory {
@@ -414,10 +428,29 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     };
   });
 
-  // No Price rows at all but we know the product is a feed item with a
-  // sane Product.price → synthesise a virtual source so the UI still has
-  // something to click. `isFeedProduct` is kept as a safety guard so we
-  // don't invent shops for seed / legacy rows.
+  // Listing queries (shelves, category) don't load Price rows individually
+  // — they carry a pre-aggregated `shopIds` list from the raw SQL join.
+  // Expand that list into one virtual source per shop so the card UI
+  // can read `product.sources.length` as the true offer count and iterate
+  // sources[].sourceId for the mini-logo row. All virtual sources share
+  // the same price (Product.price = lowest offer from the SQL ranking).
+  if (sources.length === 0 && p.shopIds && p.shopIds.length > 0 && bestChf > 0) {
+    for (const sid of p.shopIds) {
+      sources.push({
+        sourceId: sid,
+        sourceName: SOURCE_NAMES[sid] || sid,
+        url: affiliateUrl,
+        currentPriceEur: 0,
+        nativeChf: bestChf,
+        shippingChf: productShippingChf,
+        priceIsNet: productPriceIsNet,
+      });
+    }
+  }
+
+  // Fallback: no Price rows and no pre-aggregated shopIds, but we know
+  // the product is a feed item with a valid Product.price → synthesise
+  // one virtual source so the card still has a "Zum Shop" target.
   if (sources.length === 0 && (isFeedProduct || directPriceChf > 0) && bestChf > 0) {
     sources.push({
       sourceId: "feed_default",
@@ -717,8 +750,9 @@ export async function getThematicShelves(
         // distinct shops first, then by recency. Rows with no Price
         // records (just a Product.price) count as 1 shop. The
         // shop_counts CTE groups the Price table once and is reused
-        // across every shelf; the LEFT JOIN on `reps` adds zero cost
-        // when the product has never been priced.
+        // across every shelf; array_agg(DISTINCT "sourceId") also
+        // returns the list of shop IDs so the card UI can render the
+        // mini-logo row without extra DB round-trips.
         const rows = await db.$queryRaw<Array<{
           id: string; gtin: string; title: string; brand: string; category: string;
           categoryName: string | null; imageUrl: string | null; shopName: string | null;
@@ -728,6 +762,7 @@ export async function getThematicShelves(
           groupId: string | null;
           variant_count: number; min_price: string;
           shop_count: number;
+          shop_ids: string[] | null;
         }>>`
           WITH agg AS (
             SELECT
@@ -739,7 +774,10 @@ export async function getThematicShelves(
             GROUP BY COALESCE("groupId", gtin)
           ),
           shop_counts AS (
-            SELECT "productId", COUNT(DISTINCT "sourceId")::int AS shop_count
+            SELECT
+              "productId",
+              COUNT(DISTINCT "sourceId")::int AS shop_count,
+              array_agg(DISTINCT "sourceId") AS shop_ids
             FROM "Price"
             GROUP BY "productId"
           ),
@@ -748,7 +786,8 @@ export async function getThematicShelves(
               p.*,
               a.variant_count,
               a.min_price,
-              COALESCE(sc.shop_count, 1)::int AS shop_count
+              COALESCE(sc.shop_count, 1)::int AS shop_count,
+              sc.shop_ids AS shop_ids
             FROM "Product" p
             JOIN agg a ON a.grp_key = COALESCE(p."groupId", p.gtin)
             LEFT JOIN shop_counts sc ON sc."productId" = p.id
@@ -758,7 +797,7 @@ export async function getThematicShelves(
           SELECT id, gtin, title, brand, category, "categoryName", "imageUrl",
                  "shopName", "sourceType", "affiliateUrl", price, "originalPriceChf",
                  "shippingCostChf", "priceIsNet", "groupId",
-                 variant_count, min_price, shop_count
+                 variant_count, min_price, shop_count, shop_ids
           FROM reps
           ORDER BY shop_count DESC, "updatedAt" DESC
           LIMIT ${perShelf}
@@ -780,6 +819,7 @@ export async function getThematicShelves(
             shippingCostChf: r.shippingCostChf,
             priceIsNet: r.priceIsNet,
             prices: [],
+            shopIds: r.shop_ids ?? undefined,
           });
           return {
             ...built,
