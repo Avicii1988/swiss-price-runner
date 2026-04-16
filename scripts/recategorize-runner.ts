@@ -7,7 +7,7 @@
  *
  * Usage:
  *   npx tsx scripts/recategorize-runner.ts              # full scan
- *   npx tsx scripts/recategorize-runner.ts --batch 1000 # batch size (default 1000)
+ *   npx tsx scripts/recategorize-runner.ts --batch 5000 # batch size (default 5000)
  *   npx tsx scripts/recategorize-runner.ts --dry        # no DB writes, log diffs
  *   npx tsx scripts/recategorize-runner.ts --only parfum # limit to current category
  *
@@ -38,7 +38,7 @@ interface Args {
 
 function parseArgs(): Args {
   const args = process.argv.slice(2);
-  let batch = 1000;
+  let batch = 5000;
   let dryRun = false;
   let only: string | null = null;
   let limit: number | null = null;
@@ -116,6 +116,15 @@ async function main() {
   const db = new PrismaClient();
   console.time("total");
 
+  // Pre-count for % progress (cheap COUNT, takes <100 ms on 140 k rows)
+  const totalActive = await db.product.count({
+    where: {
+      isActive: true,
+      ...(only ? { category: only } : {}),
+    },
+  });
+  console.log(`📊 Total active products to scan: ${totalActive.toLocaleString()}`);
+
   let cursor: string | null = null;
   let scanned = 0;
   let changed = 0;
@@ -184,18 +193,19 @@ async function main() {
 
       scanned += rows.length;
       cursor = rows[rows.length - 1].id;
+      const pct = totalActive > 0 ? `${((scanned / totalActive) * 100).toFixed(1)}%` : "";
 
       if (dryRun) {
         for (const u of updates) {
           changeCounts.set(u.newLeaf, (changeCounts.get(u.newLeaf) ?? 0) + 1);
         }
         changed += updates.length;
-        console.log(`[scan ${scanned}] would update ${updates.length}/${rows.length} → cursor=${cursor}`);
+        console.log(`[${pct} ${scanned.toLocaleString()}] would update ${updates.length}/${rows.length}`);
         continue;
       }
 
       if (updates.length === 0) {
-        console.log(`[scan ${scanned}] no changes in batch → cursor=${cursor}`);
+        console.log(`[${pct} ${scanned.toLocaleString()}] no changes in batch`);
         continue;
       }
 
@@ -219,7 +229,7 @@ async function main() {
       for (const u of updates) {
         changeCounts.set(u.newLeaf, (changeCounts.get(u.newLeaf) ?? 0) + 1);
       }
-      console.log(`[scan ${scanned}] ${moved}/${updates.length} updated → cursor=${cursor}`);
+      console.log(`[${pct} ${scanned.toLocaleString()}] ${moved}/${updates.length} updated`);
     }
 
     console.log(`\n🎉 Recategorize complete`);

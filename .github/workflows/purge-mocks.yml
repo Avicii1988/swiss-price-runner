@@ -1,0 +1,52 @@
+name: Purge Mock Data
+
+# One-shot cleanup workflow — deletes phantom Price rows from legacy
+# mock shops (Amazon.de, Galaxus, Zalando, test-shop) and deactivates
+# the corresponding seed Products. Safe to re-run (idempotent).
+#
+# Trigger manually via workflow_dispatch. There's intentionally no
+# schedule — this is a one-time housekeeping job.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — preview what would be deleted, don't write"
+        required: false
+        default: "false"
+        type: boolean
+      force_pooled:
+        description: "Force use of the pooled DATABASE_URL"
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Normalize DB URL
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          FORCE_POOLED:   ${{ inputs.force_pooled }}
+        run: node .github/scripts/normalize-db-url.js
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run purge-mocks
+        run: npx tsx scripts/purge-mocks.ts ${{ inputs.dry_run == true && '--dry' || '' }}
