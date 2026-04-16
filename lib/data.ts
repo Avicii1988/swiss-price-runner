@@ -12,11 +12,11 @@ import type { MockPricePoint, MockProductWithHistory } from "@/lib/integrations/
 import { decodeHtmlEntities, prettifySlug, cleanCategoryName } from "@/lib/category-icons";
 import { findCategoryNode, type CategoryNode } from "@/lib/categories";
 
-const SOURCE_NAMES: Record<string, string> = {
-  amazon_de: "Amazon.de",
-  galaxus_ch: "Galaxus",
-  zalando_de: "Zalando",
-};
+// Shop-name lookup — empty placeholder. Real shop names flow through
+// getShopSource() from lib/shop-sources (populated from the live
+// Adtraction feed registry). The legacy Amazon.de / Galaxus / Zalando
+// entries are gone together with the rest of the mock data.
+const SOURCE_NAMES: Record<string, string> = {};
 
 /**
  * Load dynamic categories from DB — only categories with at least 1 product.
@@ -181,22 +181,38 @@ const PARFUM_SUB_SLUGS = [
 
 export async function getProductsByCategory(slug: string): Promise<MockProductWithHistory[]> {
   try {
-    // Raw SQL so we can rank deterministically.
+    // Raw SQL so we can rank deterministically and expand descendants.
+    //
+    // Matching strategy:
+    //   /category/schuhe-sneakers used to run `category = 'schuhe-sneakers'`
+    //   verbatim — but every imported SKU actually lives on a leaf slug
+    //   (sneakers-nike, sneakers-newbalance, …), so the L2 page came up
+    //   empty. We now walk the tree via findCategoryNode() +
+    //   collectDescendantSlugs() and filter `category IN (self + descendants)`,
+    //   matching the behaviour of the home shelves.
     //
     // Sort strategy:
     //   · L1 root (e.g. /category/smartphones): rank by shop_count DESC so
     //     the overview leads with multi-shop comparison-worthy hits.
     //   · L2 / L3 subcategories (e.g. /category/smartphones-apple,
     //     /category/damen-kleider): rank by price DESC so the flagship /
-    //     most expensive SKU leads — the "most teuren zuerst" rule the
+    //     most expensive SKU leads — the "teuerste zuerst" rule the
     //     product team asked for. shop_count stays as the secondary
     //     tiebreaker so multi-shop items still bubble up within the same
     //     price band.
-    const parfumOr = slug === "parfum"
-      ? Prisma.sql`OR p.category IN (${Prisma.join(PARFUM_SUB_SLUGS)})`
-      : Prisma.empty;
-
     const node = findCategoryNode(slug);
+    const matchSlugs = node
+      ? collectDescendantSlugs(node)
+      : [slug];
+    // Legacy: the flat `parfum` root used to fold a hand-maintained list
+    // of sibling slugs. With the tree walker that list is now covered by
+    // descendants, but we keep the PARFUM_SUB_SLUGS merge for resilience
+    // in case old products still sit on a slug that never existed in the
+    // tree (`herrendufte`, `damendufte` without parents, etc.).
+    const filterSlugs = slug === "parfum"
+      ? Array.from(new Set([...matchSlugs, ...PARFUM_SUB_SLUGS]))
+      : matchSlugs;
+
     const isSubcategory = node ? node.depth >= 1 : false;
     const orderBy = isSubcategory
       ? Prisma.sql`ORDER BY p.price DESC NULLS LAST,
@@ -228,7 +244,7 @@ export async function getProductsByCategory(slug: string): Promise<MockProductWi
       LEFT JOIN shop_counts sc ON sc."productId" = p.id
       WHERE p."isActive" = true
         AND p.price IS NOT NULL AND p.price > 0
-        AND (p.category = ${slug} ${parfumOr})
+        AND p.category IN (${Prisma.join(filterSlugs)})
       ${orderBy}
       LIMIT 1000
     `;
@@ -252,14 +268,16 @@ export async function getProductsByCategory(slug: string): Promise<MockProductWi
 export async function countProductsByCategory(slug: string): Promise<number> {
   if (!slug) return 0;
   try {
+    const node = findCategoryNode(slug);
+    const matchSlugs = node ? collectDescendantSlugs(node) : [slug];
+    const filterSlugs = slug === "parfum"
+      ? Array.from(new Set([...matchSlugs, ...PARFUM_SUB_SLUGS]))
+      : matchSlugs;
     return await db.product.count({
       where: {
         isActive: true,
         price: { gt: 0 },
-        OR: [
-          { category: slug },
-          ...(slug === "parfum" ? [{ category: { in: PARFUM_SUB_SLUGS } }] : []),
-        ],
+        category: { in: filterSlugs },
       },
     });
   } catch {
@@ -487,7 +505,11 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     shopName: p.shopName ?? undefined,
     sourceType: p.sourceType ?? undefined,
     affiliateUrl: p.affiliateUrl ?? undefined,
-    sources: sources.length > 0 ? sources : seed?.sources ?? [],
+    // Sources come exclusively from the real feed data — no more
+    // amazon_de / galaxus_ch / zalando_de fallback from the seed.
+    // If a DB product genuinely has no pricing, the UI renders the
+    // "Preis auf Anfrage" state rather than inventing phantom offers.
+    sources,
   };
 
   return enrichProduct(product);

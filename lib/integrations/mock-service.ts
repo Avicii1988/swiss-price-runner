@@ -35,11 +35,11 @@ export interface MockProductWithHistory {
 
 export const EXCHANGE_RATE = 0.94;
 
-const SOURCE_NAMES: Record<string, string> = {
-  amazon_de: "Amazon.de",
-  galaxus_ch: "Galaxus",
-  zalando_de: "Zalando",
-};
+// SOURCE_NAMES was a legacy mapping for the Amazon / Galaxus / Zalando
+// placeholder integrations. Those aren't wired up yet, so the map is
+// empty — live shop name resolution goes through getShopSource() from
+// lib/shop-sources, which is populated from the real Adtraction feeds.
+const SOURCE_NAMES: Record<string, string> = {};
 
 // ---------------------------------------------------------------------------
 // Deterministic PRNG
@@ -126,16 +126,40 @@ export function getMockProducts(): MockProductWithHistory[] {
       return { sourceId: s.sourceId, sourceName: s.sourceName, breakdown };
     });
 
-    const best = latestPrices.reduce((min, cur) =>
-      cur.breakdown.totalChf < min.breakdown.totalChf ? cur : min,
-    );
+    // Seed products can ship with an empty sources array since the mock
+    // Amazon / Galaxus / Zalando shops have been retired. Fall back to
+    // an empty breakdown so downstream consumers still get a well-formed
+    // object (priceHistory + 0-valued price) without crashing on reduce.
+    const best =
+      latestPrices.length > 0
+        ? latestPrices.reduce((min, cur) =>
+            cur.breakdown.totalChf < min.breakdown.totalChf ? cur : min,
+          )
+        : {
+            sourceId: "",
+            sourceName: "",
+            breakdown: {
+              originalEur: 0,
+              netEur: 0,
+              netChf: 0,
+              chVat: 0,
+              customsFee: 0,
+              totalChf: 0,
+              exchangeRate: EXCHANGE_RATE,
+              savings: 0,
+            },
+          };
 
-    const oldestDay = priceHistory.filter((p) => p.date === priceHistory[0].date);
-    const oldestBestChf = Math.min(...oldestDay.map((p) => p.amountChf));
+    const oldestDay = priceHistory.filter((p) => p.date === priceHistory[0]?.date);
+    const oldestBestChf = oldestDay.length > 0
+      ? Math.min(...oldestDay.map((p) => p.amountChf))
+      : best.breakdown.totalChf;
     const priceDrop30d = oldestBestChf - best.breakdown.totalChf;
 
     const allChf = priceHistory.map((p) => p.amountChf);
-    const avgChf30d = allChf.reduce((a, b) => a + b, 0) / allChf.length;
+    const avgChf30d = allChf.length > 0
+      ? allChf.reduce((a, b) => a + b, 0) / allChf.length
+      : best.breakdown.totalChf;
 
     return {
       product,

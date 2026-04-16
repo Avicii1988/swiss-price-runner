@@ -2,6 +2,8 @@
 
 import { X, ExternalLink, Bell, TrendingDown, TrendingUp, ShieldCheck, Truck } from "lucide-react";
 import { PriceHistoryChart } from "./price-history-chart";
+import { getShopSource } from "@/lib/shop-sources";
+import { formatChf } from "@/lib/pricing/format";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 interface ProductDetailModalProps {
@@ -9,18 +11,6 @@ interface ProductDetailModalProps {
   onClose: () => void;
   onOpenAlert: (item: MockProductWithHistory) => void;
 }
-
-const SOURCE_COLORS: Record<string, string> = {
-  amazon_de: "#FF9900",
-  galaxus_ch: "#0D2B5E",
-  zalando_de: "#FF6900",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  amazon_de: "Amazon.de",
-  galaxus_ch: "Galaxus",
-  zalando_de: "Zalando",
-};
 
 export function ProductDetailModal({ item, onClose, onOpenAlert }: ProductDetailModalProps) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d } = item;
@@ -109,6 +99,8 @@ export function ProductDetailModal({ item, onClose, onOpenAlert }: ProductDetail
           <div className="space-y-2">
             {product.sources.map((source) => {
               const isBest = source.sourceName === bestSource;
+              const shop = getShopSource(source.sourceId);
+              const showEurLine = source.currentPriceEur > 0;
               return (
                 <div
                   key={source.sourceId}
@@ -117,13 +109,15 @@ export function ProductDetailModal({ item, onClose, onOpenAlert }: ProductDetail
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: SOURCE_COLORS[source.sourceId] ?? "#888" }} />
+                    <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: shop.color }} />
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {SOURCE_LABELS[source.sourceId] ?? source.sourceId}
+                        {shop.name}
                         {isBest && <span className="ml-2 rounded bg-green-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Bester Preis</span>}
                       </p>
-                      <p className="text-[11px] text-gray-400">EUR {source.currentPriceEur.toFixed(2)}</p>
+                      {showEurLine && (
+                        <p className="text-[11px] text-gray-400">EUR {formatChf(source.currentPriceEur)}</p>
+                      )}
                     </div>
                   </div>
                   <button className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700">

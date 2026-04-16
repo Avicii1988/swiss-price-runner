@@ -14,23 +14,18 @@ import {
 import type { MockPricePoint } from "@/lib/integrations/mock-service";
 import type { MockProduct } from "@/prisma/seed";
 import { generatePriceHistory } from "@/lib/integrations/mock-service";
+import { getShopSource } from "@/lib/shop-sources";
 
 interface PriceHistoryChartProps {
   product: MockProduct;
   history30d: MockPricePoint[];
 }
 
-const SOURCE_COLORS: Record<string, string> = {
-  amazon_de: "#FF9900",
-  galaxus_ch: "#0D2B5E",
-  zalando_de: "#FF6900",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  amazon_de: "Amazon.de",
-  galaxus_ch: "Galaxus",
-  zalando_de: "Zalando",
-};
+// Shop colour / label lookups now go through the shared shop-sources
+// registry so every new feed (Jelmoli, Bergfreunde, Mobilezone, …)
+// picks up its proper branding without touching this file.
+const colorFor = (sid: string) => getShopSource(sid).color;
+const labelFor = (sid: string) => getShopSource(sid).name;
 
 const RANGES = [
   { key: "30d", label: "30 Tage", days: 30 },
@@ -56,7 +51,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
       {unique.map((entry) => (
         <div key={entry.dataKey} className="flex items-center gap-1.5 text-[11px]">
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: entry.color }} />
-          <span className="text-gray-600">{SOURCE_LABELS[entry.dataKey] ?? entry.dataKey}</span>
+          <span className="text-gray-600">{labelFor(entry.dataKey)}</span>
           <span className="ml-auto font-bold text-gray-900">CHF {entry.value.toFixed(2)}</span>
         </div>
       ))}
@@ -73,7 +68,7 @@ export function PriceHistoryChart({ product, history30d }: PriceHistoryChartProp
     return generatePriceHistory(product, days);
   }, [activeRange, product, history30d]);
 
-  // Pivot: { date, amazon_de, galaxus_ch, zalando_de }
+  // Pivot: { date, <sourceId1>, <sourceId2>, … } — one column per shop.
   const sourceIds = useMemo(() => [...new Set(history.map((p) => p.sourceId))], [history]);
   const chartData = useMemo(() => {
     const dates = [...new Set(history.map((p) => p.date))].sort();
@@ -123,9 +118,9 @@ export function PriceHistoryChart({ product, history30d }: PriceHistoryChartProp
             label={{ value: "CHF", position: "insideTopLeft", offset: -5, style: { fontSize: 8, fill: "#9ca3af" } }} />
           <Tooltip content={<ChartTooltip />} />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, paddingTop: 8 }}
-            formatter={(value: string) => SOURCE_LABELS[value] ?? value} />
+            formatter={(value: string) => labelFor(value)} />
           {sourceIds.map((sid) => (
-            <Line key={sid} type="monotone" dataKey={sid} stroke={SOURCE_COLORS[sid] ?? "#888"}
+            <Line key={sid} type="monotone" dataKey={sid} stroke={colorFor(sid)}
               strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
           ))}
         </LineChart>

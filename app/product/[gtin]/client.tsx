@@ -35,12 +35,6 @@ import { ShopLogo } from "@/components/shop-logo";
 import { BrandLogo } from "@/components/brand-logo";
 import { formatChf } from "@/lib/pricing/format";
 
-const SOURCE_COLORS: Record<string, string> = {
-  amazon_de: "#FF9900",
-  galaxus_ch: "#0D2B5E",
-  zalando_de: "#FF6900",
-};
-
 const SIDEBAR_NAV: Record<string, { parent: string; siblings: string[] }> = {
   smartphones: { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
   laptops: { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
@@ -228,8 +222,13 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
                   )}
                   {hasSources && (() => {
                     const bestSid = sourceBreakdowns.reduce((a, b) => a.breakdown.totalChf < b.breakdown.totalChf ? a : b);
-                    const isImport = bestSid.sourceId === "amazon_de" || bestSid.sourceId === "zalando_de";
-                    const isSwiss = bestSid.sourceId === "galaxus_ch";
+                    // Legacy Amazon.de / Zalando / Galaxus integrations are
+                    // gone; every active feed ships Swiss-domestic prices now.
+                    // `isImport` stays behind a DE-import heuristic (EUR > 0
+                    // on the source) so the badge re-emerges the day we wire
+                    // in a real EU shop again.
+                    const isImport = bestSid.currentPriceEur > 0;
+                    const isSwiss = !isImport;
                     const isFeed = bestSid.sourceId.startsWith("adtraction");
                     return (
                       <>

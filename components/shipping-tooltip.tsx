@@ -11,7 +11,13 @@ interface ShippingTooltipProps {
 
 export function ShippingTooltip({ breakdown, sourceId }: ShippingTooltipProps) {
   const [show, setShow] = useState(false);
-  const isImport = sourceId === "amazon_de" || sourceId === "zalando_de";
+  // A DE-import row is any source whose breakdown started from a non-zero
+  // EUR price. Our current Adtraction feeds all ship CHF-native, so they
+  // short-circuit this tooltip to the "Schweizer Preis" view. The legacy
+  // amazon_de / zalando_de sourceIds are gone — the EUR > 0 heuristic
+  // replaces them and survives future EU-shop integrations.
+  const isImport = breakdown.originalEur > 0;
+  void sourceId;
 
   return (
     <div className="relative inline-block">

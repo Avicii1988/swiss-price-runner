@@ -1,14 +1,15 @@
 /**
  * Seed data for SwissPriceRunner.
  *
- * 55 products across all categories. Use this file to:
- *   1. Power the mock frontend (imported by mock-service.ts)
- *   2. Reset Supabase: `npx tsx prisma/seed.ts`
+ * Static catalogue of images + titles across every L1 category. Exists
+ * only as an offline fallback for `buildFromDb()` — the image is used
+ * when a DB product has no imageUrl and the `featured` flag surfaces a
+ * row on the home hero.
  *
- * Sources follow real pricing tiers:
- *   - amazon_de: Cheapest EU price (German Amazon)
- *   - galaxus_ch: Swiss domestic (Digitec/Galaxus) – usually 5-15% more
- *   - zalando_de: Fashion/lifestyle focus
+ * The old `sources` field carried phantom amazon_de / galaxus_ch /
+ * zalando_de prices; those shops aren't wired up yet, so the helper
+ * now ships `sources: []`. Real pricing comes from the Adtraction
+ * feeds (XXL Parfum, Jelmoli, Bergfreunde, Mobilezone, …).
  */
 
 export interface MockSource {
@@ -166,19 +167,18 @@ function p(
     buecher: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&h=400&fit=crop",
   };
   const img = IMAGES[gtin] ?? FALLBACKS[category] ?? "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop";
-  const s: SeedProduct["sources"] = [
-    { sourceId: "amazon_de", sourceName: "Amazon.de", url: "#", currentPriceEur: sources[0] },
-  ];
-  if (sources[1] !== undefined) {
-    s.push({ sourceId: "galaxus_ch", sourceName: "Galaxus", url: "#", currentPriceEur: sources[1] });
-  }
-  if (sources[2] !== undefined) {
-    s.push({ sourceId: "zalando_de", sourceName: "Zalando", url: "#", currentPriceEur: sources[2] });
-  }
+  // Mock retailer sources (amazon_de / galaxus_ch / zalando_de) are gone.
+  // Those three shops aren't integrated yet and surfacing fake prices next
+  // to the real CHF-native feeds was misleading. Seeds now ship with an
+  // empty sources array — they exist purely as static imagery / title
+  // placeholders for the offline fallback, and the UI will render them
+  // with the standard "Preis auf Anfrage" state until a real feed adopts
+  // the GTIN.
+  void sources;
   return {
     gtin, title, brand, category, featured,
     imageUrl: img,
-    sources: s,
+    sources: [],
   };
 }
 
