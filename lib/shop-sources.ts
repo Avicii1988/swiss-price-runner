@@ -133,10 +133,17 @@ export function getShopSource(sourceId: string): ShopSource {
   };
 }
 
-/** Clearbit logo URL for a shop — empty string when the shop has no domain. */
+/**
+ * High-res favicon URL for a shop — empty string when the shop has no
+ * domain. Uses Google's Favicons API because it covers every Swiss shop
+ * out of the box (including the long-tail retailers Clearbit refused to
+ * serve for free). Size 128 × 128 is plenty for the chip treatments we
+ * render and still <3 KB per asset.
+ */
 export function getShopLogoUrl(sourceId: string): string {
   const shop = getShopSource(sourceId);
-  return shop.domain ? `https://logo.clearbit.com/${shop.domain}` : "";
+  if (!shop.domain) return "";
+  return `https://www.google.com/s2/favicons?domain=${shop.domain}&sz=128`;
 }
 
 /** Get all active shop sources for UI dropdowns */

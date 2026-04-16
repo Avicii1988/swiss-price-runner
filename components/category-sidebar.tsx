@@ -53,8 +53,13 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
         return (
           <div key={cat.slug}>
             <div className="flex items-center">
+              {/* prefetch={true} — the sidebar is always visible so every
+                  L1 entry warms up its category RSC payload + chunks on
+                  mount. Combined with the cache() wrapper in lib/data.ts
+                  and ISR on the route, click → first paint feels instant. */}
               <Link
                 href={`/category/${cat.slug}`}
+                prefetch
                 className={`group flex flex-1 items-center gap-2.5 py-[7px] text-[13px] transition ${
                   activeCategorySlug === cat.slug ? "font-bold text-gray-900" : "text-gray-600 hover:text-gray-900"
                 }`}
@@ -75,6 +80,7 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
               <div className="mb-1 ml-3 border-l border-gray-200 pl-3">
                 {enrichedSubs.map((sub) => (
                   <Link key={sub.slug} href={`/category/${sub.slug}`}
+                    prefetch
                     className={`flex items-center justify-between py-[5px] text-[12px] transition ${
                       activeCategorySlug === sub.slug ? "font-semibold text-gray-900" : "text-gray-500 hover:text-gray-900"
                     }`}>

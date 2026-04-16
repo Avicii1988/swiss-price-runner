@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
@@ -179,7 +180,19 @@ const PARFUM_SUB_SLUGS = [
   "sonnenpflege",
 ];
 
-export async function getProductsByCategory(slug: string): Promise<MockProductWithHistory[]> {
+/**
+ * Per-request memoisation — React's `cache()` de-duplicates identical
+ * calls inside a single server render, so the category page and its
+ * breadcrumb / sidebar can both ask for the same slug without issuing
+ * two SQL round-trips. `revalidate = 300` on the route (see
+ * app/category/[...slug]/page.tsx) then keeps the result hot across
+ * requests until the next ISR regeneration.
+ */
+export const getProductsByCategory = cache(
+  async (slug: string): Promise<MockProductWithHistory[]> => _getProductsByCategory(slug),
+);
+
+async function _getProductsByCategory(slug: string): Promise<MockProductWithHistory[]> {
   try {
     // Raw SQL so we can rank deterministically and expand descendants.
     //
@@ -265,7 +278,16 @@ export async function getProductsByCategory(slug: string): Promise<MockProductWi
  * than the slice cap from getProductsByCategory (which was previously
  * misread as "500 Produkte" in every category).
  */
-export async function countProductsByCategory(slug: string): Promise<number> {
+/**
+ * Same cache wrapper as getProductsByCategory — the count query runs
+ * once per slug per render (header badge + any downstream consumer
+ * share the result), then rides the route-level ISR.
+ */
+export const countProductsByCategory = cache(
+  async (slug: string): Promise<number> => _countProductsByCategory(slug),
+);
+
+async function _countProductsByCategory(slug: string): Promise<number> {
   if (!slug) return 0;
   try {
     const node = findCategoryNode(slug);

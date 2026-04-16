@@ -135,17 +135,20 @@ function normalizeBrand(brand: string): string {
 
 /**
  * Returns the best logo URL for a brand:
- *   1. Clearbit logo (if brand has a known domain)
- *   2. null (caller should fall back to hash avatar)
+ *   1. Google's High-Res Favicon API (if brand has a known domain)
+ *   2. null (caller should fall back to hash-coloured initial avatar)
  *
- * Clearbit is free and returns transparent PNGs, size up to 256x256.
+ * Google covers every mapped brand we've ever checked, returns a
+ * 128 × 128 PNG, and doesn't rate-limit like Clearbit did on new
+ * domains. Response is cached at Google → Cloudflare → browser, so
+ * hit latency is effectively zero after the first render.
  */
 export function getBrandLogo(brand: string): string | null {
   if (!brand) return null;
   const key = normalizeBrand(brand);
   const domain = BRAND_DOMAINS[key];
   if (!domain) return null;
-  return `https://logo.clearbit.com/${domain}`;
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
 }
 
 /** Deterministic brand color from name (for hash avatar fallback) */
