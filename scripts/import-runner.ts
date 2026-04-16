@@ -169,12 +169,40 @@ function parseArgs(): { feed: string; limit: number; scrub: boolean; offset: num
 // ═══════════════════════════════════════════════════════════════════
 
 async function downloadFeed(url: string): Promise<string> {
-  console.log(`⬇️  Downloading feed...`);
+  console.log(`⬇️  Starting download… (timeout 5 min)`);
   const t0 = Date.now();
-  const res = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(300_000) });
   if (!res.ok) throw new Error(`Feed HTTP ${res.status}`);
-  const buffer = await res.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
+
+  // Stream the response body so we can log progress for large feeds
+  // (Jelmoli Mode can exceed 100 MB compressed). Falls back to a single
+  // arrayBuffer() read when the runtime doesn't expose a body stream.
+  let bytes: Uint8Array;
+  if (res.body) {
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    let nextLog = 10 * 1024 * 1024; // first log at 10 MB
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (received >= nextLog) {
+        const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
+        console.log(`⬇️  ${(received / 1024 / 1024).toFixed(1)} MB received (${elapsed}s)`);
+        nextLog += 10 * 1024 * 1024;
+      }
+    }
+    const totalBytes = chunks.reduce((s, c) => s + c.length, 0);
+    bytes = new Uint8Array(totalBytes);
+    let p = 0;
+    for (const c of chunks) { bytes.set(c, p); p += c.length; }
+  } else {
+    const buffer = await res.arrayBuffer();
+    bytes = new Uint8Array(buffer);
+  }
+
   let xml: string;
   try { xml = await decompressZip(bytes); } catch { xml = new TextDecoder().decode(bytes); }
   console.log(`⬇️  Downloaded ${(xml.length / 1024 / 1024).toFixed(1)} MB in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
