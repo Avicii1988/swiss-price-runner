@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   ArrowUpDown,
   SlidersHorizontal,
@@ -17,8 +18,9 @@ import { PriceAlertModal } from "@/components/price-alert-modal";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { ViewModeToggle, type ViewMode } from "@/components/view-mode-toggle";
-import { FilterBar } from "@/components/filter-bar";
+import { FilterSidebar } from "@/components/filter-sidebar";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { aggregateFacets, applyFacetFilters, type ActiveFilters } from "@/lib/facets";
 
 interface SerializedCategory {
   slug: string;
@@ -58,39 +60,93 @@ export default function CategoryClient({
   feedCategoryName,
   totalCount,
 }: PageProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [selectedProduct, setSelectedProduct] =
     useState<MockProductWithHistory | null>(null);
   const [alertProduct, setAlertProduct] =
     useState<MockProductWithHistory | null>(null);
   const [sort, setSort] = useState<SortOption>("popular");
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    // Mobile default: list, desktop default: grid
     if (typeof window !== "undefined" && window.innerWidth < 640) return "list";
     return "grid";
   });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [query, setQuery] = useState("");
 
-  // Filter state
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [priceMin, setPriceMin] = useState("");
-  const [priceMax, setPriceMax] = useState("");
-  const [rating, setRating] = useState<number | null>(null);
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  // ── Dynamic facet filters (replaces old hardcoded brand/color state) ──
+  const facets = useMemo(() => aggregateFacets(products), [products]);
 
-  const brands = useMemo(
-    () => [...new Set(products.map((p) => p.product.brand))].sort(),
-    [products],
-  );
-
-  const filtered = useMemo(() => {
-    let items = [...products];
-
-    // Subcategory filtering — not yet mapped to real product data,
-    // but the route is ready for when products carry subcategory slugs
-    if (selectedBrands.length > 0) {
-      items = items.filter((p) => selectedBrands.includes(p.product.brand));
+  // Initialise active filters from URL searchParams
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(() => {
+    const init: ActiveFilters = {};
+    for (const facet of facets) {
+      const param = searchParams.get(facet.key);
+      if (param) init[facet.key] = new Set(param.split(","));
     }
+    return init;
+  });
+
+  const [priceMin, setPriceMin] = useState(searchParams.get("priceMin") ?? "");
+  const [priceMax, setPriceMax] = useState(searchParams.get("priceMax") ?? "");
+
+  // Price range for the slider inputs
+  const priceRange = useMemo(() => {
+    let min = Infinity;
+    let max = 0;
+    for (const p of products) {
+      const chf = p.bestPrice.totalChf;
+      if (chf > 0 && chf < min) min = chf;
+      if (chf > max) max = chf;
+    }
+    return { min: min === Infinity ? 0 : min, max: max || 9999 };
+  }, [products]);
+
+  // Sync filters → URL (debounced via useEffect so rapid clicks
+  // don't hammer the router)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    for (const [key, values] of Object.entries(activeFilters)) {
+      if (values.size > 0) params.set(key, Array.from(values).join(","));
+    }
+    if (priceMin) params.set("priceMin", priceMin);
+    if (priceMax) params.set("priceMax", priceMax);
+    const qs = params.toString();
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    router.replace(url as any, { scroll: false });
+  }, [activeFilters, priceMin, priceMax, pathname, router]);
+
+  const handleFilterChange = useCallback((key: string, value: string, selected: boolean) => {
+    setActiveFilters((prev) => {
+      const next = { ...prev };
+      const set = new Set(prev[key] ?? []);
+      if (selected) set.add(value);
+      else set.delete(value);
+      next[key] = set;
+      return next;
+    });
+  }, []);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    for (const set of Object.values(activeFilters)) count += set.size;
+    if (priceMin || priceMax) count++;
+    return count;
+  }, [activeFilters, priceMin, priceMax]);
+
+  const clearAllFilters = useCallback(() => {
+    setActiveFilters({});
+    setPriceMin("");
+    setPriceMax("");
+  }, []);
+
+  // ── Apply all filters ──
+  const filtered = useMemo(() => {
+    let items = applyFacetFilters(products, activeFilters);
+
     const min = parseFloat(priceMin);
     const max = parseFloat(priceMax);
     if (!isNaN(min)) items = items.filter((p) => p.bestPrice.totalChf >= min);
@@ -117,7 +173,7 @@ export default function CategoryClient({
       return aImg - bImg;
     });
     return items;
-  }, [products, selectedBrands, priceMin, priceMax, sort]);
+  }, [products, activeFilters, priceMin, priceMax, sort]);
 
   const handleSelect = useCallback(
     (item: MockProductWithHistory) => setSelectedProduct(item),
@@ -127,20 +183,6 @@ export default function CategoryClient({
     setSelectedProduct(null);
     setAlertProduct(item);
   }, []);
-
-  const activeFilterCount =
-    selectedBrands.length +
-    (priceMin || priceMax ? 1 : 0) +
-    (rating !== null ? 1 : 0) +
-    selectedColors.length;
-
-  const clearAllFilters = () => {
-    setSelectedBrands([]);
-    setPriceMin("");
-    setPriceMax("");
-    setRating(null);
-    setSelectedColors([]);
-  };
 
   const activeCategorySlug = slugs[0] ?? undefined;
   const pageTitle = activeSubSlug
@@ -214,22 +256,18 @@ export default function CategoryClient({
               )}
             </div>
 
-            {/* Galaxus-style Filter Bar */}
-            <FilterBar
-              brands={brands}
-              selectedBrands={selectedBrands}
-              onBrandsChange={setSelectedBrands}
+            {/* Dynamic facet filters — aggregated from displayAttributes */}
+            <FilterSidebar
+              facets={facets}
+              activeFilters={activeFilters}
+              onFilterChange={handleFilterChange}
+              onClearAll={clearAllFilters}
               priceMin={priceMin}
               priceMax={priceMax}
               onPriceMinChange={setPriceMin}
               onPriceMaxChange={setPriceMax}
-              rating={rating}
-              onRatingChange={setRating}
-              selectedColors={selectedColors}
-              onColorsChange={setSelectedColors}
+              priceRange={priceRange}
               activeFilterCount={activeFilterCount}
-              onClearAll={clearAllFilters}
-              categorySlug={activeCategorySlug}
             />
 
             {/* Sort toolbar — "Produkte"-badge uses the true DB count where
