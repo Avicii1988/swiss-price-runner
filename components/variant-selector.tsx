@@ -80,7 +80,7 @@ export function VariantSelector({
   // ── State: which Level 1 is selected ──
   const currentSibling = enriched.find((e) => e.isCurrent);
   const [selectedPrimary, setSelectedPrimary] = useState<string>(
-    currentSibling?.primaryValue ?? primaryValues[0] ?? "Standard",
+    currentSibling?.primaryValue ?? primaryValues[0] ?? "Variante",
   );
 
   // ── Level 2: siblings matching the selected primary, grouped by secondary ──
@@ -138,29 +138,27 @@ export function VariantSelector({
         </>
       )}
 
-      {/* ── Level 2: Secondary attribute (or all siblings if no L2 split) ── */}
+      {/* ── Variants — single unified group (no more "Grösse" + "Variante" double header) ── */}
       <div className={showTwoLevels ? "mt-4 border-t border-gray-100 pt-4" : ""}>
         <div className="flex items-baseline justify-between gap-3">
           <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">
             {showTwoLevels && hasLevel2
               ? `${attributeLabel(secondaryKey)} wählen`
-              : showTwoLevels
-                ? "Variante wählen"
-                : `${attributeLabel(primaryKey)} wählen`}
+              : `Variante wählen`}
           </p>
           <p className="text-[11px] text-gray-400">
-            {level2Siblings.length} {level2Siblings.length === 1 ? "Variante" : "Varianten"}
+            {(showTwoLevels ? level2Siblings : enriched).length} verfügbar
           </p>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
           {(showTwoLevels ? level2Siblings : enriched).map((s) => {
             const isCheapest = s.priceChf === cheapestPrice;
+            // NEVER show GTINs or "Standard" — use the secondary value,
+            // the extracted primary, or a meaningful title fragment.
             const label = hasLevel2 && s.secondaryValue
               ? s.secondaryValue
-              : showTwoLevels
-                ? s.sizeLabel || "Standard"
-                : s.primaryValue;
+              : s.primaryValue;
 
             return (
               <div key={s.gtin} className="group/variant relative flex flex-col">

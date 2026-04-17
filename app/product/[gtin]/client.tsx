@@ -20,6 +20,8 @@ import { PriceAlertModal } from "@/components/price-alert-modal";
 import { HowWeCalculateButton } from "@/components/how-we-calculate";
 import { EmailAlertForm } from "@/components/email-alert-form";
 import { SiteHeader } from "@/components/site-header";
+import { CategorySidebar } from "@/components/category-sidebar";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { VisualSearchModal } from "@/components/visual-search-modal";
 import { ShareRow } from "@/components/share-row";
 import { VariantSelector } from "@/components/variant-selector";
@@ -35,40 +37,21 @@ import { ShopLogo } from "@/components/shop-logo";
 import { BrandLogo } from "@/components/brand-logo";
 import { formatChf } from "@/lib/pricing/format";
 
-const SIDEBAR_NAV: Record<string, { parent: string; siblings: string[] }> = {
-  smartphones: { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
-  laptops: { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
-  kopfhoerer: { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
-  "tv-audio": { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
-  foto: { parent: "IT + Multimedia", siblings: ["Smartphones", "Laptops", "Kopfhörer", "TV & Audio", "Foto"] },
-  haushalt: { parent: "Haushalt", siblings: ["Staubsauger", "Kaffeemaschinen", "Küchengeräte"] },
-  sport: { parent: "Sport", siblings: ["Fitness", "Velo", "Wandern"] },
-  mode: { parent: "Mode", siblings: ["Sneakers", "Laufschuhe", "Jacken", "Jeans"] },
-  schuhe: { parent: "Mode", siblings: ["Sneakers", "Laufschuhe", "Jacken", "Jeans"] },
-  gaming: { parent: "Gaming + Spielzeug", siblings: ["PlayStation", "Xbox", "Nintendo"] },
-  parfum: { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex"] },
-  beauty: { parent: "Beauty + Pflege", siblings: ["Hautpflege", "Haarpflege", "Make-up"] },
-  uhren: { parent: "Uhren + Schmuck", siblings: ["Smartwatches", "Sportuhren"] },
-  // Feed categories
-  herrendufte: { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex-Düfte"] },
-  damendufte: { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex-Düfte"] },
-  "unisex-dufte": { parent: "Parfum & Düfte", siblings: ["Herrendüfte", "Damendüfte", "Unisex-Düfte"] },
-  pflege: { parent: "Beauty & Pflege", siblings: ["Pflege", "Haarpflege", "Make-Up"] },
-  "make-up": { parent: "Beauty & Pflege", siblings: ["Pflege", "Haarpflege", "Make-Up"] },
-  haarpflege: { parent: "Beauty & Pflege", siblings: ["Pflege", "Haarpflege", "Make-Up"] },
-  koerperpflege: { parent: "Beauty & Pflege", siblings: ["Körperpflege", "Pflege", "Haarpflege"] },
-  geschenksets: { parent: "Parfum & Düfte", siblings: ["Geschenksets", "Herrendüfte", "Damendüfte"] },
-  sonnenpflege: { parent: "Beauty & Pflege", siblings: ["Sonnenpflege", "Pflege", "Haarpflege"] },
-};
-
 interface Props {
   item: MockProductWithHistory;
   allProducts: MockProductWithHistory[];
-  /** Sibling variants (different sizes) sharing the same groupId. Empty for ungrouped SKUs. */
   variantSiblings?: VariantSibling[];
+  breadcrumbs?: { label: string; href: string }[];
+  dynamicCategories?: { slug: string; name: string; productCount: number }[];
 }
 
-export function ProductDetailClient({ item, allProducts, variantSiblings = [] }: Props) {
+export function ProductDetailClient({
+  item,
+  allProducts,
+  variantSiblings = [],
+  breadcrumbs = [],
+  dynamicCategories,
+}: Props) {
   const { product, priceHistory, bestPrice, bestSource, priceDrop30d, avgChf30d } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, isPinned, togglePin, setShowAuthModal } = useAuth();
   const [showAlert, setShowAlert] = useState(false);
@@ -78,7 +61,6 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
   const faved = isFavorite(product.gtin);
   const pinned = isPinned(product.gtin);
   const cat = getCategoryBySlug(product.category);
-  const sidebarNav = SIDEBAR_NAV[product.category] ?? null;
   const hasSources = product.sources.length > 0;
 
   // Best source URL for affiliate link
@@ -119,57 +101,26 @@ export function ProductDetailClient({ item, allProducts, variantSiblings = [] }:
       {/* Shared header — with allProducts for global search */}
       <SiteHeader query={pdpQuery} onQueryChange={setPdpQuery} allProducts={allProducts} showVision={() => setShowVision(true)} />
 
-      {/* ═══ MAIN: sidebar + content ═══ */}
-      <div className="mx-auto max-w-[1600px] px-5 py-6 sm:px-10">
-        <div className="flex gap-8">
+      {/* ═══ MAIN: persistent sidebar + product content ═══ */}
+      <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-5 lg:px-6">
+        <div className="flex gap-6 lg:gap-8">
 
-          {/* ── LEFT: Deep-nav sidebar ── */}
-          <aside className="hidden w-48 shrink-0 lg:block">
-            <nav>
-              <Link href="/" className="flex items-center justify-between py-2 text-sm text-gray-700 hover:text-black">
-                Gesamtsortiment <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
-              </Link>
-              <div className="border-t border-gray-200" />
-              {sidebarNav && (
-                <>
-                  <p className="flex items-center justify-between py-2 text-sm font-semibold text-gray-900">
-                    {sidebarNav.parent} <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
-                  </p>
-                  <div className="border-t border-gray-200" />
-                  <p className="py-2 text-sm font-semibold text-gray-900">{cat?.name ?? product.category}</p>
-                  <div className="ml-3 space-y-0.5 border-l border-gray-200 pl-3">
-                    {sidebarNav.siblings.map((sub) => (
-                      <p key={sub} className={`py-1 text-[13px] ${sub === (cat?.name ?? "") ? "font-semibold text-black" : "text-gray-500"}`}>
-                        {sub}
-                      </p>
-                    ))}
-                  </div>
-                  <div className="mt-2 border-t border-gray-200" />
-                </>
-              )}
-            </nav>
+          {/* ── LEFT: Same CategorySidebar as category pages ── */}
+          <aside className="hidden w-[180px] shrink-0 lg:block">
+            <div className="sticky top-[76px]">
+              <CategorySidebar
+                activeCategorySlug={product.category}
+                dynamicCategories={dynamicCategories}
+              />
+            </div>
           </aside>
 
-          {/* ── RIGHT: Product content (max-width for clean proportions) ── */}
-          <main className="min-w-0 flex-1 max-w-4xl">
-            {/* Breadcrumbs — directly above product content, NOT above sidebar */}
-            <nav className="mb-4 flex items-center gap-1.5 overflow-x-auto text-xs text-gray-400">
-              <Link href="/" className="shrink-0 text-blue-600 hover:underline">Gesamtsortiment</Link>
-              <ChevronRight className="h-3 w-3 shrink-0" />
-              {sidebarNav && (
-                <>
-                  <span className="shrink-0 text-blue-600">{sidebarNav.parent}</span>
-                  <ChevronRight className="h-3 w-3 shrink-0" />
-                </>
-              )}
-              {cat && (
-                <>
-                  <Link href={`/category/${cat.slug}`} className="shrink-0 text-blue-600 hover:underline">{cat.name}</Link>
-                  <ChevronRight className="h-3 w-3 shrink-0" />
-                </>
-              )}
-              <span className="truncate text-gray-600">{product.title}</span>
-            </nav>
+          {/* ── RIGHT: Breadcrumbs + Product content ── */}
+          <main className="min-w-0 flex-1">
+            {/* Breadcrumbs — from the real category tree, not hardcoded */}
+            <div className="mb-4">
+              <Breadcrumbs items={[...breadcrumbs, { label: product.brand, href: "#" }]} />
+            </div>
 
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
               {/* Image — no background tint; just the bare product shot

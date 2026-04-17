@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProductByGtin, getVariantSiblings } from "@/lib/data";
+import { getProductByGtin, getVariantSiblings, getDynamicCategories } from "@/lib/data";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
-import { getCategoryBySlug } from "@/lib/categories";
+import { getCategoryBySlug, parseCategorySlugs } from "@/lib/categories";
 import { ProductDetailClient } from "./client";
 
 export const revalidate = 3600; // ISR: regenerate every hour
@@ -104,11 +104,15 @@ function buildJsonLd(item: NonNullable<Awaited<ReturnType<typeof getProductByGti
 }
 
 export default async function ProductPage({ params }: { params: { gtin: string } }) {
-  const [item, variantSiblings] = await Promise.all([
+  const [item, variantSiblings, dynamicCategories] = await Promise.all([
     getProductByGtin(params.gtin),
     getVariantSiblings(params.gtin),
+    getDynamicCategories(),
   ]);
   if (!item) notFound();
+
+  // Build breadcrumbs from the product's category slug via the tree
+  const { breadcrumbs } = parseCategorySlugs([item.product.category]);
 
   const jsonLd = buildJsonLd(item);
 
@@ -118,7 +122,13 @@ export default async function ProductPage({ params }: { params: { gtin: string }
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ProductDetailClient item={item} allProducts={[]} variantSiblings={variantSiblings} />
+      <ProductDetailClient
+        item={item}
+        allProducts={[]}
+        variantSiblings={variantSiblings}
+        breadcrumbs={breadcrumbs}
+        dynamicCategories={dynamicCategories}
+      />
     </>
   );
 }
