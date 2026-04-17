@@ -679,3 +679,361 @@ export function resolveCategoryForExisting(
   // No match → keep current category (single-segment path)
   return { path: [currentSlug], name: currentName ?? currentSlug };
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Phase 2 — Path-Finder Engine (tree-tunneling resolver)
+//
+// Instead of flat pattern matching (first-hit-wins), the Path-Finder
+// walks the deep Galaxus-aligned tree top-down:
+//   1. Score each L1 root against the haystack.
+//   2. Pick the best root. Recurse into its children.
+//   3. At each level, pick the child whose keywords match the haystack
+//      best. If no child matches → stop, current node is the answer.
+//   4. Continue until reaching a leaf or scoring 0 at a level.
+//
+// The result is always the DEEPEST reachable node — "iPhone Hülle"
+// tunnels to it-multimedia → smartphones → smartphone → apple →
+// iphone-zubehoer (not just "smartphones").
+//
+// NODE_KEYWORDS is a compact map: only nodes that need explicit
+// disambiguation keywords are listed. Unlisted nodes auto-generate
+// keywords from their `name` field (split on spaces, lowered, ≥3 chars).
+// ═══════════════════════════════════════════════════════════════════
+
+import {
+  CATEGORY_TREE,
+  findCategoryNode,
+  getAncestors,
+  getCategoryPath,
+  type CategoryNode,
+} from "@/lib/categories";
+
+/**
+ * Explicit keyword triggers per slug. Each keyword is tested as a
+ * substring match against the lowered haystack. Only add entries where
+ * the auto-generated name-words would be too generic or ambiguous.
+ */
+const NODE_KEYWORDS: Record<string, string[]> = {
+  // ── L1 sectors ──
+  "it-multimedia": ["elektronik", "technik", "digital", "computer", "laptop", "smartphone", "handy", "tablet", "monitor", "drucker", "audio", "tv", "fernseher", "kamera", "gaming", "playstation", "xbox", "nintendo"],
+  "beauty-gesundheit": ["beauty", "parfum", "parfüm", "kosmetik", "pflege", "duft", "fragrance", "skincare", "make-up", "makeup", "shampoo", "serum", "mascara", "lippenstift", "sonnencreme"],
+  "mode": ["mode", "fashion", "bekleidung", "clothing", "apparel", "kleid", "hose", "hemd", "bluse", "jacke", "mantel", "pullover", "hoodie", "anzug", "schuh", "sneaker", "stiefel", "sandale", "uhr", "schmuck", "ring", "kette", "armband", "tasche"],
+  "sport": ["sport", "outdoor", "fitness", "wandern", "klettern", "ski", "snowboard", "camping", "velo", "bike", "running", "laufen", "yoga", "schwimmen", "tennis", "fussball"],
+  "haushalt": ["haushalt", "küche", "kaffee", "espresso", "staubsauger", "waschmaschine", "trockner", "bügeln", "mixer", "toaster", "wasserkocher", "airfryer", "mikrowelle", "grill"],
+  "baumarkt-garten": ["baumarkt", "werkzeug", "garten", "bohrmaschine", "schrauber", "säge", "rasenmäher", "bewässerung"],
+  "wohnen": ["wohnen", "möbel", "lampe", "licht", "teppich", "vorhang", "dekoration", "regal", "schrank"],
+  "spielzeug": ["spielzeug", "lego", "playmobil", "puzzle", "brettspiel", "puppe", "spielfigur"],
+  "baby-eltern": ["baby", "kleinkind", "kinderwagen", "buggy", "windel", "stillen", "babypflege", "autositz"],
+  "buero": ["büro", "buero", "schreibwaren", "ordner", "papier", "schulbedarf", "taschenrechner"],
+  "supermarkt": ["lebensmittel", "getränk", "bio", "vegan", "süssigkeit", "snack", "nahrungsergänzung"],
+  "tierbedarf": ["hund", "katze", "tier", "futter", "aquarium", "vogel", "nager"],
+
+  // ── IT + Multimedia L2 ──
+  "smartphones": ["smartphone", "handy", "mobile", "telefon", "phone", "iphone", "galaxy", "pixel", "xiaomi", "samsung", "huawei", "oneplus", "oppo", "motorola"],
+  "audio": ["audio", "kopfhörer", "kopfhoerer", "headphone", "earphone", "earbud", "lautsprecher", "speaker", "soundbar", "mikrofon", "plattenspieler"],
+  "computer": ["computer", "laptop", "notebook", "macbook", "desktop", "pc", "monitor", "tastatur", "maus", "webcam", "drucker", "scanner"],
+  "tv-audio": ["tv", "fernseher", "oled", "qled", "heimkino", "beamer", "projektor", "streaming", "soundbar", "receiver"],
+  "foto": ["foto", "kamera", "camera", "objektiv", "drohne", "drone", "action cam", "gopro", "stativ"],
+  "gaming": ["gaming", "playstation", "ps5", "xbox", "nintendo", "switch", "konsole", "controller", "vr headset", "steam deck"],
+
+  // ── IT L3+ (smartphone subtree) ──
+  "smartphone": ["smartphone", "handy", "phone", "mobile"],
+  "smartphones-apple": ["apple", "iphone", "ios"],
+  "iphone": ["iphone"],
+  "iphone-zubehoer": ["iphone hülle", "iphone case", "iphone kabel", "iphone folie"],
+  "smartphones-samsung": ["samsung", "galaxy"],
+  "samsung-galaxy": ["galaxy s", "galaxy z", "galaxy a"],
+  "smartphones-google": ["google pixel", "pixel"],
+  "smartphones-xiaomi": ["xiaomi", "redmi", "poco"],
+  "tablets": ["tablet", "ereader", "ipad", "kindle"],
+  "ipad": ["ipad"],
+  "smartphones-tablets": ["android tablet", "samsung tab", "lenovo tab", "huawei tab"],
+  "smartphones-wearables": ["smartwatch", "fitness tracker", "wearable", "apple watch", "garmin", "fitbit"],
+  "smartphones-zubehoer": ["ladekabel", "ladegerät", "powerbank", "handyzubehör", "kfz-halterung", "usb-c kabel"],
+  "smartphones-cases": ["hülle", "huelle", "case", "cover", "schutzhülle", "panzerglas", "schutzfolie", "displayfolie"],
+
+  // ── IT L3+ (audio subtree) ──
+  "kopfhoerer": ["kopfhörer", "kopfhoerer", "headphone", "earphone"],
+  "kopfhoerer-over-ear": ["over-ear", "bügelkopfhörer", "over ear"],
+  "kopfhoerer-in-ear": ["in-ear", "earbud", "in ear", "ohrhörer"],
+  "kopfhoerer-nc": ["noise cancelling", "noise-cancelling", "anc", "active noise"],
+  "kopfhoerer-sport": ["sport kopfhörer", "sportkopfhörer", "sport headphone"],
+  "airpods": ["airpod"],
+  "lautsprecher": ["lautsprecher", "speaker", "bluetooth speaker"],
+  "kopfhoerer-lautsprecher": ["bluetooth lautsprecher", "portable speaker"],
+  "homepod": ["homepod"],
+  "tv-soundbar": ["soundbar", "sound bar"],
+
+  // ── IT L3+ (computer subtree) ──
+  "laptops": ["laptop", "notebook"],
+  "laptops-macbook": ["macbook", "mac mini", "mac studio", "imac"],
+  "laptops-windows": ["windows laptop", "lenovo", "dell", "hp laptop", "asus laptop"],
+  "laptops-gaming": ["gaming laptop", "rog", "razer blade"],
+  "laptops-chromebook": ["chromebook"],
+  "laptops-monitors": ["monitor", "bildschirm", "display"],
+  "laptops-accessories": ["tastatur", "keyboard", "maus", "mouse", "webcam", "docking"],
+
+  // ── IT L3+ (tv subtree) ──
+  "fernseher": ["fernseher", "tv", "television"],
+  "tv-oled": ["oled"],
+  "tv-qled": ["qled", "neo qled"],
+  "tv-led": ["led tv"],
+  "tv-hifi": ["hifi", "hi-fi", "receiver", "av receiver", "verstärker"],
+  "tv-streaming": ["streaming", "fire tv", "chromecast", "roku"],
+  "apple-tv": ["apple tv"],
+  "tv-beamer": ["beamer", "projektor", "projector"],
+
+  // ── IT L3+ (foto subtree) ──
+  "foto-mirrorless": ["mirrorless", "systemkamera", "spiegellos"],
+  "foto-dslr": ["dslr", "spiegelreflex"],
+  "foto-objektive": ["objektiv", "lens"],
+  "foto-drohnen": ["drohne", "drone", "dji", "mavic"],
+  "foto-action": ["action cam", "gopro", "action kamera"],
+
+  // ── Beauty + Gesundheit L2+ ──
+  "parfum": ["parfum", "parfüm", "perfume", "eau de", "fragrance", "duft", "cologne", "aftershave"],
+  "damendufte": ["damen", "women", "femme", "pour elle", "women's fragrance", "pour femme"],
+  "herrendufte": ["herren", "men", "homme", "pour lui", "men's fragrance", "pour homme"],
+  "unisex-dufte": ["unisex"],
+  "parfum-nische": ["tom ford", "creed", "byredo", "le labo", "diptyque", "maison francis kurkdjian", "memo paris", "penhaligon", "serge lutens", "frederic malle", "roja", "amouage", "parfums de marly", "clive christian", "xerjoff", "nasomatto", "initio", "nishane", "montale", "mancera"],
+  "geschenksets": ["geschenkset", "gift set", "duftset"],
+  "pflege": ["gesichtspflege", "gesichtscreme", "serum", "face care", "skincare", "skin care", "moisturi", "cleanser"],
+  "koerperpflege": ["körperpflege", "body lotion", "körperlotion", "body milk", "duschgel", "seife", "deodorant", "deo"],
+  "haarpflege": ["haarpflege", "shampoo", "conditioner", "hair care", "hair"],
+  "make-up": ["make-up", "makeup", "cosmetic", "foundation", "lippenstift", "lipstick", "mascara", "eyeliner", "concealer", "puder", "rouge", "nagellack"],
+  "sonnenpflege": ["sonnenpflege", "sonnencreme", "sunscreen", "spf", "sun protection", "après-soleil"],
+
+  // ── Mode L2+ ──
+  "mode-damen": ["damen", "women", "damenmode", "femme", "für sie"],
+  "damen-kleider": ["kleid", "dress", "abendkleid", "sommerkleid"],
+  "damen-oberteile": ["bluse", "top", "damenbluse", "oberteil"],
+  "damen-hosen": ["damenhose", "jeans damen", "leggings"],
+  "damen-roecke": ["rock", "minirock", "skirt"],
+  "damen-jacken": ["damenjacke", "damenmantel"],
+  "damen-strick": ["strickjacke", "damenpullover", "cardigan"],
+  "damen-unterwaesche": ["damen unterwäsche", "bh", "bikini", "bademode", "badeanzug"],
+  "mode-herren": ["herren", "men", "herrenmode", "homme", "für ihn"],
+  "herren-hemden": ["hemd", "shirt", "herrenhemd"],
+  "herren-tshirts": ["t-shirt", "polo", "polo shirt"],
+  "herren-hosen": ["herrenhose", "chino", "jeans herren"],
+  "herren-anzuege": ["anzug", "suit", "sakko", "blazer"],
+  "herren-jacken": ["herrenjacke", "herrenmantel", "parka"],
+  "herren-strick": ["herrenpullover", "strickpullover"],
+  "mode-kinder": ["kindermode", "kinderkleid", "kinder bekleidung"],
+
+  // ── Mode — Schuhe L3+ ──
+  "schuhe": ["schuh", "shoe", "sneaker", "stiefel", "sandale", "boot", "laufschuh", "wanderschuh"],
+  "schuhe-sneakers": ["sneaker"],
+  "sneakers-nike": ["nike"],
+  "sneakers-adidas": ["adidas"],
+  "sneakers-newbalance": ["new balance"],
+  "sneakers-onrunning": ["on cloud", "on running"],
+  "sneakers-puma": ["puma"],
+  "sneakers-asics": ["asics"],
+  "sneakers-hoka": ["hoka"],
+  "sneakers-salomon": ["salomon"],
+  "schuhe-laufschuhe": ["laufschuh", "running shoe", "trailrunning"],
+  "schuhe-wandern": ["wanderschuh", "hiking", "trekking shoe"],
+  "schuhe-business": ["business schuh", "lederschuh", "oxford"],
+  "schuhe-stiefel": ["stiefel", "boot", "chelsea"],
+  "schuhe-sandalen": ["sandale", "sandal", "flipflop"],
+
+  // ── Mode — Uhren + Schmuck ──
+  "uhren": ["uhr", "watch", "smartwatch", "chronograph"],
+  "uhren-luxus": ["rolex", "omega", "patek philippe", "breitling", "tag heuer", "cartier", "hublot", "iwc", "panerai", "tudor", "audemars piguet", "luxusuhr"],
+  "uhren-sport": ["sportuhr", "taucheruhr", "garmin", "suunto"],
+  "uhren-schmuck": ["schmuck", "jewelry", "jewellery"],
+  "schmuck-ohrringe": ["ohrring", "ohrstecker", "ohrhänger", "earring"],
+  "schmuck-halsketten": ["halskette", "collier", "anhänger", "necklace", "pendant"],
+  "schmuck-armbaender": ["armband", "armreif", "armkette", "bracelet"],
+  "schmuck-ringe": ["ring", "damenring", "herrenring"],
+  "schmuck-eheringe": ["ehering", "trauring", "verlobungsring", "wedding ring"],
+  "schmuck-piercing": ["piercing"],
+  "schmuck-silber": ["silberschmuck", "925 silber", "sterlingsilber", "sterling silver"],
+  "schmuck-gold": ["goldschmuck", "750 gold", "585 gold", "weissgold", "gelbgold", "rotgold", "roségold"],
+
+  // ── Mode — Taschen ──
+  "mode-taschen": ["tasche", "bag", "rucksack", "koffer", "geldbeutel", "portemonnaie", "gürtel", "schal"],
+  "taschen-handtaschen": ["handtasche", "schultertasche", "clutch", "crossbody"],
+  "taschen-rucksaecke": ["rucksack", "backpack", "daypack"],
+  "taschen-koffer": ["koffer", "trolley", "reisegepäck", "reisekoffer"],
+  "taschen-geldbeutel": ["portemonnaie", "geldbeutel", "geldbörse", "wallet"],
+
+  // ── Sport L2+ ──
+  "sport-wandern": ["wandern", "trekking", "hiking", "outdoor"],
+  "sport-klettern": ["klettern", "climbing", "bouldern", "klettergurt", "kletterseil", "karabiner", "steigeisen"],
+  "sport-running": ["running", "trailrunning", "jogging", "laufen", "marathon"],
+  "sport-ski": ["ski", "snowboard", "skitouren", "langlauf", "piste", "freeride"],
+  "sport-camping": ["camping", "zelt", "tent", "schlafsack", "isomatte", "campingkocher"],
+  "sport-fitness": ["fitness", "gym", "hantel", "yoga", "pilates", "crossfit", "krafttraining"],
+  "sport-velo": ["velo", "fahrrad", "bike", "e-bike", "ebike", "rennrad", "mountainbike"],
+  "sport-wassersport": ["schwimmen", "tauchen", "surfen", "paddel", "kajak", "sup"],
+
+  // ── Haushalt L2+ ──
+  "haushalt-kaffee": ["kaffee", "espresso", "cappuccino", "latte", "kaffeemaschine", "espressomaschine"],
+  "kaffee-nespresso": ["nespresso"],
+  "kaffee-jura": ["jura"],
+  "kaffee-delonghi": ["de'longhi", "delonghi"],
+  "kaffee-sage": ["sage"],
+  "kaffee-melitta": ["melitta"],
+  "haushalt-kuechengeraete": ["küchengerät", "kuechengeraet", "küchenmaschine", "mixer", "blender", "airfryer", "wasserkocher", "toaster", "mikrowelle"],
+  "haushalt-staubsauger": ["staubsauger", "saugroboter", "vacuum"],
+  "haushalt-waschen": ["waschmaschine", "trockner", "tumbler", "bügeleisen", "wäschetrockner"],
+  "haushalt-luftreiniger": ["luftreiniger", "air purifier", "luftbefeuchter", "klimagerät"],
+
+  // ── Outdoor brands (used across Sport subtree) ──
+  "mammut-brand": ["mammut"],
+  "patagonia-brand": ["patagonia"],
+  "northface-brand": ["north face", "the north face"],
+  "arcteryx-brand": ["arc'teryx", "arcteryx"],
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// Auto-keyword generation from node name (fallback when NODE_KEYWORDS
+// doesn't carry the slug). Words <3 chars are dropped.
+// ─────────────────────────────────────────────────────────────────────
+
+function autoKeywords(name: string): string[] {
+  return name
+    .toLowerCase()
+    .split(/[\s+&·,/()]+/)
+    .filter((w) => w.length >= 3);
+}
+
+/**
+ * Score a single node against a haystack. Returns the number of unique
+ * keywords that matched — 0 means no match, higher = more confident.
+ */
+function scoreNode(node: CategoryNode, haystack: string): number {
+  const explicit = NODE_KEYWORDS[node.slug];
+  const keywords = explicit ?? autoKeywords(node.name);
+  let hits = 0;
+  for (const kw of keywords) {
+    if (haystack.includes(kw)) hits++;
+  }
+  return hits;
+}
+
+/**
+ * Tree-tunnel resolver — walks the category tree top-down, at each
+ * level picking the child with the highest keyword score. Stops when
+ * no child scores > 0 (= current node is the deepest confident match).
+ *
+ * Returns the full ancestor path + leaf name, or null if no root
+ * matches at all.
+ */
+function tunnelResolve(haystack: string): ResolvedCategory | null {
+  // 1. Score all L1 roots
+  let bestNode: CategoryNode | null = null;
+  let bestScore = 0;
+  for (const root of CATEGORY_TREE) {
+    const s = scoreNode(root, haystack);
+    if (s > bestScore) { bestNode = root; bestScore = s; }
+  }
+  if (!bestNode) return null;
+
+  // 2. Tunnel into children, greedily picking the best match at each level
+  let current = bestNode;
+  while (current.children.length > 0) {
+    let childBest: CategoryNode | null = null;
+    let childScore = 0;
+    for (const child of current.children) {
+      const s = scoreNode(child, haystack);
+      if (s > childScore) { childBest = child; childScore = s; }
+    }
+    if (!childBest || childScore === 0) break; // no child matches → stop here
+    current = childBest;
+  }
+
+  // 3. Build path from ancestors
+  const path = getCategoryPath(current.slug);
+  return { path, name: current.name };
+}
+
+/**
+ * Parse a shop breadcrumb string (e.g. "Sport > Outdoor > Schuhe")
+ * into a haystack of lowercase segments. Used as an additional signal
+ * for the tree-tunnel: if the feed already provides a breadcrumb, its
+ * segments boost matching confidence for the right sector/subtree.
+ */
+function parseBreadcrumbSignal(breadcrumb: string): string {
+  if (!breadcrumb) return "";
+  return breadcrumb
+    .split(/[>|\/→·]+/)
+    .map((s) => s.trim().toLowerCase())
+    .join(" ");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Composite resolver — combines flat rules + tree-tunnel + defaults
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Resolve a category for a NEW feed import. Uses a 4-step cascade:
+ *   1. CATEGORY_MAP flat rules (curated brand/keyword overrides)
+ *   2. Tree-tunnel Path-Finder (walks the deep tree)
+ *   3. BEAUTY_KEYWORD_RULES (legacy parfum/beauty fallback)
+ *   4. FEED_CATEGORY_DEFAULTS (shop-specific default)
+ *
+ * The shopBreadcrumb parameter is optional — when the feed provides
+ * a `g:product_type` breadcrumb like "Sport > Outdoor > Schuhe", it
+ * is folded into the haystack to boost tunnel accuracy.
+ */
+export function resolveCategoryDeep(
+  productType: string | undefined,
+  title: string,
+  description: string,
+  brand: string,
+  feedId: string,
+  shopBreadcrumb?: string,
+): ResolvedCategory {
+  const breadcrumbSignal = parseBreadcrumbSignal(shopBreadcrumb ?? productType ?? "");
+  const haystack = `${title} ${brand} ${description} ${breadcrumbSignal}`.toLowerCase();
+
+  // 1. Flat curated rules — luxury brands, specific brand→leaf overrides
+  for (const entry of CATEGORY_MAP) {
+    if (haystack.includes(entry.pattern)) return { path: entry.path, name: entry.name };
+  }
+
+  // 2. Tree-tunnel — walks the Galaxus tree, picking the deepest leaf
+  const tunneled = tunnelResolve(haystack);
+  if (tunneled) return tunneled;
+
+  // 3. Beauty keyword fallback
+  const kw = matchBeautyKeywords(title, description);
+  if (kw) return kw;
+
+  // 4. Feed-specific default
+  return FEED_CATEGORY_DEFAULTS[feedId] || { path: ["it-multimedia"], name: "IT + Multimedia" };
+}
+
+/**
+ * Resolve a category for an EXISTING product (recategorize runner).
+ * Same cascade as resolveCategoryDeep but with no feedId — the current
+ * slug is used as a safety fallback.
+ */
+export function resolveCategoryForExistingDeep(
+  title: string,
+  brand: string,
+  description: string,
+  currentSlug: string,
+  currentName: string | null,
+): ResolvedCategory {
+  const haystack = `${title} ${brand} ${description} ${currentName ?? ""}`.toLowerCase();
+
+  // 1. Flat curated rules
+  for (const entry of CATEGORY_MAP) {
+    if (haystack.includes(entry.pattern)) return { path: entry.path, name: entry.name };
+  }
+
+  // 2. Tree-tunnel
+  const tunneled = tunnelResolve(haystack);
+  if (tunneled) return tunneled;
+
+  // 3. Beauty keyword fallback
+  const kw = matchBeautyKeywords(title, description);
+  if (kw) return kw;
+
+  // 4. Keep current
+  return { path: [currentSlug], name: currentName ?? currentSlug };
+}

@@ -23,7 +23,7 @@
  */
 
 import { PrismaClient, Prisma } from "@prisma/client";
-import { resolveCategoryForExisting } from "../lib/category-rules";
+import { resolveCategoryForExistingDeep } from "../lib/category-rules";
 
 // ═══════════════════════════════════════════════════════════════════
 // CLI argument parsing
@@ -172,7 +172,9 @@ async function main() {
       const paths: { path: string[]; name: string }[] = [];
 
       for (const row of rows) {
-        const resolved = resolveCategoryForExisting(
+        // Phase 2 — Path-Finder tunnels to the deepest possible leaf
+        // in the Galaxus tree instead of stopping at L1/L2.
+        const resolved = resolveCategoryForExistingDeep(
           row.title || "",
           row.brand || "",
           row.description || "",

@@ -16,6 +16,7 @@ import {
   FEED_CATEGORY_DEFAULTS,
   BEAUTY_KEYWORD_RULES,
   resolveCategory,
+  resolveCategoryDeep,
 } from "../lib/category-rules";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -761,12 +762,19 @@ async function main() {
         const sizeLabel = feedSize || titleSplit.sizeLabel;
         const groupId = computeGroupId(item.itemGroupId, decodedBrand, baseTitle, feedColor);
 
-        // ── Category resolution (in-memory, BEFORE DB write) ──
-        const { path: catPath, name: catName } = resolveCategory(
+        // ── Category resolution — Phase 2 Path-Finder ──
+        // Uses the deep tree-tunnel resolver which walks the 6-level
+        // Galaxus tree top-down instead of flat first-hit matching.
+        // The feed's `productType` (often a shop breadcrumb like
+        // "Sport > Outdoor > Schuhe") is passed as a breadcrumb signal
+        // to boost tunnel accuracy.
+        const { path: catPath, name: catName } = resolveCategoryDeep(
           item.productType,
           decodedTitle,
           decodedDescription,
+          decodedBrand,
           feed.id,
+          item.productType, // doubles as shopBreadcrumb signal
         );
         const leafSlug = catPath[catPath.length - 1];
 
