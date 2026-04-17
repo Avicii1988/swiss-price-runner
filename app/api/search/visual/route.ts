@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import {
   generateImageEmbedding,
   generateImageEmbeddingFromUrl,
   generateTextEmbedding,
 } from "@/lib/ai/embeddings";
+
 
 /**
  * POST /api/search/visual

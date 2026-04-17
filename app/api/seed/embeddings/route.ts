@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { generateProductEmbedding, EMBEDDING_DIM } from "@/lib/ai/embeddings";
+
 
 /**
  * POST /api/seed/embeddings

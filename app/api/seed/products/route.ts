@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { SEED_PRODUCTS } from "@/prisma/seed";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
+
 
 /**
  * POST /api/seed/products

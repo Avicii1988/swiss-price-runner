@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { z } from "zod";
 import { db } from "@/lib/db";
+
 
 // ---------------------------------------------------------------------------
 // Zod schema — strict validation for email + price input

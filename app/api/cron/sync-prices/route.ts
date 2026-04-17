@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { calculateSwissPrice } from "@/lib/pricing/calculator";
 import { sendPriceAlertEmail } from "@/lib/email/send-alert";
 import { SEED_PRODUCTS } from "@/prisma/seed";
 import { isAuthorized } from "@/lib/api-utils";
+
 
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
