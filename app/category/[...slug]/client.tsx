@@ -256,7 +256,8 @@ export default function CategoryClient({
               )}
             </div>
 
-            {/* Dynamic facet filters — aggregated from displayAttributes */}
+            {/* Dynamic facet filters — Galaxus-style horizontal dropdown
+                bar with Beliebte Filter pills + mobile drawer */}
             <FilterSidebar
               facets={facets}
               activeFilters={activeFilters}
@@ -268,6 +269,7 @@ export default function CategoryClient({
               onPriceMaxChange={setPriceMax}
               priceRange={priceRange}
               activeFilterCount={activeFilterCount}
+              resultCount={filtered.length}
             />
 
             {/* Sort toolbar — "Produkte"-badge uses the true DB count where
