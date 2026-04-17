@@ -47,6 +47,11 @@ model Product {
   /// marketing copy, not just the (often truncated) product title.
   /// Capped at 2000 chars during import.
   description String?   @db.Text
+  /// Extracted product attributes as a JSON object. Populated by the
+  /// importer's attribute parser so the PDP can render the two-level
+  /// variant selector without re-parsing at read time.
+  /// Shape: { storage?: "256 GB", color?: "Black", size?: "42", volume?: "50 ml", … }
+  displayAttributes String? @db.Text
   embedding     String?   @db.Text
   /// The vector column exists in DB but is managed via raw SQL only.
   /// Prisma cannot serialize pgvector types, so we exclude it from the model.

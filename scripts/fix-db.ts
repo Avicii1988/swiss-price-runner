@@ -62,6 +62,7 @@ const REQUIRED_COLUMNS: ColumnSpec[] = [
   { name: "baseTitle", ddlType: `TEXT` },
   { name: "sizeLabel", ddlType: `TEXT` },
   { name: "description", ddlType: `TEXT` },
+  { name: "displayAttributes", ddlType: `TEXT` },
 ];
 
 type IndexSpec = {

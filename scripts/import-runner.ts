@@ -11,6 +11,7 @@
  */
 
 import { PrismaClient, Prisma } from "@prisma/client";
+import { extractAttributes } from "../lib/attributes";
 import {
   CATEGORY_MAP,
   FEED_CATEGORY_DEFAULTS,
@@ -566,6 +567,7 @@ interface PreparedItem {
   /** Feed <g:description>, truncated. Persisted so the recategorize
    *  runner has richer keyword signal than the title alone. */
   description: string | null;
+  displayAttributes: string | null;
 }
 
 async function bulkUpsertBatch(
@@ -596,7 +598,7 @@ async function bulkUpsertBatch(
       ${p.priceChf}, ${p.originalPriceChf},
       ${p.shippingCostChf}, ${p.priceIsNet},
       ${p.groupId}, ${p.baseTitle}, ${p.sizeLabel},
-      ${p.description},
+      ${p.description}, ${p.displayAttributes},
       ${feed.sourceType}, NOW(), NOW()
     )`),
   );
@@ -616,6 +618,7 @@ async function bulkUpsertBatch(
         "baseTitle" = EXCLUDED."baseTitle",
         "sizeLabel" = EXCLUDED."sizeLabel",
         description = EXCLUDED.description,
+        "displayAttributes" = EXCLUDED."displayAttributes",
         "isActive" = true,
         "updatedAt" = NOW()`
     : Prisma.sql`
@@ -632,6 +635,7 @@ async function bulkUpsertBatch(
         "baseTitle" = COALESCE(EXCLUDED."baseTitle", "Product"."baseTitle"),
         "sizeLabel" = COALESCE(EXCLUDED."sizeLabel", "Product"."sizeLabel"),
         description = COALESCE(NULLIF(EXCLUDED.description, ''), "Product".description),
+        "displayAttributes" = COALESCE(NULLIF(EXCLUDED."displayAttributes", ''), "Product"."displayAttributes"),
         "isActive" = true,
         "updatedAt" = NOW()`;
 
@@ -642,7 +646,7 @@ async function bulkUpsertBatch(
       price, "originalPriceChf",
       "shippingCostChf", "priceIsNet",
       "groupId", "baseTitle", "sizeLabel",
-      description,
+      description, "displayAttributes",
       "sourceType", "createdAt", "updatedAt"
     )
     VALUES ${productRows}
@@ -796,6 +800,9 @@ async function main() {
           baseTitle: baseTitle.slice(0, 500),
           sizeLabel,
           description: decodedDescription ? decodedDescription.slice(0, 2000) : null,
+          displayAttributes: JSON.stringify(
+            extractAttributes(decodedTitle, decodedDescription, leafSlug, feedSize || undefined, feedColor || undefined).all,
+          ),
         });
       }
 

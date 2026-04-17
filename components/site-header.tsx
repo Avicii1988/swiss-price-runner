@@ -8,7 +8,7 @@ import { LanguageSwitcher, type LangCode } from "@/components/language-switcher"
 import { PreisAlarmLogo } from "@/components/preisalarm-logo";
 import { BrandLogo } from "@/components/brand-logo";
 import { useAuth } from "@/lib/auth/auth-context";
-import { SIDEBAR_CATEGORIES } from "@/lib/categories";
+import { CATEGORY_TREE, type CategoryNode } from "@/lib/categories";
 import { useLang } from "@/lib/i18n-context";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
@@ -553,62 +553,53 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
             <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400"><X className="h-4 w-4" /></button>
           </div>
           <nav>
-            {SIDEBAR_CATEGORIES.map((cat) => {
-              const Icon = cat.icon;
-              const isExpanded = expandedMenu === cat.slug;
-              // Compute real count: category itself + all subcategory slugs
-              const catCount = categoryCounts[cat.slug] ?? 0;
-              const subsCount = cat.subcategories.reduce((s, sub) => s + (categoryCounts[sub.slug] ?? 0), 0);
-              const totalCount = catCount + subsCount;
-              const hasSubs = cat.subcategories.length > 0;
+            {CATEGORY_TREE.map((root) => {
+              const Icon = root.icon;
+              const isExpanded = expandedMenu === root.slug;
+              const hasKids = root.children.length > 0;
 
               return (
-                <div key={cat.slug}>
-                  {hasSubs ? (
+                <div key={root.slug}>
+                  {hasKids ? (
                     <button
-                      onClick={() => setExpandedMenu(isExpanded ? null : cat.slug)}
+                      onClick={() => setExpandedMenu(isExpanded ? null : root.slug)}
                       className="flex w-full items-center gap-3 border-b border-gray-50 px-5 py-3 text-[15px] text-slate-800"
                     >
-                      <Icon className={`h-[16px] w-[16px] transition ${isExpanded ? "text-[#D81E05]" : "text-gray-400"}`} strokeWidth={1.75} />
-                      <span className={isExpanded ? "font-medium" : ""}>{cat.name}</span>
-                      {totalCount > 0 && <span className="ml-auto text-[11px] text-gray-400">{totalCount.toLocaleString("de-CH")}</span>}
-                      <ChevronDown className={`ml-2 h-4 w-4 text-gray-300 transition ${isExpanded ? "rotate-180" : ""}`} />
+                      {Icon && <Icon className={`h-[16px] w-[16px] transition ${isExpanded ? "text-[#D81E05]" : "text-gray-400"}`} strokeWidth={1.75} />}
+                      <span className={isExpanded ? "font-medium" : ""}>{root.name}</span>
+                      <ChevronDown className={`ml-auto h-4 w-4 text-gray-300 transition ${isExpanded ? "rotate-180" : ""}`} />
                     </button>
                   ) : (
                     <Link
-                      href={`/category/${cat.slug}`}
+                      href={`/category/${root.slug}`}
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex w-full items-center gap-3 border-b border-gray-50 px-5 py-3 text-[15px] text-slate-800"
                     >
-                      <Icon className="h-[16px] w-[16px] text-gray-400" strokeWidth={1.75} />
-                      <span>{cat.name}</span>
-                      {totalCount > 0 && <span className="ml-auto text-[11px] text-gray-400">{totalCount.toLocaleString("de-CH")}</span>}
-                      <ChevronRight className="ml-2 h-4 w-4 text-gray-300" />
+                      {Icon && <Icon className="h-[16px] w-[16px] text-gray-400" strokeWidth={1.75} />}
+                      <span>{root.name}</span>
+                      <ChevronRight className="ml-auto h-4 w-4 text-gray-300" />
                     </Link>
                   )}
                   {isExpanded && (
                     <div className="border-b border-gray-100 bg-gray-50/80 py-1">
                       <Link
-                        href={`/category/${cat.slug}`}
+                        href={`/category/${root.slug}`}
                         onClick={() => setMobileMenuOpen(false)}
                         className="block px-12 py-2 text-[13px] font-medium text-[#D81E05]"
                       >
-                        Alle in {cat.name}
+                        Alle in {root.name}
                       </Link>
-                      {cat.subcategories.map((sub) => {
-                        const subCount = categoryCounts[sub.slug] ?? 0;
-                        return (
+                      {root.children.map((l2) => (
                         <Link
-                          key={sub.slug}
-                          href={`/category/${sub.slug}`}
+                          key={l2.slug}
+                          href={`/category/${l2.slug}`}
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center justify-between px-12 py-2 text-[14px] text-gray-600 transition hover:text-slate-900"
                         >
-                          <span>{sub.name}</span>
-                          {subCount > 0 && <span className="text-[10px] text-gray-400">{subCount.toLocaleString("de-CH")}</span>}
+                          <span>{l2.name}</span>
+                          <ChevronRight className="h-3 w-3 text-gray-300" />
                         </Link>
-                        );
-                      })}
+                      ))}
                     </div>
                   )}
                 </div>
