@@ -183,14 +183,7 @@ async function applyColumn(col: ColumnSpec): Promise<void> {
 
 async function applyIndex(idx: IndexSpec): Promise<void> {
   const cols = idx.columns.map((c) => `"${c}"`).join(", ");
-  // CREATE INDEX CONCURRENTLY avoids an exclusive table lock — other
-  // readers/writers keep running while the index builds in the
-  // background. The IF NOT EXISTS guard makes it idempotent.
-  // NOTE: CONCURRENTLY cannot run inside a transaction; Prisma's
-  // $executeRawUnsafe runs each call as its own implicit transaction,
-  // which PG auto-commits before the concurrent build starts, so this
-  // is safe.
-  const stmt = `CREATE INDEX CONCURRENTLY IF NOT EXISTS "${idx.name}" ON "Product" (${cols})`;
+  const stmt = `CREATE INDEX IF NOT EXISTS "${idx.name}" ON "Product" (${cols})`;
   console.log(`  · ${stmt}`);
   await withRetry(`CREATE INDEX ${idx.name}`, () =>
     prisma.$executeRawUnsafe(stmt).then(() => {}),
@@ -245,7 +238,7 @@ async function main() {
     await applyColumn(col);
   }
 
-  section("APPLY — indexes (CONCURRENTLY)");
+  section("APPLY — indexes");
   for (const idx of REQUIRED_INDEXES) {
     await applyIndex(idx);
   }
