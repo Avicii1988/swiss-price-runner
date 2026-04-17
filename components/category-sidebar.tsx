@@ -1,9 +1,9 @@
 "use client";
 
+import { useState, useMemo, memo, useCallback } from "react";
 import Link from "next/link";
 import { ChevronRight, ChevronDown, Store, Tag } from "lucide-react";
-import { useState } from "react";
-import { SIDEBAR_CATEGORIES } from "@/lib/categories";
+import { CATEGORY_TREE, findCategoryNode, getAncestors, type CategoryNode } from "@/lib/categories";
 
 interface DynamicCategory {
   slug: string;
@@ -17,90 +17,84 @@ interface CategorySidebarProps {
   dynamicCategories?: DynamicCategory[];
 }
 
-/** Returns true if the slug looks like valid text (not a numeric ID from a feed) */
-function isValidSlug(slug: string): boolean {
-  if (/^\d+$/.test(slug)) return false;
-  if (slug.length < 3) return false;
-  return true;
+/**
+ * Build the set of slugs that should be expanded on mount so the active
+ * category's full ancestor chain is open when the page first renders.
+ */
+function initialExpanded(activeSlug: string | undefined): Set<string> {
+  if (!activeSlug) return new Set();
+  const chain = getAncestors(activeSlug);
+  return new Set(chain.map((n) => n.slug));
 }
 
-export function CategorySidebar({ activeCategorySlug, dynamicCategories }: CategorySidebarProps) {
-  const [expandedSlug, setExpandedSlug] = useState<string | null>(activeCategorySlug ?? null);
+/**
+ * Recursive sidebar that mirrors the Galaxus left-nav:
+ *   - Arbitrary depth (tested up to 6 levels).
+ *   - Clicking a parent toggles expand/collapse (accordion).
+ *   - Clicking the name on a LEAF node navigates directly.
+ *   - Clicking the name on a PARENT node shows "Alle anzeigen"
+ *     inside the expansion, so parent-clicks don't accidentally
+ *     trigger a navigation while the user is browsing the tree.
+ *   - Only expanded branches render children → DOM stays light
+ *     even with 500+ total nodes.
+ *   - The active node's full ancestor chain auto-expands on mount.
+ */
+export function CategorySidebar({
+  activeCategorySlug,
+  dynamicCategories,
+}: CategorySidebarProps) {
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => initialExpanded(activeCategorySlug),
+  );
 
-  // Build a map of feed slug → product count from DB (only valid text slugs).
-  // We use this to enrich the subcategory rows with live counts — nothing
-  // else. Unmapped / junk categories are intentionally NOT shown here; the
-  // sidebar is strictly the curated master list.
-  const feedCounts = new Map<string, number>();
-  for (const dc of dynamicCategories ?? []) {
-    if (dc.productCount > 0 && isValidSlug(dc.slug) && dc.slug !== "sonstiges" && dc.slug !== "seed") {
-      feedCounts.set(dc.slug, dc.productCount);
+  const feedCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const dc of dynamicCategories ?? []) {
+      if (dc.productCount > 0 && dc.slug.length >= 3 && !/^\d+$/.test(dc.slug)) {
+        m.set(dc.slug, dc.productCount);
+      }
     }
-  }
+    return m;
+  }, [dynamicCategories]);
+
+  const toggle = useCallback((slug: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug);
+      else next.add(slug);
+      return next;
+    });
+  }, []);
 
   return (
-    <nav>
-      {SIDEBAR_CATEGORIES.map((cat) => {
-        const Icon = cat.icon;
-        const isExpanded = expandedSlug === cat.slug;
+    <nav aria-label="Kategorien">
+      {CATEGORY_TREE.map((root) => (
+        <SidebarNode
+          key={root.slug}
+          node={root}
+          depth={0}
+          activeSlug={activeCategorySlug}
+          expanded={expanded}
+          onToggle={toggle}
+          feedCounts={feedCounts}
+        />
+      ))}
 
-        // Enrich subcategories with real counts (show all master-defined subs, even without DB matches)
-        const enrichedSubs = cat.subcategories
-          .map((sub) => ({ ...sub, productCount: feedCounts.get(sub.slug) ?? 0 }));
-
-        const hasSubs = enrichedSubs.length > 0;
-
-        return (
-          <div key={cat.slug}>
-            <div className="flex items-center">
-              {/* prefetch={true} — the sidebar is always visible so every
-                  L1 entry warms up its category RSC payload + chunks on
-                  mount. Combined with the cache() wrapper in lib/data.ts
-                  and ISR on the route, click → first paint feels instant. */}
-              <Link
-                href={`/category/${cat.slug}`}
-                prefetch
-                className={`group flex flex-1 items-center gap-2.5 py-[7px] text-[13px] transition ${
-                  activeCategorySlug === cat.slug ? "font-bold text-gray-900" : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0 text-gray-400 transition group-hover:text-gray-600" strokeWidth={1.75} />
-                {cat.name}
-              </Link>
-              {hasSubs && (
-                <button onClick={() => setExpandedSlug(isExpanded ? null : cat.slug)}
-                  className="flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-600">
-                  {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                </button>
-              )}
-            </div>
-
-            {/* Subcategories — expandable */}
-            {hasSubs && isExpanded && (
-              <div className="mb-1 ml-3 border-l border-gray-200 pl-3">
-                {enrichedSubs.map((sub) => (
-                  <Link key={sub.slug} href={`/category/${sub.slug}`}
-                    prefetch
-                    className={`flex items-center justify-between py-[5px] text-[12px] transition ${
-                      activeCategorySlug === sub.slug ? "font-semibold text-gray-900" : "text-gray-500 hover:text-gray-900"
-                    }`}>
-                    <span>{sub.name}</span>
-                    {sub.productCount > 0 && <span className="text-[10px] text-gray-300">{sub.productCount}</span>}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {/* Service Links — styled like categories */}
+      {/* Service Links — bottom of sidebar */}
       <div className="mt-5 border-t border-gray-100 pt-3">
-        <Link href="/shops" className="group flex items-center gap-2.5 py-[7px] text-[13px] text-gray-600 transition hover:text-gray-900">
+        <Link
+          href="/shops"
+          prefetch
+          className="group flex items-center gap-2.5 py-[7px] text-[13px] text-gray-600 transition hover:text-gray-900"
+        >
           <Store className="h-4 w-4 shrink-0 text-gray-400 transition group-hover:text-gray-600" strokeWidth={1.75} />
           Shop-Übersicht
         </Link>
-        <Link href="/brands" className="group flex items-center gap-2.5 py-[7px] text-[13px] text-gray-600 transition hover:text-gray-900">
+        <Link
+          href="/brands"
+          prefetch
+          className="group flex items-center gap-2.5 py-[7px] text-[13px] text-gray-600 transition hover:text-gray-900"
+        >
           <Tag className="h-4 w-4 shrink-0 text-gray-400 transition group-hover:text-gray-600" strokeWidth={1.75} />
           Marken-Übersicht
         </Link>
@@ -108,3 +102,126 @@ export function CategorySidebar({ activeCategorySlug, dynamicCategories }: Categ
     </nav>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Recursive node — memo'd so only the toggled subtree re-renders.
+// ─────────────────────────────────────────────────────────────────────
+
+interface SidebarNodeProps {
+  node: CategoryNode;
+  depth: number;
+  activeSlug: string | undefined;
+  expanded: Set<string>;
+  onToggle: (slug: string) => void;
+  feedCounts: Map<string, number>;
+}
+
+const SidebarNode = memo(function SidebarNode({
+  node,
+  depth,
+  activeSlug,
+  expanded,
+  onToggle,
+  feedCounts,
+}: SidebarNodeProps) {
+  const hasChildren = node.children.length > 0;
+  const isExpanded = expanded.has(node.slug);
+  const isActive = activeSlug === node.slug;
+  const count = feedCounts.get(node.slug) ?? 0;
+  const Icon = node.icon;
+
+  // Indent increases per depth level. Roots (depth 0) have no indent;
+  // deeper levels get progressively smaller indents so the tree doesn't
+  // shift too far right on narrow sidebars.
+  const indent = depth === 0 ? 0 : depth * 14;
+
+  return (
+    <div>
+      <div
+        className="flex items-center"
+        style={{ paddingLeft: indent }}
+      >
+        {/* Expand/collapse chevron — only on parent nodes */}
+        {hasChildren ? (
+          <button
+            onClick={() => onToggle(node.slug)}
+            className="flex h-6 w-6 shrink-0 items-center justify-center text-gray-400 transition hover:text-gray-600"
+            aria-label={isExpanded ? `${node.name} zuklappen` : `${node.name} aufklappen`}
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+          </button>
+        ) : (
+          <span className="w-6 shrink-0" />
+        )}
+
+        {/* Node label — link for leaves, toggle for parents */}
+        {hasChildren ? (
+          <button
+            onClick={() => onToggle(node.slug)}
+            className={`flex flex-1 items-center gap-2 py-[6px] text-left text-[13px] transition ${
+              isActive
+                ? "font-bold text-gray-900"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {Icon && depth === 0 && (
+              <Icon
+                className="h-4 w-4 shrink-0 text-gray-400"
+                strokeWidth={1.75}
+              />
+            )}
+            <span className="truncate">{node.name}</span>
+          </button>
+        ) : (
+          <Link
+            href={`/category/${node.slug}`}
+            prefetch
+            className={`flex flex-1 items-center gap-2 py-[6px] text-[13px] transition ${
+              isActive
+                ? "font-bold text-gray-900"
+                : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <span className="truncate">{node.name}</span>
+            {count > 0 && (
+              <span className="ml-auto shrink-0 text-[10px] text-gray-300">
+                {count}
+              </span>
+            )}
+          </Link>
+        )}
+      </div>
+
+      {/* Expanded children — only rendered when open (lazy DOM). */}
+      {hasChildren && isExpanded && (
+        <div className={depth === 0 ? "mb-1 border-l border-gray-100 ml-3" : ""}>
+          {/* "Alle anzeigen" link for parent nodes — navigates to the
+              parent's own category page while leaves are browse-targets. */}
+          <Link
+            href={`/category/${node.slug}`}
+            prefetch
+            className="flex items-center py-[5px] text-[12px] font-medium text-[#0076bd] transition hover:text-[#005a94]"
+            style={{ paddingLeft: indent + 24 }}
+          >
+            Alle anzeigen
+          </Link>
+          {node.children.map((child) => (
+            <SidebarNode
+              key={child.slug}
+              node={child}
+              depth={depth + 1}
+              activeSlug={activeSlug}
+              expanded={expanded}
+              onToggle={onToggle}
+              feedCounts={feedCounts}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
