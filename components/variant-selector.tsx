@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ExternalLink } from "lucide-react";
 import { formatChf } from "@/lib/pricing/format";
-import { extractAttributes, attributeLabel, type ExtractedAttributes } from "@/lib/attributes";
+import { extractAttributes, attributeLabel, variantLabel, type ExtractedAttributes } from "@/lib/attributes";
 import type { VariantSibling } from "@/lib/data";
 
 interface VariantSelectorProps {
@@ -50,10 +50,14 @@ export function VariantSelector({
         "",
         category,
       );
+      // Never show "Standard" — use variantLabel() which falls back
+      // to a meaningful title fragment when no attribute is extractable.
+      const primaryVal = attrs.primary?.value
+        ?? variantLabel(s.sizeLabel, s.sizeLabel || s.gtin, "", category);
       return {
         ...s,
         attrs,
-        primaryValue: attrs.primary?.value ?? s.sizeLabel ?? "Standard",
+        primaryValue: primaryVal,
         secondaryValue: attrs.secondary?.value ?? null,
       };
     });

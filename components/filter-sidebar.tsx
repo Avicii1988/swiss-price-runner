@@ -60,10 +60,10 @@ function PopularPills({
             <button
               key={`${p.key}-${p.value}`}
               onClick={() => onToggle(p.key, p.value, !isActive)}
-              className={`rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition ${
+              className={`rounded-full border px-4 py-2 text-[13px] font-medium shadow-sm transition ${
                 isActive
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+                  ? "border-gray-900 bg-gray-900 text-white shadow-none"
+                  : "border-gray-300 bg-white text-gray-700 hover:border-gray-500 hover:shadow"
               }`}
             >
               {p.label}
@@ -72,10 +72,10 @@ function PopularPills({
         })}
         <button
           onClick={() => onPriceMaxChange(priceActive ? "" : "200")}
-          className={`rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition ${
+          className={`rounded-full border px-4 py-2 text-[13px] font-medium shadow-sm transition ${
             priceActive
-              ? "border-gray-900 bg-gray-900 text-white"
-              : "border-gray-200 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50"
+              ? "border-gray-900 bg-gray-900 text-white shadow-none"
+              : "border-gray-300 bg-white text-gray-700 hover:border-gray-500 hover:shadow"
           }`}
         >
           Unter CHF 200
@@ -119,19 +119,19 @@ function FilterDropdown({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[13px] font-medium transition ${
+        className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[13px] font-medium transition ${
           activeCount > 0
-            ? "border-gray-900 bg-gray-900 text-white"
-            : "border-gray-200 bg-white text-gray-700 hover:border-gray-400"
+            ? "border-gray-900 bg-gray-900 text-white shadow-sm"
+            : "border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-400 hover:bg-white"
         }`}
       >
         {facet.label}
         {activeCount > 0 && (
-          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-white/20 px-1 text-[10px] font-bold">
+          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-white/25 px-1 text-[10px] font-bold">
             {activeCount}
           </span>
         )}
-        <ChevronDown className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""} ${activeCount > 0 ? "text-white/70" : "text-gray-400"}`} />
+        <ChevronDown className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""} ${activeCount > 0 ? "text-white/60" : "text-gray-400"}`} />
       </button>
 
       {open && (
@@ -210,49 +210,55 @@ function PriceDropdown({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[13px] font-medium transition ${
+        className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[13px] font-medium transition ${
           hasValue
-            ? "border-gray-900 bg-gray-900 text-white"
-            : "border-gray-200 bg-white text-gray-700 hover:border-gray-400"
+            ? "border-gray-900 bg-gray-900 text-white shadow-sm"
+            : "border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-400 hover:bg-white"
         }`}
       >
         Preis
         {hasValue && (
           <span className="text-[11px] font-normal text-white/70">
-            {priceMin || "0"} – {priceMax || "∞"}
+            CHF {priceMin || "0"} – {priceMax || "∞"}
           </span>
         )}
-        <ChevronDown className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""} ${hasValue ? "text-white/70" : "text-gray-400"}`} />
+        <ChevronDown className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""} ${hasValue ? "text-white/60" : "text-gray-400"}`} />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1.5 w-[240px] rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-gray-400">
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-[280px] rounded-2xl border border-gray-200 bg-white p-5 shadow-xl">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
             Preis (CHF)
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <div className="flex-1">
               <label className="text-[10px] text-gray-400">Von</label>
-              <input
-                type="number"
-                placeholder={`${Math.floor(range.min)}`}
-                value={priceMin}
-                onChange={(e) => onPriceMinChange(e.target.value)}
-                className="mt-1 h-9 w-full rounded-lg border border-gray-200 px-2.5 text-[13px] text-gray-800 outline-none focus:border-gray-900"
-                min={0}
-              />
+              <div className="relative mt-1">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">CHF</span>
+                <input
+                  type="number"
+                  placeholder={`${Math.floor(range.min)}`}
+                  value={priceMin}
+                  onChange={(e) => onPriceMinChange(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-gray-200 pl-9 pr-2.5 text-[13px] text-gray-800 outline-none focus:border-gray-900"
+                  min={0}
+                />
+              </div>
             </div>
-            <span className="mt-4 text-gray-300">–</span>
+            <span className="mt-5 text-gray-300">–</span>
             <div className="flex-1">
               <label className="text-[10px] text-gray-400">Bis</label>
-              <input
-                type="number"
-                placeholder={`${Math.ceil(range.max)}`}
-                value={priceMax}
-                onChange={(e) => onPriceMaxChange(e.target.value)}
-                className="mt-1 h-9 w-full rounded-lg border border-gray-200 px-2.5 text-[13px] text-gray-800 outline-none focus:border-gray-900"
-                min={0}
-              />
+              <div className="relative mt-1">
+                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">CHF</span>
+                <input
+                  type="number"
+                  placeholder={`${Math.ceil(range.max)}`}
+                  value={priceMax}
+                  onChange={(e) => onPriceMaxChange(e.target.value)}
+                  className="h-10 w-full rounded-xl border border-gray-200 pl-9 pr-2.5 text-[13px] text-gray-800 outline-none focus:border-gray-900"
+                  min={0}
+                />
+              </div>
             </div>
           </div>
           {hasValue && (
@@ -335,17 +341,17 @@ function MobileFilterDrawer({
         ))}
       </div>
 
-      {/* Footer — sticky CTA */}
-      <div className="border-t border-gray-200 px-4 py-3">
+      {/* Footer — sticky CTA with safe-area padding for notched phones */}
+      <div className="border-t border-gray-200 px-4 pb-6 pt-4" style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
         <div className="flex gap-3">
           {activeFilterCount > 0 && (
             <button onClick={onClearAll}
-              className="flex-1 rounded-xl border border-gray-300 py-3 text-[14px] font-semibold text-gray-700 transition hover:bg-gray-50">
+              className="flex-1 rounded-2xl border border-gray-300 py-3.5 text-[14px] font-semibold text-gray-700 transition hover:bg-gray-50">
               Zurücksetzen
             </button>
           )}
           <button onClick={onClose}
-            className="flex-1 rounded-xl bg-gray-900 py-3 text-[14px] font-semibold text-white transition hover:bg-gray-800">
+            className="flex-1 rounded-2xl bg-gray-900 py-3.5 text-[14px] font-semibold text-white transition hover:bg-gray-800">
             {resultCount != null ? `${resultCount.toLocaleString("de-CH")} Ergebnisse anzeigen` : "Ergebnisse anzeigen"}
           </button>
         </div>
@@ -382,10 +388,10 @@ function MobileFacetAccordion({
         <div className="border-t border-gray-100 px-4 pb-3 pt-1">
           {visible.map((fv) => (
             <label key={fv.value}
-              className="flex cursor-pointer items-center gap-3 rounded-lg py-2 text-[14px]">
+              className="flex cursor-pointer items-center gap-3 rounded-xl py-3 text-[15px]">
               <input type="checkbox" checked={selected.has(fv.value)}
                 onChange={() => onToggle(fv.value, !selected.has(fv.value))}
-                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900" />
+                className="h-5 w-5 rounded border-gray-300 text-gray-900 focus:ring-gray-900" />
               <span className={`flex-1 ${selected.has(fv.value) ? "font-semibold" : ""}`}>{fv.value}</span>
               <span className="text-[12px] text-gray-400">{fv.count}</span>
             </label>
@@ -424,8 +430,12 @@ export function FilterSidebar(props: FilterSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
-  const topFacets = facets.slice(0, 4);
-  const moreFacets = facets.slice(4);
+  // Show up to 8 facets in the primary row (Galaxus shows 9). Only
+  // push overflow facets behind "Mehr Filter" when there are truly
+  // many dimensions — the user complained that Storage/RAM weren't
+  // visible because the old code capped at 4.
+  const topFacets = facets.slice(0, 8);
+  const moreFacets = facets.slice(8);
 
   // Active filter chips — shown below the dropdown bar so users see
   // what's selected without reopening each dropdown.
@@ -470,7 +480,7 @@ export function FilterSidebar(props: FilterSidebarProps) {
         {moreFacets.length > 0 && (
           <button
             onClick={() => setShowMore(!showMore)}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[13px] font-medium text-gray-600 transition hover:border-gray-400"
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[13px] font-medium text-gray-600 transition hover:border-gray-400 hover:bg-white"
           >
             Mehr Filter
             <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition ${showMore ? "rotate-180" : ""}`} />

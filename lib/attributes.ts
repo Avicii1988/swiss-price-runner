@@ -36,18 +36,28 @@ function normalise(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
-/** Electronics: storage capacity (128 GB, 1 TB, 256GB → "256 GB") */
+/** Electronics: storage capacity — aggressive multi-pattern scan.
+ *  Catches "256GB", "256 GB", "1TB", "1 TB", "0.5TB". Also catches
+ *  compound forms like "iPhone 15 Pro 256GB" where the number sits
+ *  right before GB without a space. */
 function extractStorage(text: string): string | null {
-  const m = text.match(/\b(\d+)\s*(gb|tb)\b/i);
-  if (!m) return null;
-  return `${m[1]} ${m[2].toUpperCase()}`;
+  // Try specific patterns first (more reliable)
+  const m = text.match(/\b(\d+(?:\.\d+)?)\s*(gb|tb)\b/i);
+  if (m) return `${m[1]} ${m[2].toUpperCase()}`;
+  // Fallback: number immediately followed by GB/TB (no word boundary)
+  const compact = text.match(/(\d+)(gb|tb)/i);
+  if (compact) return `${compact[1]} ${compact[2].toUpperCase()}`;
+  return null;
 }
 
-/** Electronics: RAM (8 GB RAM, 16GB → "16 GB") */
+/** Electronics: RAM — "8 GB RAM", "16GB RAM", "8GB Arbeitsspeicher" */
 function extractRam(text: string): string | null {
-  const m = text.match(/\b(\d+)\s*(gb)\s*ram\b/i);
-  if (!m) return null;
-  return `${m[1]} GB`;
+  const m = text.match(/\b(\d+)\s*gb\s*(?:ram|arbeitsspeicher)\b/i);
+  if (m) return `${m[1]} GB`;
+  // Try "RAM: 8 GB" or "RAM 8GB" pattern
+  const rev = text.match(/\bram[\s:]*(\d+)\s*gb\b/i);
+  if (rev) return `${rev[1]} GB`;
+  return null;
 }
 
 /** Fashion/Shoes: size — alpha (S/M/L/XL/XXL) or numeric (38-50, 36.5) */
@@ -202,6 +212,35 @@ export function extractAttributes(
     secondary: colorValue ? { key: "color", value: colorValue } : null,
     all,
   };
+}
+
+/**
+ * Derive a human-readable variant label from a sibling's available data.
+ * Used by the variant selector so buttons NEVER show raw GTINs or the
+ * word "Standard". Preference order:
+ *   1. Extracted primary attribute value ("256 GB", "50 ml", "42")
+ *   2. Feed-supplied sizeLabel ("50 ml", "Gr. 42")
+ *   3. Title fragment — brand stripped, first 30 chars
+ *   4. Last resort: "Variante"
+ */
+export function variantLabel(
+  sizeLabel: string | null,
+  title: string,
+  brand: string,
+  category: string,
+): string {
+  // Try attribute extraction first
+  const attrs = extractAttributes(title, "", category);
+  if (attrs.primary?.value) return attrs.primary.value;
+
+  // Feed size label
+  if (sizeLabel && sizeLabel !== "Standard") return sizeLabel;
+
+  // Title fragment (strip brand, take first meaningful chunk)
+  const stripped = title.replace(new RegExp(brand, "i"), "").trim();
+  if (stripped.length > 0) return stripped.slice(0, 35);
+
+  return "Variante";
 }
 
 /**
