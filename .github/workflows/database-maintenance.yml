@@ -1,0 +1,123 @@
+name: "[DB] Maintenance"
+
+# Toolbelt workflow for all database maintenance tasks. Select the task
+# from the dropdown. Dry Run is ON by default so accidental clicks don't
+# mutate production data.
+#
+# Tasks:
+#   fix-db        — Idempotent DDL sync (add missing columns + indexes)
+#   recategorize  — Re-map all products to the deep Galaxus taxonomy
+#   purge-mocks   — Delete phantom Price rows from retired mock shops
+#   db-push       — Run `prisma db push` (schema sync via Prisma engine)
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Maintenance task to run"
+        required: true
+        type: choice
+        options:
+          - fix-db
+          - recategorize
+          - purge-mocks
+          - db-push
+      dry_run:
+        description: "Dry run — preview only, no writes (default: ON)"
+        required: false
+        default: "true"
+        type: boolean
+      batch:
+        description: "Batch size for recategorize (default 5000)"
+        required: false
+        default: "5000"
+      only:
+        description: "Recategorize: limit to a single category slug"
+        required: false
+        default: ""
+      accept_data_loss:
+        description: "db-push: allow potentially destructive changes"
+        required: false
+        default: "false"
+        type: boolean
+      force_pooled:
+        description: "Force use of the pooled DATABASE_URL"
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Normalize DB URL
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          FORCE_POOLED:   ${{ inputs.force_pooled }}
+        run: node .github/scripts/normalize-db-url.js
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      # ── fix-db ──
+      - name: "[fix-db] Idempotent DDL sync"
+        if: inputs.task == 'fix-db'
+        run: npx tsx scripts/fix-db.ts
+
+      # ── recategorize ──
+      - name: "[recategorize] Re-map products"
+        if: inputs.task == 'recategorize'
+        run: |
+          ARGS="--batch ${{ inputs.batch || '5000' }}"
+          if [ -n "${{ inputs.only }}" ]; then
+            ARGS="$ARGS --only ${{ inputs.only }}"
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry"
+          fi
+          echo "Running: npx tsx scripts/recategorize-runner.ts $ARGS"
+          npx tsx scripts/recategorize-runner.ts $ARGS
+
+      # ── purge-mocks ──
+      - name: "[purge-mocks] Delete phantom data"
+        if: inputs.task == 'purge-mocks'
+        run: npx tsx scripts/purge-mocks.ts ${{ inputs.dry_run == true && '--dry' || '' }}
+
+      # ── db-push ──
+      - name: "[db-push] Show pending SQL diff"
+        if: inputs.task == 'db-push'
+        run: |
+          echo "─── SQL diff (DB → schema.prisma) ────────────────────────"
+          npx prisma migrate diff \
+            --from-url "$POSTGRES_URL_NON_POOLING" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script || echo "(diff step failed — continuing)"
+          echo "──────────────────────────────────────────────────────────"
+
+      - name: "[db-push] Apply schema changes"
+        if: inputs.task == 'db-push' && inputs.dry_run != true
+        run: |
+          FLAGS="--skip-generate"
+          if [ "${{ inputs.accept_data_loss }}" = "true" ]; then
+            FLAGS="$FLAGS --accept-data-loss"
+          fi
+          echo "Running: npx prisma db push $FLAGS"
+          npx prisma db push $FLAGS
+
+      - name: "[db-push] Dry run — skipping push"
+        if: inputs.task == 'db-push' && inputs.dry_run == true
+        run: echo "🟡 dry_run=true → stopping before any writes."

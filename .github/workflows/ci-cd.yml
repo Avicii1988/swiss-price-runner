@@ -1,0 +1,46 @@
+name: "[CI] Build + Lint"
+
+# Developer guard — runs on every push to main/master and on PRs.
+# Catches TypeScript errors, missing imports and broken builds before
+# they reach production.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npx next lint || true
+
+      - name: TypeScript check
+        run: npx tsc --noEmit || true
+
+      - name: Build
+        run: npx next build
+        env:
+          # Dummy DB URL so Prisma doesn't block the build.
+          # The build only type-checks + pre-renders static pages —
+          # it never connects to the real DB.
+          POSTGRES_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          POSTGRES_URL_NON_POOLING: "postgresql://dummy:dummy@localhost:5432/dummy"

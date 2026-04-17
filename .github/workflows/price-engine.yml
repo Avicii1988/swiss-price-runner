@@ -1,0 +1,101 @@
+name: "[PRICE] Daily Import Engine"
+
+# Nightly price engine — runs every registered feed sequentially so
+# the catalogue stays fresh. Each shop runs in its own step so failures
+# are isolated: if Jelmoli is down, Bergfreunde still imports.
+#
+# Schedule: 03:00 UTC (05:00 CEST) — off-peak for both Supabase and
+# the Adtraction feed servers.
+#
+# Can also be triggered manually via workflow_dispatch (same inputs as
+# the [DATA] Import Shops workflow but with 'all' hardcoded).
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Items per batch (default 200 for nightly)"
+        required: false
+        default: "200"
+      force_pooled:
+        description: "Force use of the pooled DATABASE_URL"
+        required: false
+        default: "false"
+        type: boolean
+
+env:
+  LIMIT: ${{ inputs.limit || '200' }}
+
+jobs:
+  nightly-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Normalize DB URL
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          FORCE_POOLED:   ${{ inputs.force_pooled || 'false' }}
+        run: node .github/scripts/normalize-db-url.js
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      # Each shop gets its own step so the Actions log clearly shows
+      # which shops succeeded and which (if any) failed. The `|| true`
+      # ensures a single shop failure doesn't abort the whole run.
+      - name: "Import: XXL Parfum"
+        run: npx tsx scripts/import-runner.ts --feed xxl_parfum --limit $LIMIT || true
+
+      - name: "Import: Parfumsale"
+        run: npx tsx scripts/import-runner.ts --feed parfumsale --limit $LIMIT || true
+
+      - name: "Import: Import Parfumerie"
+        run: npx tsx scripts/import-runner.ts --feed import_parfumerie --limit $LIMIT || true
+
+      - name: "Import: Coop Vitality"
+        run: npx tsx scripts/import-runner.ts --feed coop_vitality --limit $LIMIT || true
+
+      - name: "Import: New Balance"
+        run: npx tsx scripts/import-runner.ts --feed new_balance --limit $LIMIT || true
+
+      - name: "Import: Parfum.ch"
+        run: npx tsx scripts/import-runner.ts --feed parfum_ch --limit $LIMIT || true
+
+      - name: "Import: Ackermann Technik"
+        run: npx tsx scripts/import-runner.ts --feed ackermann_ch --limit $LIMIT || true
+
+      - name: "Import: Ackermann Mode"
+        run: npx tsx scripts/import-runner.ts --feed ackermann-mode --limit $LIMIT || true
+
+      - name: "Import: Jelmoli Technik"
+        run: npx tsx scripts/import-runner.ts --feed jelmoli --limit $LIMIT || true
+
+      - name: "Import: Jelmoli Mode"
+        run: npx tsx scripts/import-runner.ts --feed jelmoli-mode --limit $LIMIT || true
+
+      - name: "Import: Bijouteria"
+        run: npx tsx scripts/import-runner.ts --feed bijouteria --limit $LIMIT || true
+
+      - name: "Import: Bergfreunde"
+        run: npx tsx scripts/import-runner.ts --feed bergfreunde --limit $LIMIT || true
+
+      - name: "Import: Mobilezone"
+        run: npx tsx scripts/import-runner.ts --feed mobilezone --limit $LIMIT || true
+
+      - name: Summary
+        run: echo "✓ Nightly import engine completed. Check individual steps for per-shop status."
