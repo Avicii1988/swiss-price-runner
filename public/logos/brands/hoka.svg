@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" rx="28" fill="#005DA2"/>
+  <text x="64" y="64" text-anchor="middle" dominant-baseline="central"
+        font-family="-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif"
+        font-size="48" font-weight="800" fill="white"
+        letter-spacing="-1">H</text>
+</svg>
