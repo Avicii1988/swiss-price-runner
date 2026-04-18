@@ -590,15 +590,31 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
                         Alle in {root.name}
                       </Link>
                       {root.children.map((l2) => (
-                        <Link
-                          key={l2.slug}
-                          href={`/category/${l2.slug}`}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center justify-between px-12 py-2 text-[14px] text-gray-600 transition hover:text-slate-900"
-                        >
-                          <span>{l2.name}</span>
-                          <ChevronRight className="h-3 w-3 text-gray-300" />
-                        </Link>
+                        <div key={l2.slug}>
+                          <Link
+                            href={`/category/${l2.slug}`}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center justify-between px-12 py-2 text-[14px] text-gray-600 transition hover:text-slate-900"
+                          >
+                            <span>{l2.name}</span>
+                            <ChevronRight className="h-3 w-3 text-gray-300" />
+                          </Link>
+                          {/* L3 children — rendered flat under L2 for unlimited depth */}
+                          {l2.children.length > 0 && expandedMenu === root.slug && (
+                            <div className="ml-6">
+                              {l2.children.slice(0, 6).map((l3) => (
+                                <Link
+                                  key={l3.slug}
+                                  href={`/category/${l3.slug}`}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className="flex items-center justify-between px-12 py-1.5 text-[13px] text-gray-500 transition hover:text-slate-900"
+                                >
+                                  <span>{l3.name}</span>
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}

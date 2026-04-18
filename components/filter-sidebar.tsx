@@ -53,14 +53,15 @@ function PopularPills({
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
         Beliebte Filter
       </p>
-      <div className="flex flex-wrap gap-2">
+      {/* Horizontally scrollable on mobile, wraps on desktop */}
+      <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
         {pills.map((p) => {
           const isActive = activeFilters[p.key]?.has(p.value);
           return (
             <button
               key={`${p.key}-${p.value}`}
               onClick={() => onToggle(p.key, p.value, !isActive)}
-              className={`rounded-full border px-4 py-2 text-[13px] font-medium shadow-sm transition ${
+              className={`shrink-0 rounded-full border px-4 py-2 text-[13px] font-medium shadow-sm transition ${
                 isActive
                   ? "border-gray-900 bg-gray-900 text-white shadow-none"
                   : "border-gray-300 bg-white text-gray-700 hover:border-gray-500 hover:shadow"
@@ -460,8 +461,8 @@ export function FilterSidebar(props: FilterSidebarProps) {
         onPriceMaxChange={onPriceMaxChange}
       />
 
-      {/* ── Desktop: horizontal dropdown bar ── */}
-      <div className="mb-4 hidden flex-wrap items-center gap-2 lg:flex">
+      {/* ── Desktop: horizontal dropdown bar — minimal, border-b separated ── */}
+      <div className="mb-4 hidden flex-wrap items-center gap-2 border-b border-gray-100 pb-4 lg:flex">
         {topFacets.map((f) => (
           <FilterDropdown
             key={f.key}

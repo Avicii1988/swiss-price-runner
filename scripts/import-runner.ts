@@ -763,7 +763,9 @@ async function main() {
         const feedColor = decodeHtml(item.color || "").trim();
         const titleSplit = splitTitleBySize(decodedTitle);
         const baseTitle = titleSplit.baseTitle;
-        const sizeLabel = feedSize || titleSplit.sizeLabel;
+        // GTIN guard: never save a barcode number as a size label
+        const rawSize = feedSize || titleSplit.sizeLabel;
+        const sizeLabel = rawSize && /^\d{8,14}$/.test(rawSize) ? null : rawSize;
         const groupId = computeGroupId(item.itemGroupId, decodedBrand, baseTitle, feedColor);
 
         // ── Category resolution — Phase 2 Path-Finder ──

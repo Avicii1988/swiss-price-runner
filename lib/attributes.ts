@@ -29,6 +29,24 @@ export interface ExtractedAttributes {
 export type LeadAttribute = "storage" | "ram" | "size" | "volume" | "weight" | "count";
 
 // ═══════════════════════════════════════════════════════════════════
+// GTIN guard — central check used everywhere to prevent 13-digit
+// barcodes from leaking into UI labels.
+// ═══════════════════════════════════════════════════════════════════
+
+const GTIN_RE = /^\d{8,14}$/;
+
+/** Returns true if the string looks like a GTIN/EAN/UPC barcode. */
+export function isGtin(s: string): boolean {
+  return GTIN_RE.test(s.trim());
+}
+
+/** Strip GTINs from a string — replaces any standalone 8-14 digit
+ *  sequence with empty string, then trims whitespace. */
+export function stripGtins(s: string): string {
+  return s.replace(/\b\d{8,14}\b/g, "").replace(/\s+/g, " ").trim();
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Regex extractors
 // ═══════════════════════════════════════════════════════════════════
 
@@ -229,16 +247,21 @@ export function variantLabel(
   brand: string,
   category: string,
 ): string {
-  // Try attribute extraction first
-  const attrs = extractAttributes(title, "", category);
-  if (attrs.primary?.value) return attrs.primary.value;
+  // HARD RULE: if the input itself is a GTIN, skip it entirely.
+  if (isGtin(title)) {
+    // Can't extract anything meaningful from a barcode number
+  } else {
+    // Try attribute extraction from the title
+    const attrs = extractAttributes(title, "", category);
+    if (attrs.primary?.value && !isGtin(attrs.primary.value)) return attrs.primary.value;
+  }
 
-  // Feed size label
-  if (sizeLabel && sizeLabel !== "Standard") return sizeLabel;
+  // Feed size label — reject if it looks like a GTIN or "Standard"
+  if (sizeLabel && !isGtin(sizeLabel) && sizeLabel !== "Standard") return sizeLabel;
 
-  // Title fragment (strip brand, take first meaningful chunk)
-  const stripped = title.replace(new RegExp(brand, "i"), "").trim();
-  if (stripped.length > 0) return stripped.slice(0, 35);
+  // Title fragment (strip brand + any GTIN-looking sequences)
+  const cleaned = stripGtins(title.replace(new RegExp(brand, "i"), ""));
+  if (cleaned.length >= 3) return cleaned.slice(0, 35);
 
   return "Variante";
 }

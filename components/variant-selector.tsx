@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ExternalLink } from "lucide-react";
 import { formatChf } from "@/lib/pricing/format";
-import { extractAttributes, attributeLabel, variantLabel, type ExtractedAttributes } from "@/lib/attributes";
+import { extractAttributes, attributeLabel, variantLabel, isGtin, type ExtractedAttributes } from "@/lib/attributes";
 import type { VariantSibling } from "@/lib/data";
 
 interface VariantSelectorProps {
@@ -31,7 +31,7 @@ interface VariantSelectorProps {
  * to the selected variant's PDP.
  *
  * Labels never show GTINs — they use the extracted attribute values.
- * If no attribute could be extracted, the chip shows "Standard".
+ * If no attribute could be extracted, the chip shows the price or "Variante".
  */
 export function VariantSelector({
   siblings,
@@ -41,24 +41,39 @@ export function VariantSelector({
   if (siblings.length <= 1) return null;
 
   // ── Extract attributes for every sibling ──
+  // HARD RULE: GTINs must NEVER appear as labels. Every value goes
+  // through isGtin() before being accepted. The fallback cascade is:
+  //   extracted attribute → sizeLabel → price label → "Variante"
   const enriched = useMemo(() => {
     return siblings.map((s) => {
-      // If the product carries displayAttributes JSON, parse it.
-      // Otherwise fall back to title-based extraction.
       const attrs = extractAttributes(
         s.sizeLabel || "",
         "",
         category,
       );
-      // Never show "Standard" — use variantLabel() which falls back
-      // to a meaningful title fragment when no attribute is extractable.
-      const primaryVal = attrs.primary?.value
-        ?? variantLabel(s.sizeLabel, s.sizeLabel || s.gtin, "", category);
+
+      // Primary value — never a GTIN, never "Standard"
+      let primaryVal = attrs.primary?.value ?? null;
+      if (primaryVal && isGtin(primaryVal)) primaryVal = null;
+
+      if (!primaryVal) {
+        // Use variantLabel which has its own GTIN guard
+        primaryVal = variantLabel(s.sizeLabel, s.sizeLabel || "", "", category);
+      }
+
+      // Final safety net: if it STILL looks like a GTIN, use the price
+      if (isGtin(primaryVal)) {
+        primaryVal = s.priceChf > 0 ? `CHF ${formatChf(s.priceChf)}` : "Variante";
+      }
+
+      let secondaryVal = attrs.secondary?.value ?? null;
+      if (secondaryVal && isGtin(secondaryVal)) secondaryVal = null;
+
       return {
         ...s,
         attrs,
         primaryValue: primaryVal,
-        secondaryValue: attrs.secondary?.value ?? null,
+        secondaryValue: secondaryVal,
       };
     });
   }, [siblings, category]);
