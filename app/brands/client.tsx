@@ -68,11 +68,14 @@ export default function BrandsClient({ brands }: { brands: Brand[] }) {
             <h2 className="mb-3 text-sm font-bold text-gray-400">{letter}</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {items.map((brand) => (
-                <Link key={brand.name} href={`/category/parfum?brand=${encodeURIComponent(brand.name)}`}
+                <Link key={brand.name} href={`/brands?q=${encodeURIComponent(brand.name)}`}
                   className="group flex flex-col items-center rounded-xl border border-[#e1e1e3] bg-white p-4 transition hover:border-gray-300 hover:shadow-sm">
                   <BrandLogo name={brand.name} size="md" shape="circle" />
                   <p className="mt-3 line-clamp-1 text-center text-[13px] font-bold text-gray-900">{brand.name}</p>
-                  <p className="mt-0.5 text-[10px] text-gray-400">{brand.productCount.toLocaleString("de-CH")}</p>
+                  <p className="mt-0.5 text-[10px] text-gray-400">{brand.productCount.toLocaleString("de-CH")} Produkte</p>
+                  <span className="mt-2 text-[11px] font-medium text-[#0076bd] opacity-0 transition group-hover:opacity-100">
+                    Alle Produkte →
+                  </span>
                 </Link>
               ))}
             </div>
