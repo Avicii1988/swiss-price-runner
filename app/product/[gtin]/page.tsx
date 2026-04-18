@@ -6,13 +6,11 @@ import { EXCHANGE_RATE } from "@/lib/integrations/mock-service";
 import { getCategoryBySlug, parseCategorySlugs } from "@/lib/categories";
 import { ProductDetailClient } from "./client";
 
-export const revalidate = 3600; // ISR: regenerate every hour
-export const dynamicParams = true; // allow any gtin, not just pre-rendered ones
-
-// Don't pre-render at build time — pages are generated on first request, then cached
-export async function generateStaticParams() {
-  return [];
-}
+// 64k+ products would otherwise time out the Vercel build trying to ISR-warm
+// every PDP. force-dynamic = pure SSR per request, no build-time generation,
+// no static-param emission needed.
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
 
 export async function generateMetadata({ params }: { params: { gtin: string } }): Promise<Metadata> {
   const item = await getProductByGtin(params.gtin);

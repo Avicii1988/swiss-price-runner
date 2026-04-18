@@ -161,7 +161,7 @@ export function ProductDetailClient({
                     <span className="font-extrabold">{product.brand}</span> {product.title.replace(product.brand, "").trim()}
                   </h1>
                 </div>
-                <p className="mt-1 text-sm text-gray-500">{cat?.name ?? product.category} · GTIN {product.gtin}</p>
+                <p className="mt-1 text-sm text-gray-500">{cat?.name ?? product.category}</p>
 
                 {/* Badges */}
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -372,6 +372,28 @@ export function ProductDetailClient({
                   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-medium text-gray-600">Kurs: {EXCHANGE_RATE} CHF/EUR</span>
                 </div>
                 <div className="mt-3"><HowWeCalculateButton /></div>
+
+                {/* Technical Details — moved out of the hero (where the GTIN
+                    used to clutter the title row) into a quiet table at the
+                    bottom of the PDP. Identifiers belong here, not next to
+                    the brand. */}
+                <div className="mt-8 border-t border-gray-200 pt-5">
+                  <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700">Technische Details</h2>
+                  <dl className="mt-3 divide-y divide-gray-100 text-sm">
+                    <div className="flex justify-between py-2">
+                      <dt className="text-gray-500">Marke</dt>
+                      <dd className="font-medium text-gray-900">{product.brand}</dd>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <dt className="text-gray-500">Kategorie</dt>
+                      <dd className="font-medium text-gray-900">{cat?.name ?? product.category}</dd>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <dt className="text-gray-500">GTIN / EAN</dt>
+                      <dd className="font-mono text-xs text-gray-700">{product.gtin}</dd>
+                    </div>
+                  </dl>
+                </div>
               </div>
             </div>
           </main>

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bell, Tag, Package } from "lucide-react";
+import { Tag, Package } from "lucide-react";
 import { PriceAlertModal } from "@/components/price-alert-modal";
+import { PreisAlarmBell } from "@/components/preisalarm-logo";
 import { SiteHeader } from "@/components/site-header";
 import { CategorySidebar } from "@/components/category-sidebar";
 import { ProductShelf } from "@/components/home/product-shelf";
@@ -45,18 +46,18 @@ export default function HomeClient({ dynamicCategories, stats, shelves }: HomeCl
           comparison site in beta). Marken + Angebote counters moved
           to a dedicated band above the News sidebar. ═══ */}
       <div className="bg-gradient-to-r from-[#1a1f36] to-[#2d3561]">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-center gap-2 px-4 py-2.5 text-center sm:gap-3 sm:px-6">
-          {/* Swiss cross mark — red circle with white cross */}
-          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#E30613]">
-            <svg viewBox="0 0 10 10" className="h-2.5 w-2.5" fill="white"><rect x="3.5" y="1" width="3" height="8" rx="0.5" /><rect x="1" y="3.5" width="8" height="3" rx="0.5" /></svg>
-          </span>
+        <div className="mx-auto flex max-w-[1400px] items-center justify-center gap-2.5 px-4 py-2.5 text-center sm:gap-3 sm:px-6">
+          {/* Brand mark — the PreisAlarm bell (red bell + white Swiss cross)
+              replaces the older split treatment of a generic Swiss-cross
+              circle on the left and a lucide bell on the right. One mark,
+              one identity, lockstep with the header logo. */}
+          <PreisAlarmBell size={20} className="text-white" />
           <p className="text-[12px] font-medium text-white/90 sm:text-[13px]">
             Dein Schweizer Preisvergleich für alles —
             <span className="hidden text-white/60 sm:inline"> neutral, unabhängig,</span>
             {" "}mit Echtzeit-
             <span className="font-semibold text-white">Preisalarm</span>.
           </p>
-          <Bell className="h-3.5 w-3.5 shrink-0 text-white/60" />
         </div>
       </div>
 

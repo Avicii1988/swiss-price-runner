@@ -85,7 +85,7 @@ export function ProductShelf({ title, subtitle, items, href, limit = 12, layout 
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-3">
           {visible.map((item) => (
             <ShelfCard key={item.product.gtin} item={item} />
           ))}
@@ -146,24 +146,21 @@ function ShelfCard({ item }: { item: ShelfItem }) {
         )}
       </div>
       <div className="px-2 py-3 sm:px-3">
-        <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-          {brand}
-        </p>
-        <p className="mt-0.5 line-clamp-2 min-h-[34px] text-[12px] leading-snug text-gray-900">
-          {title || product.title}
-        </p>
         {priceLabel && (
-          <div className="mt-2 flex items-baseline gap-1.5">
+          <div className="mb-1 flex items-baseline gap-1.5">
             {isGrouped && (
-              <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
-                ab
-              </span>
+              <span className="text-[11px] font-normal text-gray-500">ab</span>
             )}
-            <span className="text-[15px] font-semibold tracking-tight text-gray-900">
-              CHF {priceLabel}
+            <span className="text-[20px] font-bold tracking-tight text-gray-900">
+              <span className="text-[13px] font-normal text-gray-500">CHF </span>
+              {priceLabel}
             </span>
           </div>
         )}
+        <p className="line-clamp-2 min-h-[42px] text-[14px] leading-snug text-gray-700">
+          <span className="font-bold text-gray-900">{brand}</span>{" "}
+          {title || product.title}
+        </p>
 
         {/* N Angebote ab CHF X.YY */}
         {offerLine && (
