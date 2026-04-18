@@ -40,46 +40,87 @@ export function VariantSelector({
 }: VariantSelectorProps) {
   if (siblings.length <= 1) return null;
 
-  // ── Extract attributes for every sibling ──
-  // HARD RULE: GTINs must NEVER appear as labels. Every value goes
-  // through isGtin() before being accepted. The fallback cascade is:
-  //   extracted attribute → sizeLabel → price label → "Variante"
+  // ═══════════════════════════════════════════════════════════════
+  // Atomic attribute extraction from the FULL product title.
+  //
+  // Pipeline:
+  //   1. extractAttributes(title, "", category) — regex scan for
+  //      storage/size/volume/color from the entire title string.
+  //   2. If no attribute found → diff-based fallback: find the FIRST
+  //      word that differs between this variant and the others.
+  //   3. If still nothing → "Variante A", "Variante B", …
+  //   4. HARD RULE: isGtin() rejects barcodes at every step.
+  //   5. Max 15 chars per label — truncate with ellipsis.
+  // ═══════════════════════════════════════════════════════════════
+
   const enriched = useMemo(() => {
-    return siblings.map((s) => {
-      const attrs = extractAttributes(
-        s.sizeLabel || "",
-        "",
-        category,
-      );
+    // Step 1: extract from each sibling's full title
+    const raw = siblings.map((s) => {
+      const attrs = extractAttributes(s.title, "", s.category || category);
+      return { ...s, attrs };
+    });
 
-      // Primary value — never a GTIN, never "Standard"
-      let primaryVal = attrs.primary?.value ?? null;
-      if (primaryVal && isGtin(primaryVal)) primaryVal = null;
+    // Step 2: diff-based fallback — find the words unique to each title
+    // by comparing against all other titles in the group.
+    const allTitleWords = raw.map((r) =>
+      r.title
+        .toLowerCase()
+        .replace(/[^a-zäöüéàè0-9\s]/g, "")
+        .split(/\s+/)
+        .filter((w) => w.length >= 2 && !isGtin(w)),
+    );
+    // Words that appear in ALL titles (= the shared base, e.g. "iphone 15 pro")
+    const commonWords = new Set<string>();
+    if (allTitleWords.length > 0) {
+      for (const w of allTitleWords[0]) {
+        if (allTitleWords.every((tw) => tw.includes(w))) commonWords.add(w);
+      }
+    }
 
-      if (!primaryVal) {
-        // Use variantLabel which has its own GTIN guard
-        primaryVal = variantLabel(s.sizeLabel, s.sizeLabel || "", "", category);
+    return raw.map((s, i) => {
+      // Primary: extracted attribute value
+      let primary = s.attrs.primary?.value ?? null;
+      if (primary && isGtin(primary)) primary = null;
+
+      // Secondary: extracted color
+      let secondary = s.attrs.secondary?.value ?? null;
+      if (secondary && isGtin(secondary)) secondary = null;
+
+      // Fallback A: sizeLabel from feed (if not GTIN/Standard)
+      if (!primary && s.sizeLabel && !isGtin(s.sizeLabel) && s.sizeLabel !== "Standard") {
+        primary = s.sizeLabel;
       }
 
-      // Final safety net: if it STILL looks like a GTIN, use the price
-      if (isGtin(primaryVal)) {
-        primaryVal = s.priceChf > 0 ? `CHF ${formatChf(s.priceChf)}` : "Variante";
+      // Fallback B: first unique words from this title vs others
+      if (!primary) {
+        const uniqueWords = allTitleWords[i]
+          .filter((w) => !commonWords.has(w))
+          .slice(0, 3);
+        if (uniqueWords.length > 0) {
+          primary = uniqueWords.join(" ");
+          // Capitalise first letter
+          primary = primary.charAt(0).toUpperCase() + primary.slice(1);
+        }
       }
 
-      let secondaryVal = attrs.secondary?.value ?? null;
-      if (secondaryVal && isGtin(secondaryVal)) secondaryVal = null;
+      // Fallback C: letter-indexed label
+      if (!primary) {
+        primary = `Variante ${String.fromCharCode(65 + i)}`;
+      }
+
+      // Enforce max length: 15 chars
+      if (primary.length > 15) primary = primary.slice(0, 14) + "…";
 
       return {
         ...s,
-        attrs,
-        primaryValue: primaryVal,
-        secondaryValue: secondaryVal,
+        primaryValue: primary,
+        secondaryValue: secondary,
       };
     });
   }, [siblings, category]);
 
-  // ── Derive unique Level 1 values (ordered by appearance) ──
-  const primaryKey = enriched[0]?.attrs.primary?.key ?? "size";
+  // Derive unique Level 1 values
+  const primaryKey = enriched[0]?.attrs?.primary?.key ?? "size";
   const primaryValues = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -92,25 +133,21 @@ export function VariantSelector({
     return out;
   }, [enriched]);
 
-  // ── State: which Level 1 is selected ──
   const currentSibling = enriched.find((e) => e.isCurrent);
   const [selectedPrimary, setSelectedPrimary] = useState<string>(
     currentSibling?.primaryValue ?? primaryValues[0] ?? "Variante",
   );
 
-  // ── Level 2: siblings matching the selected primary, grouped by secondary ──
   const level2Siblings = useMemo(
     () => enriched.filter((e) => e.primaryValue === selectedPrimary),
     [enriched, selectedPrimary],
   );
 
   const hasLevel2 = level2Siblings.some((s) => s.secondaryValue != null);
-  const secondaryKey = enriched[0]?.attrs.secondary?.key ?? "color";
+  const secondaryKey = "color";
 
   const cheapestPrice = siblings.reduce((min, s) => Math.min(min, s.priceChf), Infinity);
 
-  // When there's only one primary value, skip Level 1 entirely and
-  // show all siblings as a flat list (like the old selector).
   const showTwoLevels = primaryValues.length > 1;
 
   return (
@@ -136,13 +173,13 @@ export function VariantSelector({
                 <button
                   key={val}
                   onClick={() => setSelectedPrimary(val)}
-                  className={`flex min-h-[40px] min-w-[72px] flex-col items-center justify-center rounded-xl border px-3 py-1.5 transition ${
+                  className={`flex min-h-[40px] min-w-[80px] max-w-[140px] flex-col items-center justify-center rounded-xl border px-3 py-1.5 transition ${
                     isSelected
                       ? "border-gray-900 bg-gray-900 text-white"
                       : "border-gray-200 bg-white text-gray-800 hover:border-gray-300 hover:shadow-sm"
                   }`}
                 >
-                  <span className="text-[13px] font-semibold tracking-tight">{val}</span>
+                  <span className="max-w-[120px] truncate text-[13px] font-semibold tracking-tight">{val}</span>
                   <span className={`text-[10px] ${isSelected ? "text-white/70" : "text-gray-400"}`}>
                     ab CHF {formatChf(cheapestInGroup)}
                   </span>
@@ -180,13 +217,13 @@ export function VariantSelector({
                 <Link
                   href={s.productUrl as Route}
                   aria-current={s.isCurrent ? "page" : undefined}
-                  className={`flex min-h-[44px] min-w-[76px] flex-col items-center justify-center rounded-xl border px-3 py-1.5 transition active:scale-[0.98] ${
+                  className={`flex min-h-[44px] min-w-[80px] max-w-[140px] flex-col items-center justify-center rounded-xl border px-3 py-1.5 transition active:scale-[0.98] ${
                     s.isCurrent
                       ? "border-gray-900 bg-gray-900 text-white"
                       : "border-gray-200 bg-white text-gray-800 hover:-translate-y-px hover:border-gray-300 hover:shadow-[0_4px_12px_-4px_rgba(0,0,0,0.08)]"
                   }`}
                 >
-                  <span className="text-[13px] font-semibold tracking-tight">{label}</span>
+                  <span className="max-w-[120px] truncate text-[13px] font-semibold tracking-tight">{label}</span>
                   <span className={`text-[11px] ${s.isCurrent ? "text-white/70" : "text-gray-500"}`}>
                     CHF {formatChf(s.priceChf)}
                   </span>

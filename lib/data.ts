@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
@@ -22,34 +23,33 @@ const SOURCE_NAMES: Record<string, string> = {};
 /**
  * Load dynamic categories from DB — only categories with at least 1 product.
  */
-export async function getDynamicCategories(): Promise<
-  { slug: string; name: string; productCount: number }[]
-> {
-  try {
-    // Get all categories that have products
-    const result = await db.product.groupBy({
-      by: ["category"],
-      where: { isActive: true },
-      _count: { category: true },
-      orderBy: { _count: { category: "desc" } },
-    });
-
-    // Try to get proper names from Category table
-    const dbCats = await db.category.findMany({
-      select: { slug: true, name: true },
-    }).catch(() => [] as { slug: string; name: string }[]);
-
-    const catNameMap = new Map(dbCats.map((c) => [c.slug, c.name]));
-
-    return result.map((r) => {
-      const rawName = catNameMap.get(r.category);
-      const name = rawName ? cleanCategoryName(rawName) : prettifySlug(r.category);
-      return { slug: r.category, name, productCount: r._count.category };
-    });
-  } catch {
-    return [];
-  }
-}
+/**
+ * Cached dynamic categories — SWR with 5 min TTL so the sidebar
+ * and filter dropdowns don't re-query the DB on every page view.
+ */
+export const getDynamicCategories = unstable_cache(
+  async (): Promise<{ slug: string; name: string; productCount: number }[]> => {
+    try {
+      const result = await db.product.groupBy({
+        by: ["category"],
+        where: { isActive: true },
+        _count: { category: true },
+        orderBy: { _count: { category: "desc" } },
+      });
+      const dbCats = await db.category.findMany({
+        select: { slug: true, name: true },
+      }).catch(() => [] as { slug: string; name: string }[]);
+      const catNameMap = new Map(dbCats.map((c) => [c.slug, c.name]));
+      return result.map((r) => {
+        const rawName = catNameMap.get(r.category);
+        const name = rawName ? cleanCategoryName(rawName) : prettifySlug(r.category);
+        return { slug: r.category, name, productCount: r._count.category };
+      });
+    } catch { return []; }
+  },
+  ["dynamic-categories"],
+  { revalidate: 300 },
+);
 
 /**
  * Fetch a capped slice of products from Supabase with their latest
@@ -120,18 +120,22 @@ export async function getProductsPaginated(limit = 24, offset = 0): Promise<{ pr
 /**
  * Stats for the stats bar — cached via ISR.
  */
-export async function getSiteStats(): Promise<{ shops: number; brands: number; offers: number }> {
-  try {
-    const [brandResult, offerCount, shopResult] = await Promise.all([
-      db.product.groupBy({ by: ["brand"], where: { isActive: true }, _count: true }),
-      db.product.count({ where: { isActive: true } }),
-      db.price.groupBy({ by: ["sourceId"], _count: true }),
-    ]);
-    return { shops: shopResult.length, brands: brandResult.length, offers: offerCount };
-  } catch {
-    return { shops: 2, brands: 500, offers: 16000 };
-  }
-}
+export const getSiteStats = unstable_cache(
+  async (): Promise<{ shops: number; brands: number; offers: number }> => {
+    try {
+      const [brandResult, offerCount, shopResult] = await Promise.all([
+        db.product.groupBy({ by: ["brand"], where: { isActive: true }, _count: true }),
+        db.product.count({ where: { isActive: true } }),
+        db.price.groupBy({ by: ["sourceId"], _count: true }),
+      ]);
+      return { shops: shopResult.length, brands: brandResult.length, offers: offerCount };
+    } catch {
+      return { shops: 2, brands: 500, offers: 16000 };
+    }
+  },
+  ["site-stats"],
+  { revalidate: 300 },
+);
 
 export async function getProductByGtin(gtin: string): Promise<MockProductWithHistory | null> {
   try {
@@ -329,12 +333,12 @@ export async function getDistinctCategories(): Promise<string[]> {
 export interface VariantSibling {
   gtin: string;
   sizeLabel: string | null;
+  title: string;
+  brand: string;
+  category: string;
   priceChf: number;
-  /** Merchant deep-link (affiliateUrl) for THIS specific variant. */
   affiliateUrl: string | null;
-  /** Internal PDP URL for navigating between variants on our site. */
   productUrl: string;
-  /** True if this is the variant the user is currently looking at. */
   isCurrent: boolean;
 }
 
@@ -355,6 +359,9 @@ export async function getVariantSiblings(gtin: string): Promise<VariantSibling[]
       where: { groupId: current.groupId, isActive: true, price: { gt: 0 } },
       select: {
         gtin: true,
+        title: true,
+        brand: true,
+        category: true,
         sizeLabel: true,
         price: true,
         affiliateUrl: true,
@@ -366,6 +373,9 @@ export async function getVariantSiblings(gtin: string): Promise<VariantSibling[]
       .map((s) => ({
         gtin: s.gtin,
         sizeLabel: s.sizeLabel,
+        title: s.title,
+        brand: s.brand,
+        category: s.category,
         priceChf: Number(s.price),
         affiliateUrl: s.affiliateUrl,
         productUrl: `/product/${s.gtin}`,
