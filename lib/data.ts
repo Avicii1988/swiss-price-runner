@@ -1,7 +1,15 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+
+// unstable_cache — graceful fallback for environments where it's not available
+let _unstable_cache: typeof import("next/cache").unstable_cache;
+try {
+  _unstable_cache = require("next/cache").unstable_cache;
+} catch {
+  // Fallback: no-op wrapper that just calls the function directly
+  _unstable_cache = ((fn: any) => fn) as any;
+}
 import {
   calculateSwissPrice,
   buildSwissShopBreakdown,
@@ -27,7 +35,7 @@ const SOURCE_NAMES: Record<string, string> = {};
  * Cached dynamic categories — SWR with 5 min TTL so the sidebar
  * and filter dropdowns don't re-query the DB on every page view.
  */
-export const getDynamicCategories = unstable_cache(
+export const getDynamicCategories = _unstable_cache(
   async (): Promise<{ slug: string; name: string; productCount: number }[]> => {
     try {
       const result = await db.product.groupBy({
@@ -120,7 +128,7 @@ export async function getProductsPaginated(limit = 24, offset = 0): Promise<{ pr
 /**
  * Stats for the stats bar — cached via ISR.
  */
-export const getSiteStats = unstable_cache(
+export const getSiteStats = _unstable_cache(
   async (): Promise<{ shops: number; brands: number; offers: number }> => {
     try {
       const [brandResult, offerCount, shopResult] = await Promise.all([

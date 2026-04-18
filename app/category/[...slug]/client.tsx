@@ -175,6 +175,12 @@ export default function CategoryClient({
     return items;
   }, [products, activeFilters, priceMin, priceMax, sort]);
 
+  // ── Pagination — show 36 initially, load 36 more on click ──
+  const PAGE_SIZE = 36;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleCount < filtered.length;
+
   const handleSelect = useCallback(
     (item: MockProductWithHistory) => setSelectedProduct(item),
     [],
@@ -335,22 +341,35 @@ export default function CategoryClient({
 
             {/* Product grid */}
             {filtered.length > 0 ? (
-              <div
-                className={
-                  viewMode === "grid"
-                    ? "grid grid-cols-1 gap-px bg-[#f0f0f2] sm:grid-cols-2 lg:grid-cols-3"
-                    : ""
-                }
-              >
-                {filtered.map((item) => (
-                  <ProductCard
-                    key={item.product.gtin}
-                    item={item}
-                    onAlert={handleAlert}
-                    layout={viewMode}
-                  />
-                ))}
-              </div>
+              <>
+                <div
+                  className={
+                    viewMode === "grid"
+                      ? "grid grid-cols-1 gap-px bg-[#f0f0f2] sm:grid-cols-2 lg:grid-cols-3"
+                      : ""
+                  }
+                >
+                  {visible.map((item) => (
+                    <ProductCard
+                      key={item.product.gtin}
+                      item={item}
+                      onAlert={handleAlert}
+                      layout={viewMode}
+                    />
+                  ))}
+                </div>
+                {/* Load More — only shown when there are more products */}
+                {hasMore && (
+                  <div className="mt-6 text-center">
+                    <button
+                      onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                      className="rounded-xl border border-gray-300 bg-white px-8 py-3 text-[14px] font-semibold text-gray-700 transition hover:border-gray-500 hover:shadow-sm"
+                    >
+                      Mehr laden ({filtered.length - visibleCount} weitere)
+                    </button>
+                  </div>
+                )}
+              </>
             ) : products.length > 0 ? (
               /* Filters active but no results */
               <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 py-20">

@@ -12,7 +12,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "PreisAlarm – Preisvergleich Schweiz",
   description:
-    "Preise vergleichen auf Amazon.de, Zalando und Galaxus. Echter Schweizer Endpreis inkl. Zoll, MwSt. und Lieferkosten.",
+    "Dein Schweizer Preisvergleich für alles — neutral, unabhängig, mit Echtzeit-Preisalarm. Schweizer Endpreis inkl. Zoll, MwSt. und Lieferkosten.",
   keywords: [
     "Preisvergleich",
     "Schweiz",
@@ -105,7 +105,7 @@ export default function RootLayout({
               <div>
                 <PreisAlarmLogo size="sm" />
                 <p className="mt-3 leading-relaxed">
-                  Dein neutraler Schweizer Preisvergleich für Beauty, Parfum &amp; Lifestyle.
+                  Dein Schweizer Preisvergleich für alles — neutral, unabhängig, mit Echtzeit-Alarmen.
                   Transparent, unabhängig, mit Echtzeit-Alarmen.
                 </p>
               </div>
