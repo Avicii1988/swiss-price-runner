@@ -82,18 +82,20 @@ export function VariantSelector({
     }
 
     return raw.map((s, i) => {
-      let primary = s.attrs.primary?.value ?? null;
-      if (primary && isGtin(primary)) primary = null;
+      // Primary label priority:
+      //   1. sizeLabel from feed (g:size) — direct from merchant, most accurate
+      //   2. extractAttributes regex (storage/volume/size from title)
+      //   3. Diff — unique tokens this sibling has vs. all others
+      //   4. "Variante X" as last resort
+      let primary: string | null = null;
 
-      let secondary = s.attrs.secondary?.value ?? null;
-      if (secondary && isGtin(secondary)) secondary = null;
-
-      // Fallback A — feed sizeLabel
-      if (!primary && s.sizeLabel && !isGtin(s.sizeLabel) && s.sizeLabel !== "Standard") {
+      if (s.sizeLabel && !isGtin(s.sizeLabel) && s.sizeLabel !== "Standard") {
         primary = s.sizeLabel;
       }
-
-      // Fallback B — diff against siblings ("128 GB", "Pro Max")
+      if (!primary) {
+        const extracted = s.attrs.primary?.value ?? null;
+        if (extracted && !isGtin(extracted)) primary = extracted;
+      }
       if (!primary) {
         const uniqueWords = allTitleWords[i]
           .filter((w) => !commonWords.has(w))
@@ -104,8 +106,9 @@ export function VariantSelector({
         }
       }
 
-      // Same diff pass for color when extractor missed it: take a
-      // unique colour-ish word from the title.
+      // Secondary (color) — feed extractor first, then diff-based colour words
+      let secondary = s.attrs.secondary?.value ?? null;
+      if (secondary && isGtin(secondary)) secondary = null;
       if (!secondary) {
         const colourCandidates = allTitleWords[i].filter((w) =>
           !commonWords.has(w) && Object.prototype.hasOwnProperty.call(COLOR_SWATCHES, w),
@@ -115,9 +118,7 @@ export function VariantSelector({
         }
       }
 
-      // Fallback C — letter-indexed (only when literally nothing else
-      // distinguishes the sibling). Triggered <0.5% of the time on
-      // real catalogues.
+      // Absolute fallback — letter index
       if (!primary) primary = `Variante ${String.fromCharCode(65 + i)}`;
       if (primary.length > 18) primary = primary.slice(0, 17) + "…";
 

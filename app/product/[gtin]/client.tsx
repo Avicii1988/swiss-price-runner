@@ -236,9 +236,9 @@ export function ProductDetailClient({
                   return null;
                 })()}
 
-                {/* Variant selector — only when the product has sibling sizes */}
+                {/* Variant selector — divider above, then selector card */}
                 {variantSiblings.length > 1 && (
-                  <div className="mt-4">
+                  <div className="mt-6 border-t border-gray-100 pt-5">
                     <VariantSelector siblings={variantSiblings} />
                   </div>
                 )}
@@ -287,24 +287,18 @@ export function ProductDetailClient({
 
                 {/* Price Comparison Table */}
                 {sourceBreakdowns.length > 0 ? (
-                <div className="mt-6 border-t border-gray-200 pt-5">
-                  <h2 className="text-sm font-bold text-gray-900">Preisvergleich – alle Quellen</h2>
+                <div className="mt-6 border-t border-gray-100 pt-5">
+                  <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700">Preisvergleich</h2>
                   <div className="mt-3 space-y-2">
                     {sourceBreakdowns.sort((a, b) => a.breakdown.totalChf - b.breakdown.totalChf).map((s) => {
                       const shop = getShopSource(s.sourceId);
-                      // Swiss-shop feeds carry EUR = 0 by construction. Only
-                      // show the EUR sub-line when the source is a true
-                      // DE-import where EUR is the source-of-truth.
                       const showEurLine = s.currentPriceEur > 0;
                       const hasChf = s.breakdown.totalChf > 0;
-                      const ctaPrice = hasChf ? `CHF ${formatChf(s.breakdown.totalChf)}` : "Preis prüfen";
                       return (
-                      <div key={s.sourceId} className={`flex flex-col gap-2 rounded-lg px-4 py-3 sm:flex-row sm:items-center sm:justify-between ${s.isBest ? "border-2 border-green-200 bg-green-50" : "border border-gray-100 bg-gray-50"}`}>
-                        <div className="flex items-center gap-3">
-                          {/* Official shop logo (Clearbit) with a graceful
-                              text-wordmark fallback — single component keeps
-                              card + PDP branding identical. */}
-                          <ShopLogo sourceId={s.sourceId} size="md" />
+                      <div key={s.sourceId} className={`flex flex-col gap-2 rounded-xl px-4 py-4 sm:flex-row sm:items-center sm:justify-between ${s.isBest ? "border-2 border-green-200 bg-green-50" : "border border-gray-100 bg-white"}`}>
+                        <div className="flex items-center gap-4">
+                          {/* Larger, more prominent shop logo */}
+                          <ShopLogo sourceId={s.sourceId} size="lg" />
                           <div>
                             <p className="text-sm font-semibold text-gray-900">
                               {shop.name}
@@ -315,9 +309,16 @@ export function ProductDetailClient({
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <ShippingTooltip breakdown={s.breakdown} sourceId={s.sourceId} />
-                          <span className="text-lg font-bold text-gray-900">{ctaPrice}</span>
+                          {hasChf ? (
+                            <span className="flex items-baseline">
+                              <span className="text-sm font-normal text-gray-400 mr-1">CHF</span>
+                              <span className="text-2xl font-bold text-gray-900">{formatChf(s.breakdown.totalChf)}</span>
+                            </span>
+                          ) : (
+                            <span className="text-sm font-medium text-gray-500">Preis prüfen</span>
+                          )}
                           <a
                             href={s.url || "#"}
                             target="_blank"

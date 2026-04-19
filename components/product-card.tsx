@@ -5,6 +5,7 @@ import { Bell, Heart, Pin } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ShopLogo } from "@/components/shop-logo";
 import { formatChf } from "@/lib/pricing/format";
+import { extractAttributes } from "@/lib/attributes";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 const FALLBACK_IMG = "/placeholder-product.svg";
@@ -182,13 +183,24 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           "text-sm font-normal text-gray-400 mr-1",
         )}
 
-        {/* Brand — uppercase + bold per spec */}
+        {/* Brand — uppercase + bold, Galaxus style */}
         <p className="mt-1 text-lg font-bold uppercase tracking-tight text-gray-900">
           {product.brand}
         </p>
-        <p className="line-clamp-2 text-[13px] leading-snug text-gray-500">
-          {product.title.replace(product.brand, "").trim()}
+        {/* Model name without brand prefix */}
+        <p className="line-clamp-2 text-[13px] leading-snug text-gray-700">
+          {product.title.replace(new RegExp(`^${product.brand}\\s*`, "i"), "").trim()}
         </p>
+        {/* Spec subtitle: storage / volume extracted from title (e.g. "256 GB, Black") */}
+        {(() => {
+          const attrs = extractAttributes(product.title, "", product.category);
+          const parts: string[] = [];
+          if (attrs.primary?.value) parts.push(attrs.primary.value);
+          if (attrs.secondary?.value) parts.push(attrs.secondary.value);
+          return parts.length > 0 ? (
+            <p className="mt-0.5 text-[11px] text-gray-400">{parts.join(", ")}</p>
+          ) : null;
+        })()}
 
         {/* Offer count line */}
         {offerLine && (
