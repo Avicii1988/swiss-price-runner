@@ -89,7 +89,12 @@ export function VariantSelector({
       //   4. "Variante X" as last resort
       let primary: string | null = null;
 
-      if (s.sizeLabel && !isGtin(s.sizeLabel) && s.sizeLabel !== "Standard") {
+      // Client-side defense: reject stored sizeLabels that are cellular
+      // generation strings (5G, 4G, 3G, 2G) — these can leak from feeds
+      // that tag g:size with the connectivity standard rather than capacity.
+      const isNetworkGen = (v: string) => /^\d+\s?G$/i.test(v.trim());
+
+      if (s.sizeLabel && !isGtin(s.sizeLabel) && s.sizeLabel !== "Standard" && !isNetworkGen(s.sizeLabel)) {
         primary = s.sizeLabel;
       }
       if (!primary) {
@@ -118,9 +123,14 @@ export function VariantSelector({
         }
       }
 
-      // Absolute fallback — letter index
-      if (!primary) primary = `Variante ${String.fromCharCode(65 + i)}`;
-      if (primary.length > 18) primary = primary.slice(0, 17) + "…";
+      // Absolute fallback — "Standard" instead of "Variante A/B/C".
+      // If even the diff produced nothing, strip brand from title and
+      // use the first 22 chars so the button is at least informative.
+      if (!primary) {
+        const cleaned = s.title.replace(new RegExp(`^${s.brand}\\s*`, "i"), "").trim();
+        primary = cleaned.length >= 3 ? cleaned.slice(0, 22) : "Standard";
+      }
+      if (primary.length > 22) primary = primary.slice(0, 21) + "…";
 
       return { ...s, primaryValue: primary, secondaryValue: secondary };
     });

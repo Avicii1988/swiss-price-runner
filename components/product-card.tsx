@@ -183,23 +183,27 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           "text-sm font-normal text-gray-400 mr-1",
         )}
 
-        {/* Brand — uppercase + bold, Galaxus style */}
-        <p className="mt-1 text-lg font-bold uppercase tracking-tight text-gray-900">
+        {/* Brand (uppercase) + Model — Galaxus two-line pattern */}
+        <p className="mt-1 text-[13px] font-bold uppercase tracking-tight text-gray-900">
           {product.brand}
         </p>
-        {/* Model name without brand prefix */}
-        <p className="line-clamp-2 text-[13px] leading-snug text-gray-700">
-          {product.title.replace(new RegExp(`^${product.brand}\\s*`, "i"), "").trim()}
-        </p>
-        {/* Spec subtitle: storage / volume extracted from title (e.g. "256 GB, Black") */}
+        {/* Model line: title stripped of brand, then storage/color appended
+            so the tile reads e.g. "iPhone 17 Pro · 256 GB, Black" */}
         {(() => {
           const attrs = extractAttributes(product.title, "", product.category);
-          const parts: string[] = [];
-          if (attrs.primary?.value) parts.push(attrs.primary.value);
-          if (attrs.secondary?.value) parts.push(attrs.secondary.value);
-          return parts.length > 0 ? (
-            <p className="mt-0.5 text-[11px] text-gray-400">{parts.join(", ")}</p>
-          ) : null;
+          const model = product.title.replace(new RegExp(`^${product.brand}\\s*`, "i"), "").trim();
+          const specParts: string[] = [];
+          if (attrs.primary?.value) specParts.push(attrs.primary.value);
+          if (attrs.secondary?.value) specParts.push(attrs.secondary.value);
+          const spec = specParts.join(", ");
+          return (
+            <>
+              <p className="line-clamp-2 text-[13px] leading-snug text-gray-700">{model}</p>
+              {spec && (
+                <p className="mt-0.5 text-[11px] text-gray-400">{spec}</p>
+              )}
+            </>
+          );
         })()}
 
         {/* Offer count line */}

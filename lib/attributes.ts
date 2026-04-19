@@ -55,15 +55,27 @@ function normalise(s: string): string {
 }
 
 /** Electronics: storage capacity — aggressive multi-pattern scan.
- *  Catches "256GB", "256 GB", "1TB", "1 TB", "0.5TB". Also catches
- *  compound forms like "iPhone 15 Pro 256GB" where the number sits
- *  right before GB without a space. */
+ *  Catches "256GB", "256 GB", "1TB", "1 TB", "0.5TB".
+ *
+ *  Critical: "5G", "4G" (cellular generations) must NEVER match.
+ *  The regex requires exactly `GB` or `TB` — a lone `G` after a digit
+ *  is a network generation, not a size. */
 function extractStorage(text: string): string | null {
-  // Try specific patterns first (more reliable)
-  const m = text.match(/\b(\d+(?:\.\d+)?)\s*(gb|tb)\b/i);
-  if (m) return `${m[1]} ${m[2].toUpperCase()}`;
-  // Fallback: number immediately followed by GB/TB (no word boundary)
-  const compact = text.match(/(\d+)(gb|tb)/i);
+  // Strip cellular-generation markers before scanning so "5G 256GB"
+  // doesn't confuse subsequent patterns.
+  const cleaned = text.replace(/\b\d+G\b/g, " ").replace(/\s+/g, " ");
+  // Prefer the largest GB/TB value found (pick max to avoid matching
+  // RAM when both RAM and storage are in the haystack, e.g. "8GB RAM 256GB").
+  const all = [...cleaned.matchAll(/\b(\d+(?:\.\d+)?)\s*(gb|tb)\b/gi)];
+  if (all.length > 0) {
+    // Prefer TB, then largest GB
+    const tb = all.find((m) => m[2].toUpperCase() === "TB");
+    if (tb) return `${tb[1]} TB`;
+    const best = all.reduce((a, b) => Number(a[1]) >= Number(b[1]) ? a : b);
+    return `${best[1]} GB`;
+  }
+  // Fallback: compact form "256gb" without word boundary
+  const compact = cleaned.match(/(\d{2,})(gb|tb)/i);
   if (compact) return `${compact[1]} ${compact[2].toUpperCase()}`;
   return null;
 }
@@ -212,6 +224,9 @@ export function extractAttributes(
   if (feedColor) all["color"] = feedColor;
 
   // ── Regex extraction (fills gaps the feed didn't cover) ──
+  // Storage runs first and unconditionally — GB/TB beats every other
+  // dimension regardless of category. "5G", "4G" are pre-stripped
+  // inside extractStorage so they can never win.
   if (!all["storage"]) { const v = extractStorage(haystack); if (v) all["storage"] = v; }
   if (!all["ram"])     { const v = extractRam(haystack);     if (v) all["ram"] = v; }
   if (!all["size"])    { const v = extractSize(haystack);    if (v) all["size"] = v; }
@@ -220,13 +235,19 @@ export function extractAttributes(
   if (!all["count"])   { const v = extractCount(haystack);   if (v) all["count"] = v; }
   if (!all["color"])   { const v = extractColor(haystack);   if (v) all["color"] = v; }
 
-  // ── Determine primary + secondary based on category vertical ──
+  // ── Primary determination ──
+  // Storage always wins over the category-specific vertical lead.
+  // This prevents volume/weight from stealing the headline slot on a
+  // phone title like "Google Pixel 9 Pro 5G 256 GB" where detectVertical
+  // might return "volume" for an uncategorised product.
+  const storagePrimary = all["storage"] ?? null;
   const lead = detectVertical(category, title);
-  const primaryValue = all[lead] ?? null;
+  const primaryValue = storagePrimary ?? (all[lead] ?? null);
+  const primaryKey = storagePrimary ? "storage" : lead;
   const colorValue = all["color"] ?? null;
 
   return {
-    primary: primaryValue ? { key: lead, value: primaryValue } : null,
+    primary: primaryValue ? { key: primaryKey, value: primaryValue } : null,
     secondary: colorValue ? { key: "color", value: colorValue } : null,
     all,
   };
