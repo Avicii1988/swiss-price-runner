@@ -297,8 +297,8 @@ export function ProductDetailClient({
                       return (
                       <div key={s.sourceId} className={`flex flex-col gap-2 rounded-xl px-4 py-4 sm:flex-row sm:items-center sm:justify-between ${s.isBest ? "border-2 border-green-200 bg-green-50" : "border border-gray-100 bg-white"}`}>
                         <div className="flex items-center gap-4">
-                          {/* Larger, more prominent shop logo */}
-                          <ShopLogo sourceId={s.sourceId} size="lg" />
+                          {/* Clearbit logo circle — large & unambiguous */}
+                          <ShopLogo sourceId={s.sourceId} size="lg" iconOnly />
                           <div>
                             <p className="text-sm font-semibold text-gray-900">
                               {shop.name}
