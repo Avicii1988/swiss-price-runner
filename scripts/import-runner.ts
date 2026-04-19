@@ -379,11 +379,10 @@ function nestedShippingPrice(xml: string): string {
  *   "Nike Air Max 90 Gr. 42"      → base="Nike Air Max 90"   size="Gr. 42"
  *   "Dior Sauvage"                → base=<title>            size=null
  */
-// `g` alone matches cellular generations (5G, 4G, 3G) as "grams".
-// Require at least 2 characters for the gram unit (g must be followed
-// by word boundary AND the number must be ≥ 10) — or better: exclude
-// single-digit numbers paired with plain `g` entirely.
-const SIZE_UNIT_RE = /(\d{2,}(?:[.,]\d+)?)\s?(ml|g|kg|l|oz|cl|pcs?|stk|stück|paar|gr)\.?|(\d+(?:[.,]\d+)?)\s?(kg|ml|oz|cl|pcs?|stk|stück|paar|gr)\.?/i;
+// Original single-group regex restored — two-alternative form broke unit[1]/unit[2]
+// references when the second branch matched. The 5G-as-grams exclusion is
+// handled by a post-match guard below instead.
+const SIZE_UNIT_RE = /(\d+(?:[.,]\d+)?)\s?(ml|g|kg|l|oz|cl|pcs?|stk|stück|paar|gr)\.?/i;
 const SHOE_SIZE_RE = /\bgr(?:össe|oesse|\.|e)?\s?(\d{1,3}(?:[.,]\d+)?)\b/i;
 
 // Cellular / connectivity generations — must never be stored as a size label.
@@ -391,29 +390,35 @@ const NETWORK_GEN_RE = /^\d+\s?G$/i;
 
 interface TitleSplit { baseTitle: string; sizeLabel: string | null; }
 
-function splitTitleBySize(title: string): TitleSplit {
-  if (!title) return { baseTitle: title, sizeLabel: null };
+function splitTitleBySize(raw: unknown): TitleSplit {
+  const title = typeof raw === "string" ? raw : String(raw ?? "");
+  if (!title.trim()) return { baseTitle: "", sizeLabel: null };
 
   // 1. Try unit-based sizes (ml, g, kg, oz, pcs, paar, …) — scan the whole
   //    title, keep the FIRST match (closest to product name), strip it.
   const unit = SIZE_UNIT_RE.exec(title);
-  if (unit) {
-    const raw = unit[0];
-    const stripped = (title.slice(0, unit.index) + " " + title.slice(unit.index + raw.length))
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/[-–,]\s*$/, "")
-      .trim();
+  if (unit && unit[1] != null && unit[2] != null) {
     const amount = unit[1].replace(",", ".");
     const unitNorm = unit[2].toLowerCase().replace("stück", "stk");
-    return { baseTitle: stripped || title, sizeLabel: `${amount} ${unitNorm}` };
+    // Skip cellular-generation markers (5G, 4G, …) that matched bare 'g'
+    if (unitNorm === "g" && /^\d$/.test(amount)) {
+      // fall through — not a size unit
+    } else {
+      const raw2 = unit[0];
+      const stripped = (title.slice(0, unit.index) + " " + title.slice(unit.index + raw2.length))
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/[-–,]\s*$/, "")
+        .trim();
+      return { baseTitle: stripped || title, sizeLabel: `${amount} ${unitNorm}` };
+    }
   }
 
   // 2. Try "Gr. 42" style shoe sizes.
   const shoe = SHOE_SIZE_RE.exec(title);
-  if (shoe) {
-    const raw = shoe[0];
-    const stripped = (title.slice(0, shoe.index) + " " + title.slice(shoe.index + raw.length))
+  if (shoe && shoe[1] != null) {
+    const raw3 = shoe[0];
+    const stripped = (title.slice(0, shoe.index) + " " + title.slice(shoe.index + raw3.length))
       .replace(/\s+/g, " ")
       .trim();
     return { baseTitle: stripped || title, sizeLabel: `Gr. ${shoe[1].replace(",", ".")}` };
@@ -734,7 +739,15 @@ async function main() {
       let batchSkipped = 0;
 
       for (let i = 0; i < slice.length; i++) {
-        const item = slice[i];
+        let item: (typeof slice)[0];
+        try {
+          item = slice[i];
+        } catch {
+          batchSkipped++;
+          continue;
+        }
+        let prepareError: unknown;
+        try {
         const rawGtin = (item.gtin || "").trim();
         const rawMpn = (item.mpn || "").trim();
         const gtin = rawGtin || rawMpn || `feed_${hashStr(item.link || `${offset + i}`)}`;
@@ -821,6 +834,12 @@ async function main() {
             extractAttributes(decodedTitle, decodedDescription, leafSlug, feedSize || undefined, feedColor || undefined).all,
           ),
         });
+        } catch (err) {
+          prepareError = err;
+          console.warn(`[import] skipping item ${(item as any)?.gtin ?? offset + i}: ${err instanceof Error ? err.message : err}`);
+          batchSkipped++;
+        }
+        void prepareError; // suppress unused-var lint
       }
 
       // Guarantee every referenced Category row (and its ancestors) exists
