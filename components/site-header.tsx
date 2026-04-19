@@ -156,25 +156,19 @@ export function SiteHeader({ query, onQueryChange, allProducts = [], onCategoryS
     window.location.href = `/product/${gtin}`;
   }, [onQueryChange]);
 
-  // Form submit (Enter key / mobile keyboard search button)
+  // Form submit (Enter key / mobile keyboard search button) — always
+  // lands on /search so the weighted ranking decides what's most
+  // relevant, instead of jumping to the first product or the brand
+  // directory. Brand-only chips inside the dropdown still navigate
+  // straight to /brands?q=… via their own onMouseDown handlers.
   const handleSearchSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
     saveRecentSearch(q);
     setSearchFocused(false);
-    // If a single product matches exactly, jump to it; else navigate to brand search
-    if (apiResults.length > 0) {
-      window.location.href = `/product/${apiResults[0].gtin}`;
-      return;
-    }
-    if (brandSuggestions.length > 0) {
-      window.location.href = `/brands?q=${encodeURIComponent(brandSuggestions[0].name)}`;
-      return;
-    }
-    // Generic fallback: brand directory filter
-    window.location.href = `/brands?q=${encodeURIComponent(q)}`;
-  }, [query, apiResults, brandSuggestions, saveRecentSearch, onQueryChange]);
+    window.location.href = `/search?q=${encodeURIComponent(q)}`;
+  }, [query, saveRecentSearch]);
 
   const searchResultsDropdown = showDropdown ? (
     <div className="absolute left-0 right-0 top-full z-[60] mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">

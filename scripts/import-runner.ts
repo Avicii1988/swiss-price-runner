@@ -739,6 +739,11 @@ async function main() {
 
         if (!priceChf || !affiliateLink || affiliateLink === "#") { batchSkipped++; continue; }
 
+        // Price guard — reject implausibly high prices (e.g. 1.2M CHF perfume
+        // glitch). 50k CHF is a generous upper bound for retail goods on a
+        // consumer price-comparison site.
+        if (priceChf > 50000) { batchSkipped++; continue; }
+
         // Rx filter (Swiss pharmacy regulation)
         const lower = (item.title + " " + item.description).toLowerCase();
         if (/\b(rx|rezeptpflichtig|verschreibungspflichtig|prescription[- ]only)\b/i.test(lower)) {

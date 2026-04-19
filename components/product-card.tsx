@@ -9,6 +9,10 @@ import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 const FALLBACK_IMG = "/placeholder-product.svg";
 
+// Hard cap — anything above this is almost certainly a feed glitch
+// (see the 1.2M CHF perfume incident). Mirrored in the importer.
+const MAX_REASONABLE_CHF = 50000;
+
 export function hasValidImage(url: string | undefined | null): boolean {
   if (!url) return false;
   if (url.includes("picsum.photos")) return false;
@@ -22,11 +26,6 @@ function proxyUrl(url: string | null | undefined): string {
   return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
-/**
- * Resolve the best-shop source for a product: the source whose breakdown
- * equals `bestPrice`. Falls back to the first source if the match is
- * inconclusive. Centralised so grid + list render the same pill.
- */
 function bestShopFor(item: MockProductWithHistory): { sourceId: string; sourceName: string } | null {
   if (!item.product.sources || item.product.sources.length === 0) return null;
   if (item.bestSource) {
@@ -37,11 +36,6 @@ function bestShopFor(item: MockProductWithHistory): { sourceId: string; sourceNa
   return { sourceId: first.sourceId, sourceName: first.sourceName };
 }
 
-/**
- * Collect the unique sourceIds that carry this product, best shop first.
- * Feeds the mini-logo row at the bottom of the card. We deliberately
- * strip the synthetic `feed_default` id so only real retailers show up.
- */
 function offerSourceIds(item: MockProductWithHistory): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
@@ -63,7 +57,8 @@ interface ProductCardProps {
 export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps) {
   const { product, bestPrice } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, isPinned, togglePin, setShowAuthModal } = useAuth();
-  const hasPrice = bestPrice.totalChf > 0;
+  // Treat absurd prices as "ask for a quote" rather than rendering CHF 1.2M
+  const hasPrice = bestPrice.totalChf > 0 && bestPrice.totalChf <= MAX_REASONABLE_CHF;
   const priceLabel = hasPrice ? formatChf(bestPrice.totalChf) : null;
   const shopIds = offerSourceIds(item);
   const offerCount = shopIds.length || (product.sources?.length ?? 0);
@@ -76,47 +71,55 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
     fn();
   };
 
-  // `X Angebote ab CHF 19.95` / `1 Angebot ab CHF 19.95` / empty.
+  // `X Angebote ab CHF 19.95` / `1 Angebot ab 19.95` / empty.
   const offerLine = (() => {
     if (!priceLabel) return null;
     if (offerCount >= 2) return `${offerCount} Angebote ab CHF ${priceLabel}`;
     if (offerCount === 1) return `1 Angebot ab CHF ${priceLabel}`;
-    return `ab CHF ${priceLabel}`;
+    return null;
   })();
 
+  // Reusable price block: CHF prefix is small + gray + non-bold (Galaxus style)
+  const priceBlock = (priceClass: string, prefixClass: string) => (
+    <span className={priceClass}>
+      {hasPrice ? (
+        <>
+          <span className={prefixClass}>CHF </span>
+          {priceLabel}
+        </>
+      ) : (
+        "Preis auf Anfrage"
+      )}
+    </span>
+  );
+
   // ───────────────────────────────────────────────────────────────
-  // LIST LAYOUT — horizontal row, matches the screenshot treatment:
-  //   [image] · [category link · price · brand title · offer line + mini logos] · [icons]
+  // LIST LAYOUT
   // ───────────────────────────────────────────────────────────────
   if (layout === "list") {
     const categoryLabel = product.categoryName || product.category || "Produkt";
     return (
-      <div className="group relative border-b border-[#f0f0f2] bg-white px-4 py-4 transition-colors duration-200 hover:bg-[#f8f8f9]">
+      <div className="group relative border-b border-[#f0f0f2] bg-white px-4 py-5 transition-colors duration-200 hover:bg-[#f8f8f9]">
         <Link href={`/product/${product.gtin}`} className="flex gap-4">
-          {/* Image — square, left */}
           <div className="flex h-28 w-28 shrink-0 items-center justify-center p-1 sm:h-32 sm:w-32">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={proxyUrl(product.imageUrl)} alt={product.title} width={112} height={112} loading="lazy"
               className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
           </div>
 
-          {/* Info — right */}
           <div className="flex min-w-0 flex-1 flex-col">
-            {/* Category label (blue, small) */}
             <p className="text-[13px] font-medium text-[#0076bd]">{categoryLabel}</p>
 
-            {/* Price — bold, exact rappen */}
-            <p className="mt-0.5 text-[18px] font-bold text-gray-900">
-              {hasPrice ? `CHF ${priceLabel}` : "Preis auf Anfrage"}
-            </p>
+            {priceBlock(
+              "mt-0.5 text-[20px] font-bold text-gray-900",
+              "text-[14px] font-normal text-gray-500",
+            )}
 
-            {/* Brand bold + title */}
-            <p className="mt-0.5 line-clamp-2 text-[14px] leading-snug text-gray-700">
+            <p className="mt-0.5 line-clamp-2 text-[15px] leading-snug text-gray-700">
               <span className="font-bold text-gray-900">{product.brand}</span>{" "}
               {product.title.replace(product.brand, "").trim()}
             </p>
 
-            {/* Bottom row: offer line + mini logos + icons */}
             <div className="mt-auto flex items-center justify-between gap-2 pt-2">
               <div className="flex min-w-0 items-center gap-2">
                 {offerLine && (
@@ -130,21 +133,22 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
                   </div>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              {/* Hover-only action icons — Galaxus pattern */}
+              <div className="flex shrink-0 items-center gap-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
                 <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
-                  className={`p-1 transition ${faved ? "text-[#D81E05]" : "text-gray-400 hover:text-[#D81E05]"}`}
-                  title="Favorit">
+                  className={`p-1 transition ${faved ? "text-[#D81E05]" : "text-[#0076bd] hover:text-[#D81E05]"}`}
+                  title="Favorit" aria-label="Favorit">
                   <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
                 </button>
                 <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
-                  className={`p-1 transition ${pinned ? "text-[#0076bd]" : "text-[#0076bd]/70 hover:text-[#0076bd]"}`}
-                  title="Merken">
+                  className={`p-1 transition ${pinned ? "text-[#0076bd]" : "text-[#0076bd]/80 hover:text-[#0076bd]"}`}
+                  title="Merken" aria-label="Merken">
                   <Pin className={`h-4 w-4 ${pinned ? "fill-current" : ""}`} />
                 </button>
                 {onAlert && (
                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
-                    className="p-1 text-gray-400 transition hover:text-[#D81E05]"
-                    title="Preisalarm">
+                    className="p-1 text-[#0076bd] transition hover:text-[#D81E05]"
+                    title="Preisalarm" aria-label="Preisalarm">
                     <Bell className="h-4 w-4" />
                   </button>
                 )}
@@ -157,43 +161,32 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
   }
 
   // ───────────────────────────────────────────────────────────────
-  // GRID LAYOUT — stacked card, matches the screenshot treatment
+  // GRID LAYOUT
   // ───────────────────────────────────────────────────────────────
   return (
     <div className="group relative flex flex-col bg-white transition-colors duration-200 hover:bg-[#f8f8f9]">
-      {/* Icons — subtle on mobile, fade in on desktop hover */}
-      <div className="absolute right-2 top-2 z-10 flex gap-1.5 opacity-40 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100">
-        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
-          className={`flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-all duration-200 hover:scale-110 ${faved ? "text-[#D81E05]" : "text-gray-500 hover:text-[#D81E05]"}`}
-          title="Favorit">
-          <Heart className={`h-4 w-4 ${faved ? "fill-current" : ""}`} />
-        </button>
-        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
-          className={`flex h-8 w-8 items-center justify-center rounded-full bg-white shadow transition-all duration-200 hover:scale-110 ${pinned ? "text-[#0076bd]" : "text-gray-500 hover:text-[#0076bd]"}`}
-          title="Merken">
-          <Pin className={`h-4 w-4 ${pinned ? "fill-current" : ""}`} />
-        </button>
-      </div>
-
-      <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col p-3 sm:p-4">
+      <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col p-4 sm:p-5">
         {/* Image */}
         <div className="aspect-square overflow-hidden p-3">
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={200} height={200} loading="lazy"
+            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={240} height={240} loading="lazy"
               className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
           </div>
         </div>
 
-        {/* Price — Galaxus bold, exact rappen */}
-        <span className="mt-2 text-xl font-bold tracking-tight text-gray-900">
-          {hasPrice ? `CHF ${priceLabel}` : "Preis auf Anfrage"}
-        </span>
+        {/* Price — CHF text-sm gray non-bold, amount text-2xl extrabold */}
+        {priceBlock(
+          "mt-3 text-2xl font-extrabold tracking-tight text-gray-900",
+          "text-sm font-normal text-gray-400 mr-1",
+        )}
 
-        {/* Brand + Title */}
-        <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-gray-500">
-          <span className="font-bold text-gray-900">{product.brand}</span>{" "}
+        {/* Brand — uppercase + bold per spec */}
+        <p className="mt-1 text-lg font-bold uppercase tracking-tight text-gray-900">
+          {product.brand}
+        </p>
+        <p className="line-clamp-2 text-[13px] leading-snug text-gray-500">
           {product.title.replace(product.brand, "").trim()}
         </p>
 
@@ -202,7 +195,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           <p className="mt-1.5 text-[11px] font-medium text-gray-500">{offerLine}</p>
         )}
 
-        {/* Mini-logo row — one chip per shop that carries this gtin */}
+        {/* Mini-logo row */}
         {shopIds.length > 0 && (
           <div className="mt-1.5 flex items-center -space-x-1.5">
             {shopIds.slice(0, 5).map((sid) => (
@@ -215,18 +208,35 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
             )}
           </div>
         )}
-
-        {/* Bottom: bell aligned right */}
-        <div className="mt-auto flex items-center justify-end pt-2">
-          {onAlert && (
-            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
-              className="shrink-0 text-gray-400 transition-all duration-200 hover:scale-110 hover:text-[#D81E05]"
-              title="Preisalarm">
-              <Bell className="h-4 w-4" />
-            </button>
-          )}
-        </div>
       </Link>
+
+      {/* Hover-only action icons — absolute bottom-right, Galaxus pattern.
+          Lives outside the Link so clicks don't navigate. */}
+      <div className="absolute bottom-3 right-3 flex items-center gap-1.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
+          className={`rounded-full bg-white/90 p-1.5 shadow transition ${faved ? "text-[#D81E05]" : "text-gray-400 hover:text-[#D81E05]"}`}
+          title="Favorit" aria-label="Favorit"
+        >
+          <Heart className={`h-[18px] w-[18px] ${faved ? "fill-current" : ""}`} strokeWidth={1.6} />
+        </button>
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
+          className={`rounded-full bg-white/90 p-1.5 shadow transition ${pinned ? "text-[#0076bd]" : "text-gray-400 hover:text-[#0076bd]"}`}
+          title="Merken" aria-label="Merken"
+        >
+          <Pin className={`h-[18px] w-[18px] ${pinned ? "fill-current" : ""}`} strokeWidth={1.6} />
+        </button>
+        {onAlert && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
+            className="rounded-full bg-white/90 p-1.5 shadow text-gray-400 transition hover:text-[#D81E05]"
+            title="Preisalarm" aria-label="Preisalarm"
+          >
+            <Bell className="h-[18px] w-[18px]" strokeWidth={1.6} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -246,10 +256,10 @@ export function ProductCardSkeleton({ layout = "grid" }: { layout?: "grid" | "li
   }
 
   return (
-    <div className="animate-pulse bg-white p-3 sm:p-4">
+    <div className="animate-pulse bg-white p-4 sm:p-5">
       <div className="aspect-square rounded bg-gray-50" />
-      <div className="mt-3 space-y-2">
-        <div className="h-6 w-16 rounded bg-gray-100" />
+      <div className="mt-4 space-y-2">
+        <div className="h-6 w-20 rounded bg-gray-100" />
         <div className="h-4 w-full rounded bg-gray-100" />
         <div className="h-3 w-2/3 rounded bg-gray-100" />
       </div>

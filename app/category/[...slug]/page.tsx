@@ -14,7 +14,9 @@ import CategoryClient from "./client";
  * affect filter/sort interactivity; it only caches the big
  * getProductsByCategory slice + the COUNT(*).
  */
-export const revalidate = 300;
+// 340 category nodes × deep param trees = build-timeout risk. force-dynamic
+// keeps every category page fully SSR per request, no ISR cache to warm.
+export const dynamic = "force-dynamic";
 
 export default async function CategoryPage({
   params,
