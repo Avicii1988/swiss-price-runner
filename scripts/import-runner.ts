@@ -379,8 +379,15 @@ function nestedShippingPrice(xml: string): string {
  *   "Nike Air Max 90 Gr. 42"      → base="Nike Air Max 90"   size="Gr. 42"
  *   "Dior Sauvage"                → base=<title>            size=null
  */
-const SIZE_UNIT_RE = /(\d+(?:[.,]\d+)?)\s?(ml|g|kg|l|oz|cl|pcs?|stk|stück|paar|gr)\.?/i;
+// `g` alone matches cellular generations (5G, 4G, 3G) as "grams".
+// Require at least 2 characters for the gram unit (g must be followed
+// by word boundary AND the number must be ≥ 10) — or better: exclude
+// single-digit numbers paired with plain `g` entirely.
+const SIZE_UNIT_RE = /(\d{2,}(?:[.,]\d+)?)\s?(ml|g|kg|l|oz|cl|pcs?|stk|stück|paar|gr)\.?|(\d+(?:[.,]\d+)?)\s?(kg|ml|oz|cl|pcs?|stk|stück|paar|gr)\.?/i;
 const SHOE_SIZE_RE = /\bgr(?:össe|oesse|\.|e)?\s?(\d{1,3}(?:[.,]\d+)?)\b/i;
+
+// Cellular / connectivity generations — must never be stored as a size label.
+const NETWORK_GEN_RE = /^\d+\s?G$/i;
 
 interface TitleSplit { baseTitle: string; sizeLabel: string | null; }
 
@@ -770,7 +777,10 @@ async function main() {
         const baseTitle = titleSplit.baseTitle;
         // GTIN guard: never save a barcode number as a size label
         const rawSize = feedSize || titleSplit.sizeLabel;
-        const sizeLabel = rawSize && /^\d{8,14}$/.test(rawSize) ? null : rawSize;
+        // Reject GTINs (8-14 digits) and cellular-generation strings (5G, 4G, …)
+        const sizeLabel = rawSize && (
+          /^\d{8,14}$/.test(rawSize) || NETWORK_GEN_RE.test(rawSize.trim())
+        ) ? null : rawSize;
         const groupId = computeGroupId(item.itemGroupId, decodedBrand, baseTitle, feedColor);
 
         // ── Category resolution — Phase 2 Path-Finder ──
