@@ -50,8 +50,8 @@ export function stripGtins(s: string): string {
 // Regex extractors
 // ═══════════════════════════════════════════════════════════════════
 
-function normalise(s: string): string {
-  return s.replace(/\s+/g, " ").trim();
+function normalise(s: string | null | undefined): string {
+  return String(s ?? "").replace(/\s+/g, " ").trim();
 }
 
 /** Electronics: storage capacity — aggressive multi-pattern scan.
@@ -60,9 +60,8 @@ function normalise(s: string): string {
  *  Critical: "5G", "4G" (cellular generations) must NEVER match.
  *  The regex requires exactly `GB` or `TB` — a lone `G` after a digit
  *  is a network generation, not a size. */
-function extractStorage(text: string): string | null {
-  // Strip cellular-generation markers before scanning so "5G 256GB"
-  // doesn't confuse subsequent patterns.
+function extractStorage(text: string | null | undefined): string | null {
+  if (!text) return null;
   const cleaned = text.replace(/\b\d+G\b/g, " ").replace(/\s+/g, " ");
   // Prefer the largest GB/TB value found (pick max to avoid matching
   // RAM when both RAM and storage are in the haystack, e.g. "8GB RAM 256GB").
@@ -81,21 +80,20 @@ function extractStorage(text: string): string | null {
 }
 
 /** Electronics: RAM — "8 GB RAM", "16GB RAM", "8GB Arbeitsspeicher" */
-function extractRam(text: string): string | null {
+function extractRam(text: string | null | undefined): string | null {
+  if (!text) return null;
   const m = text.match(/\b(\d+)\s*gb\s*(?:ram|arbeitsspeicher)\b/i);
   if (m) return `${m[1]} GB`;
-  // Try "RAM: 8 GB" or "RAM 8GB" pattern
   const rev = text.match(/\bram[\s:]*(\d+)\s*gb\b/i);
   if (rev) return `${rev[1]} GB`;
   return null;
 }
 
 /** Fashion/Shoes: size — alpha (S/M/L/XL/XXL) or numeric (38-50, 36.5) */
-function extractSize(text: string): string | null {
-  // Named sizes: XS, S, M, L, XL, XXL, XXXL (standalone word)
+function extractSize(text: string | null | undefined): string | null {
+  if (!text) return null;
   const alpha = text.match(/\b(xxxl|xxl|xl|xs|[sml])\b/i);
   if (alpha) return alpha[1].toUpperCase();
-  // Numeric shoe/clothing sizes: 35-52, optionally with .5 or ½
   const numeric = text.match(/\b(Gr\.?\s*)?(\d{2}(?:[.,]5)?)\b/);
   if (numeric && Number(numeric[2]) >= 28 && Number(numeric[2]) <= 54) {
     return numeric[2].replace(",", ".");
@@ -104,7 +102,8 @@ function extractSize(text: string): string | null {
 }
 
 /** Beauty: volume (30 ml, 100ml, 1.5 l, 0.75l → "100 ml" / "1.5 l") */
-function extractVolume(text: string): string | null {
+function extractVolume(text: string | null | undefined): string | null {
+  if (!text) return null;
   const m = text.match(/\b(\d+(?:[.,]\d+)?)\s*(ml|l|cl|dl)\b/i);
   if (!m) return null;
   const val = m[1].replace(",", ".");
@@ -112,7 +111,8 @@ function extractVolume(text: string): string | null {
 }
 
 /** Beauty/consumables: weight (100 g, 1.5 kg, 500g → "500 g") */
-function extractWeight(text: string): string | null {
+function extractWeight(text: string | null | undefined): string | null {
+  if (!text) return null;
   const m = text.match(/\b(\d+(?:[.,]\d+)?)\s*(g|kg)\b/i);
   if (!m) return null;
   const val = m[1].replace(",", ".");
@@ -120,7 +120,8 @@ function extractWeight(text: string): string | null {
 }
 
 /** Count / pack size (3er Pack, 10 Stück, x6 → "3 Stück") */
-function extractCount(text: string): string | null {
+function extractCount(text: string | null | undefined): string | null {
+  if (!text) return null;
   const m = text.match(/\b(\d+)\s*(?:er[- ]?pack|stück|stk|x)\b/i)
           || text.match(/\bx\s*(\d+)\b/i);
   if (!m) return null;
