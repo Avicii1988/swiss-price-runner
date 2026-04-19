@@ -176,15 +176,17 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           </div>
         </div>
 
-        {/* Price — CHF small + gray, amount large + bold */}
+        {/* Price — CHF text-sm gray non-bold, amount text-2xl extrabold */}
         {priceBlock(
-          "mt-3 text-[22px] font-bold tracking-tight text-gray-900",
-          "text-[14px] font-normal text-gray-500",
+          "mt-3 text-2xl font-extrabold tracking-tight text-gray-900",
+          "text-sm font-normal text-gray-400 mr-1",
         )}
 
-        {/* Brand + Title — bigger, brand bolded, rest in gray */}
-        <p className="mt-1 line-clamp-2 text-[15px] leading-snug text-gray-600">
-          <span className="font-bold text-gray-900">{product.brand}</span>{" "}
+        {/* Brand — uppercase + bold per spec */}
+        <p className="mt-1 text-lg font-bold uppercase tracking-tight text-gray-900">
+          {product.brand}
+        </p>
+        <p className="line-clamp-2 text-[13px] leading-snug text-gray-500">
           {product.title.replace(product.brand, "").trim()}
         </p>
 
@@ -206,35 +208,35 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
             )}
           </div>
         )}
-
-        {/* Hover-only action icons — bottom-right corner, Galaxus pattern.
-            Hidden by default (opacity-0) and revealed on group-hover only. */}
-        <div className="mt-auto flex items-center justify-end gap-2 pt-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
-            className={`p-1.5 transition ${faved ? "text-[#D81E05]" : "text-[#0076bd] hover:text-[#D81E05]"}`}
-            title="Favorit" aria-label="Favorit"
-          >
-            <Heart className={`h-[18px] w-[18px] ${faved ? "fill-current" : ""}`} strokeWidth={1.6} />
-          </button>
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
-            className={`p-1.5 transition ${pinned ? "text-[#0076bd]" : "text-[#0076bd]/80 hover:text-[#0076bd]"}`}
-            title="Merken" aria-label="Merken"
-          >
-            <Pin className={`h-[18px] w-[18px] ${pinned ? "fill-current" : ""}`} strokeWidth={1.6} />
-          </button>
-          {onAlert && (
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
-              className="p-1.5 text-[#0076bd] transition hover:text-[#D81E05]"
-              title="Preisalarm" aria-label="Preisalarm"
-            >
-              <Bell className="h-[18px] w-[18px]" strokeWidth={1.6} />
-            </button>
-          )}
-        </div>
       </Link>
+
+      {/* Hover-only action icons — absolute bottom-right, Galaxus pattern.
+          Lives outside the Link so clicks don't navigate. */}
+      <div className="absolute bottom-3 right-3 flex items-center gap-1.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
+          className={`rounded-full bg-white/90 p-1.5 shadow transition ${faved ? "text-[#D81E05]" : "text-gray-400 hover:text-[#D81E05]"}`}
+          title="Favorit" aria-label="Favorit"
+        >
+          <Heart className={`h-[18px] w-[18px] ${faved ? "fill-current" : ""}`} strokeWidth={1.6} />
+        </button>
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
+          className={`rounded-full bg-white/90 p-1.5 shadow transition ${pinned ? "text-[#0076bd]" : "text-gray-400 hover:text-[#0076bd]"}`}
+          title="Merken" aria-label="Merken"
+        >
+          <Pin className={`h-[18px] w-[18px] ${pinned ? "fill-current" : ""}`} strokeWidth={1.6} />
+        </button>
+        {onAlert && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
+            className="rounded-full bg-white/90 p-1.5 shadow text-gray-400 transition hover:text-[#D81E05]"
+            title="Preisalarm" aria-label="Preisalarm"
+          >
+            <Bell className="h-[18px] w-[18px]" strokeWidth={1.6} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

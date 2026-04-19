@@ -51,7 +51,7 @@ export default function HomeClient({ dynamicCategories, stats, shelves }: HomeCl
               replaces the older split treatment of a generic Swiss-cross
               circle on the left and a lucide bell on the right. One mark,
               one identity, lockstep with the header logo. */}
-          <PreisAlarmBell size={20} className="text-white" />
+          <PreisAlarmBell size={32} />
           <p className="text-[12px] font-medium text-white/90 sm:text-[13px]">
             Dein Schweizer Preisvergleich für alles —
             <span className="hidden text-white/60 sm:inline"> neutral, unabhängig,</span>

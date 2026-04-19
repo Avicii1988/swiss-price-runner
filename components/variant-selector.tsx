@@ -18,13 +18,13 @@ interface VariantSelectorProps {
 // gradient when the color name isn't in this list, so users still see
 // a coloured circle and can disambiguate by label.
 const COLOR_SWATCHES: Record<string, string> = {
-  schwarz: "#0a0a0a", black: "#0a0a0a", anthrazit: "#2a2a2a", graphite: "#3a3a3a",
-  weiss: "#f5f5f5", weiß: "#f5f5f5", white: "#f5f5f5", ivory: "#f3ead4",
+  schwarz: "#1D1D1F", black: "#1D1D1F", anthrazit: "#2a2a2a", graphite: "#3a3a3a",
+  weiss: "#F5F5F7", weiß: "#F5F5F7", white: "#F5F5F7", ivory: "#f3ead4",
   cream: "#f1e8d4", creme: "#f1e8d4", porcelain: "#efe8df", starlight: "#efe8df",
-  silber: "#c4c8cc", silver: "#c4c8cc", gold: "#d4af37", titanium: "#a7a39c",
+  silber: "#c4c8cc", silver: "#c4c8cc", gold: "#d4af37", titanium: "#A6A9AA", titan: "#A6A9AA",
   bronze: "#c08c5d", kupfer: "#b87333", grau: "#9aa0a6", gray: "#9aa0a6", grey: "#9aa0a6",
   rot: "#dc2626", red: "#dc2626", bordeaux: "#5e1b1b", coral: "#ff6f61",
-  blau: "#1d4ed8", blue: "#1d4ed8", navy: "#0b1e3f", "sierra blue": "#5a8aa8",
+  blau: "#2B3541", blue: "#2B3541", navy: "#0b1e3f", "sierra blue": "#5a8aa8",
   "pacific blue": "#1a405d", "alpine green": "#3a5c46", petrol: "#005f73",
   iris: "#a3a8e2", lavender: "#c8b8e0", lila: "#7c3aed", violett: "#7c3aed", purple: "#7c3aed",
   "deep purple": "#4b2c80", grün: "#16a34a", green: "#16a34a", gruen: "#16a34a", mint: "#a7e3c2", khaki: "#7d7a4a",
@@ -32,7 +32,7 @@ const COLOR_SWATCHES: Record<string, string> = {
   rosa: "#f9a8d4", pink: "#ec4899", peony: "#e94f7f",
   beige: "#d8c9a3", taupe: "#a99078", braun: "#7c4a2a", brown: "#7c4a2a", natur: "#c2a878",
   midnight: "#1b1d2a", obsidian: "#0f0f12", "phantom black": "#0a0a0a",
-  "natural titanium": "#b8b3aa", "desert titanium": "#c1a47e", "blue titanium": "#5b6c84",
+  "natural titanium": "#A6A9AA", "desert titanium": "#c1a47e", "blue titanium": "#2B3541",
 };
 
 function colorSwatch(name: string): string {
