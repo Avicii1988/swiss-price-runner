@@ -748,6 +748,13 @@ export interface ThematicSlot {
   href?: string;
   /** Accent color — applied as a subtle gradient tint on editorial banners. */
   accent?: string;
+  /**
+   * Sort override for this shelf.
+   *   "popular" (default) — most-shops first, then recency
+   *   "deals"   — biggest absolute discount (originalPriceChf − price) first
+   *   "newest"  — most recently imported (createdAt DESC)
+   */
+  sortBy?: "popular" | "deals" | "newest";
 }
 
 /**
@@ -874,7 +881,11 @@ export async function getThematicShelves(
                  "shippingCostChf", "priceIsNet", "groupId",
                  variant_count, min_price, shop_count, shop_ids
           FROM reps
-          ORDER BY shop_count DESC, "updatedAt" DESC
+          ORDER BY ${slot.sortBy === "deals"
+            ? Prisma.sql`CASE WHEN "originalPriceChf" IS NOT NULL AND "originalPriceChf" > price THEN ("originalPriceChf" - price) ELSE 0 END DESC, shop_count DESC`
+            : slot.sortBy === "newest"
+            ? Prisma.sql`"createdAt" DESC`
+            : Prisma.sql`shop_count DESC, "updatedAt" DESC`}
           LIMIT ${perShelf}
         `;
 

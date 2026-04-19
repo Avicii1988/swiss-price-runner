@@ -21,7 +21,7 @@ interface ShopLogoProps {
   sourceId: string;
   /** Override the label shown in the text fallback. */
   label?: string;
-  size?: "xs" | "sm" | "md";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
   /**
    * When true, render ONLY the image logo (no text fallback padding).
@@ -35,9 +35,10 @@ const PILL_SIZES = {
   xs: { text: "text-[9px]", pad: "px-1.5 py-[2px]", logo: "h-[14px]" },
   sm: { text: "text-[10px]", pad: "px-2 py-[3px]", logo: "h-4" },
   md: { text: "text-[11px]", pad: "px-2.5 py-1", logo: "h-5" },
+  lg: { text: "text-[13px]", pad: "px-3 py-1.5", logo: "h-7" },
 };
 
-const ICON_SIZES = { xs: "h-4 w-4", sm: "h-5 w-5", md: "h-6 w-6" };
+const ICON_SIZES = { xs: "h-4 w-4", sm: "h-5 w-5", md: "h-6 w-6", lg: "h-8 w-8" };
 
 export function ShopLogo({
   sourceId,
@@ -45,7 +46,7 @@ export function ShopLogo({
   size = "sm",
   className = "",
   iconOnly = false,
-}: ShopLogoProps) {
+}: ShopLogoProps & { size?: "xs" | "sm" | "md" | "lg" }) {
   const [errored, setErrored] = useState(false);
   const shop = getShopSource(sourceId);
   const logoUrl = getShopLogoUrl(sourceId);
