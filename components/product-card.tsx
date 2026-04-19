@@ -183,26 +183,20 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           "text-sm font-normal text-gray-400 mr-1",
         )}
 
-        {/* Brand (uppercase) + Model — Galaxus two-line pattern */}
+        {/* Brand (uppercase) line 1, then model + storage on line 2 */}
         <p className="mt-1 text-[13px] font-bold uppercase tracking-tight text-gray-900">
           {product.brand}
         </p>
-        {/* Model line: title stripped of brand, then storage/color appended
-            so the tile reads e.g. "iPhone 17 Pro · 256 GB, Black" */}
         {(() => {
           const attrs = extractAttributes(product.title, "", product.category);
           const model = product.title.replace(new RegExp(`^${product.brand}\\s*`, "i"), "").trim();
-          const specParts: string[] = [];
-          if (attrs.primary?.value) specParts.push(attrs.primary.value);
-          if (attrs.secondary?.value) specParts.push(attrs.secondary.value);
-          const spec = specParts.join(", ");
+          const storage = attrs.primary?.value ?? "";
+          // Append storage only when not already present in the model string
+          const modelLine = storage && !model.toUpperCase().includes(storage.toUpperCase())
+            ? `${model} ${storage}`
+            : model;
           return (
-            <>
-              <p className="line-clamp-2 text-[13px] leading-snug text-gray-700">{model}</p>
-              {spec && (
-                <p className="mt-0.5 text-[11px] text-gray-400">{spec}</p>
-              )}
-            </>
+            <p className="line-clamp-2 text-[13px] leading-snug text-gray-700">{modelLine}</p>
           );
         })()}
 
@@ -226,19 +220,20 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
         )}
       </Link>
 
-      {/* Hover-only action icons — absolute bottom-right, Galaxus pattern.
-          Lives outside the Link so clicks don't navigate. */}
-      <div className="absolute bottom-3 right-3 flex items-center gap-1.5 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
+      {/* Hover-only action icons — absolute bottom-right frosted-glass pill.
+          Lives outside the Link so clicks don't navigate. z-10 prevents
+          any sibling overflow-hidden from clipping the pill. */}
+      <div className="absolute bottom-3 right-3 z-10 flex items-center gap-0.5 rounded-full bg-white/90 p-1 shadow backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
-          className={`rounded-full bg-white/90 p-1.5 shadow transition ${faved ? "text-[#D81E05]" : "text-gray-400 hover:text-[#D81E05]"}`}
+          className={`rounded-full p-1.5 transition ${faved ? "text-[#D81E05]" : "text-gray-400 hover:text-[#D81E05]"}`}
           title="Favorit" aria-label="Favorit"
         >
           <Heart className={`h-[18px] w-[18px] ${faved ? "fill-current" : ""}`} strokeWidth={1.6} />
         </button>
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => togglePin(product.gtin)); }}
-          className={`rounded-full bg-white/90 p-1.5 shadow transition ${pinned ? "text-[#0076bd]" : "text-gray-400 hover:text-[#0076bd]"}`}
+          className={`rounded-full p-1.5 transition ${pinned ? "text-[#0076bd]" : "text-gray-400 hover:text-[#0076bd]"}`}
           title="Merken" aria-label="Merken"
         >
           <Pin className={`h-[18px] w-[18px] ${pinned ? "fill-current" : ""}`} strokeWidth={1.6} />
@@ -246,7 +241,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
         {onAlert && (
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAlert(item); }}
-            className="rounded-full bg-white/90 p-1.5 shadow text-gray-400 transition hover:text-[#D81E05]"
+            className="rounded-full p-1.5 text-gray-400 transition hover:text-[#D81E05]"
             title="Preisalarm" aria-label="Preisalarm"
           >
             <Bell className="h-[18px] w-[18px]" strokeWidth={1.6} />

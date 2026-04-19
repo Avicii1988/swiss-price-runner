@@ -85,8 +85,10 @@ export function VariantSelector({
       // Primary label priority:
       //   1. sizeLabel from feed (g:size) — direct from merchant, most accurate
       //   2. extractAttributes regex (storage/volume/size from title)
+      //   2.5. Hard GB/TB regex directly on title — emergency catch for feeds
+      //        that don't export g:size but do include "128GB" in the title
       //   3. Diff — unique tokens this sibling has vs. all others
-      //   4. "Variante X" as last resort
+      //   4. "Standard" as last resort
       let primary: string | null = null;
 
       // Client-side defense: reject stored sizeLabels that are cellular
@@ -100,6 +102,16 @@ export function VariantSelector({
       if (!primary) {
         const extracted = s.attrs.primary?.value ?? null;
         if (extracted && !isGtin(extracted)) primary = extracted;
+      }
+      // Priority 2.5 — hard GB/TB regex directly on title
+      if (!primary) {
+        const gbMatch = s.title.match(/(\d+)\s?(GB|TB|go|to)\b/i);
+        if (gbMatch) {
+          const num = gbMatch[1];
+          const rawUnit = gbMatch[2].toLowerCase();
+          const unit = rawUnit === "go" ? "GB" : rawUnit === "to" ? "TB" : rawUnit.toUpperCase();
+          primary = `${num}${unit}`;
+        }
       }
       if (!primary) {
         const uniqueWords = allTitleWords[i]
@@ -161,7 +173,7 @@ export function VariantSelector({
 
   const currentSibling = enriched.find((e) => e.isCurrent);
   const [selectedPrimary, setSelectedPrimary] = useState<string>(
-    currentSibling?.primaryValue ?? primaryValues[0] ?? "Variante",
+    currentSibling?.primaryValue ?? primaryValues[0] ?? "Standard",
   );
 
   const level2Siblings = useMemo(
@@ -265,7 +277,7 @@ export function VariantSelector({
         !showPrimary && (
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">
-              Variante wählen
+              Modell wählen
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {enriched.map((s) => {

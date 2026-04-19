@@ -88,6 +88,7 @@ export default function HomeClient({ dynamicCategories, stats, shelves }: HomeCl
                 href={slot.href ?? "/"}
                 limit={12}
                 layout={viewMode}
+                onAlert={(item) => setAlertProduct(item)}
               />
             ))}
 
