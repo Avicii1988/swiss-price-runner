@@ -42,6 +42,7 @@ export interface MockProduct {
   shopName?: string;
   sourceType?: string;
   affiliateUrl?: string;
+  sizeLabel?: string | null;
   sources: MockSource[];
 }
 
