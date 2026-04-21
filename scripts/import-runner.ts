@@ -786,7 +786,10 @@ async function main() {
         const decodedBrand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
         const feedSize = decodeHtml(item.size || "").trim();
         const feedColor = decodeHtml(item.color || "").trim();
-        const titleSplit = splitTitleBySize(decodedTitle);
+        let titleSplit: TitleSplit = { baseTitle: decodedTitle || gtin, sizeLabel: null };
+        if (decodedTitle) {
+          try { titleSplit = splitTitleBySize(decodedTitle); } catch { /* keep defaults */ }
+        }
         const baseTitle = titleSplit.baseTitle;
         // GTIN guard: never save a barcode number as a size label
         const rawSize = feedSize || titleSplit.sizeLabel;
@@ -830,9 +833,14 @@ async function main() {
           baseTitle: baseTitle.slice(0, 500),
           sizeLabel,
           description: decodedDescription ? decodedDescription.slice(0, 2000) : null,
-          displayAttributes: JSON.stringify(
-            extractAttributes(decodedTitle, decodedDescription, leafSlug, feedSize || undefined, feedColor || undefined).all,
-          ),
+          displayAttributes: (() => {
+            try {
+              if (!decodedTitle) return "{}";
+              return JSON.stringify(
+                extractAttributes(decodedTitle, decodedDescription, leafSlug, feedSize || undefined, feedColor || undefined).all,
+              );
+            } catch { return "{}"; }
+          })(),
         });
         } catch (err) {
           prepareError = err;

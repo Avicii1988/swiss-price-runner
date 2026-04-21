@@ -236,9 +236,9 @@ export function ProductDetailClient({
                   return null;
                 })()}
 
-                {/* Variant selector — divider above, then selector card */}
+                {/* Variant selector — divider above and below */}
                 {variantSiblings.length > 1 && (
-                  <div className="mt-6 border-t border-gray-100 pt-5">
+                  <div className="mt-6 border-t border-gray-100 pt-5 pb-5 border-b border-gray-100">
                     <VariantSelector siblings={variantSiblings} />
                   </div>
                 )}
