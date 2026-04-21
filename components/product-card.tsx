@@ -5,7 +5,7 @@ import { Bell, Heart, Pin } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
 import { ShopLogo } from "@/components/shop-logo";
 import { formatChf } from "@/lib/pricing/format";
-import { extractAttributes } from "@/lib/attributes";
+import { extractAttributes, isGtin } from "@/lib/attributes";
 import type { MockProductWithHistory } from "@/lib/integrations/mock-service";
 
 const FALLBACK_IMG = "/placeholder-product.svg";
@@ -188,13 +188,22 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
           {product.brand}
         </p>
         {(() => {
+          const isNetworkGen = (v: string) => /^\d+\s?G$/i.test(v.trim());
           const attrs = extractAttributes(product.title, "", product.category);
           const model = product.title.replace(new RegExp(`^${product.brand}\\s*`, "i"), "").trim();
+          // 1. Try regex-extracted storage/size from title
           const storage = attrs.primary?.value ?? "";
-          // Append storage only when not already present in the model string
-          const modelLine = storage && !model.toUpperCase().includes(storage.toUpperCase())
+          let modelLine = storage && !model.toUpperCase().includes(storage.toUpperCase())
             ? `${model} ${storage}`
             : model;
+          // 2. If still no size info in the line and sizeLabel exists, append it
+          const sl = product.sizeLabel;
+          if (sl && !isGtin(sl) && !isNetworkGen(sl) && sl !== "Standard") {
+            const slUp = sl.toUpperCase();
+            if (!modelLine.toUpperCase().includes(slUp)) {
+              modelLine = `${modelLine} (${sl})`;
+            }
+          }
           return (
             <p className="line-clamp-2 text-[13px] leading-snug text-gray-700">{modelLine}</p>
           );
@@ -223,7 +232,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
       {/* Hover-only action icons — absolute bottom-right frosted-glass pill.
           Lives outside the Link so clicks don't navigate. z-10 prevents
           any sibling overflow-hidden from clipping the pill. */}
-      <div className="absolute bottom-3 right-3 z-10 flex items-center gap-0.5 rounded-full bg-white/90 p-1 shadow backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
+      <div className="absolute bottom-3 right-3 z-50 flex items-center gap-0.5 rounded-full bg-white/90 p-1 shadow backdrop-blur-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); authAction(() => toggleFavorite(product.gtin)); }}
           className={`rounded-full p-1.5 transition ${faved ? "text-[#D81E05]" : "text-gray-400 hover:text-[#D81E05]"}`}

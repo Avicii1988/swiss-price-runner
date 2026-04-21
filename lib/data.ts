@@ -77,7 +77,7 @@ export async function getProducts(): Promise<MockProductWithHistory[]> {
       select: {
         id: true, gtin: true, title: true, brand: true, category: true,
         categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-        affiliateUrl: true, price: true,
+        affiliateUrl: true, price: true, sizeLabel: true,
       },
       orderBy: { updatedAt: "desc" },
       take: 2000,
@@ -105,7 +105,7 @@ export async function getProductsPaginated(limit = 24, offset = 0): Promise<{ pr
         select: {
           id: true, gtin: true, title: true, brand: true, category: true,
           categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-          affiliateUrl: true, price: true,
+          affiliateUrl: true, price: true, sizeLabel: true,
         },
         orderBy: { updatedAt: "desc" },
         skip: offset,
@@ -152,7 +152,7 @@ export async function getProductByGtin(gtin: string): Promise<MockProductWithHis
       select: {
         id: true, gtin: true, title: true, brand: true, category: true,
         categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-        affiliateUrl: true, price: true,
+        affiliateUrl: true, price: true, sizeLabel: true,
         prices: {
           orderBy: { timestamp: "desc" },
           select: { amountChf: true, amountEur: true, sourceId: true, shopName: true, url: true, timestamp: true },
@@ -263,7 +263,7 @@ async function _getProductsByCategory(slug: string): Promise<MockProductWithHist
       )
       SELECT p.id, p.gtin, p.title, p.brand, p.category, p."categoryName",
              p."imageUrl", p."shopName", p."sourceType", p."affiliateUrl",
-             p.price,
+             p.price, p."sizeLabel",
              sc.shop_ids AS shop_ids
       FROM "Product" p
       LEFT JOIN shop_counts sc ON sc."productId" = p.id
@@ -341,6 +341,8 @@ export async function getDistinctCategories(): Promise<string[]> {
 export interface VariantSibling {
   gtin: string;
   sizeLabel: string | null;
+  /** JSON-serialised Record<string,string> from import-time attribute extraction. */
+  displayAttributes: string | null;
   title: string;
   brand: string;
   category: string;
@@ -371,6 +373,7 @@ export async function getVariantSiblings(gtin: string): Promise<VariantSibling[]
         brand: true,
         category: true,
         sizeLabel: true,
+        displayAttributes: true,
         price: true,
         affiliateUrl: true,
       },
@@ -381,6 +384,7 @@ export async function getVariantSiblings(gtin: string): Promise<VariantSibling[]
       .map((s) => ({
         gtin: s.gtin,
         sizeLabel: s.sizeLabel,
+        displayAttributes: s.displayAttributes,
         title: s.title,
         brand: s.brand,
         category: s.category,
@@ -430,6 +434,7 @@ type DbProduct = {
   price?: unknown | null;
   shippingCostChf?: unknown | null;
   priceIsNet?: boolean | null;
+  sizeLabel?: string | null;
   prices: { amountChf: unknown; amountEur: unknown; sourceId: string; shopName?: string | null; url?: string | null; timestamp?: Date }[];
   /**
    * Optional list of sourceIds that carry this product. Populated by
@@ -545,6 +550,7 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     shopName: p.shopName ?? undefined,
     sourceType: p.sourceType ?? undefined,
     affiliateUrl: p.affiliateUrl ?? undefined,
+    sizeLabel: p.sizeLabel ?? undefined,
     // Sources come exclusively from the real feed data — no more
     // amazon_de / galaxus_ch / zalando_de fallback from the seed.
     // If a DB product genuinely has no pricing, the UI renders the
@@ -622,7 +628,7 @@ function enrichProduct(product: MockProduct): MockProductWithHistory {
 const COMMON_SELECT = {
   id: true, gtin: true, title: true, brand: true, category: true,
   categoryName: true, imageUrl: true, shopName: true, sourceType: true,
-  affiliateUrl: true, price: true,
+  affiliateUrl: true, price: true, sizeLabel: true,
   shippingCostChf: true, priceIsNet: true,
 } as const;
 
@@ -878,7 +884,7 @@ export async function getThematicShelves(
           )
           SELECT id, gtin, title, brand, category, "categoryName", "imageUrl",
                  "shopName", "sourceType", "affiliateUrl", price, "originalPriceChf",
-                 "shippingCostChf", "priceIsNet", "groupId",
+                 "shippingCostChf", "priceIsNet", "groupId", "sizeLabel",
                  variant_count, min_price, shop_count, shop_ids
           FROM reps
           ORDER BY ${slot.sortBy === "deals"

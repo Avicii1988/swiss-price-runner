@@ -61,10 +61,22 @@ export function VariantSelector({
   if (siblings.length <= 1) return null;
 
   const enriched = useMemo(() => {
+    const isNetworkGen = (v: string) => /^\d+\s?G$/i.test(v.trim());
+
     const raw = siblings.map((s) => ({
       ...s,
       attrs: extractAttributes(s.title, "", s.category || category),
     }));
+
+    // Pre-pass: detect whether sizeLabel is actually discriminating.
+    // If ALL siblings share the same sizeLabel the merchant put the model
+    // name in g:size (a common feed mistake). Treat it as noise in that case.
+    const validSizeLabels = siblings.map((s) =>
+      s.sizeLabel && !isGtin(s.sizeLabel) && s.sizeLabel !== "Standard" && !isNetworkGen(s.sizeLabel)
+        ? s.sizeLabel : null,
+    );
+    const uniqueValidSizeLabels = new Set(validSizeLabels.filter(Boolean));
+    const sizeLabelDiscriminates = uniqueValidSizeLabels.size > 1;
 
     // Diff pass: tokens unique to each title vs. all the others.
     const allTitleWords = raw.map((r) =>
@@ -81,28 +93,39 @@ export function VariantSelector({
       }
     }
 
-    return raw.map((s, i) => {
+    const step1 = raw.map((s, i) => {
       // Primary label priority:
-      //   1. sizeLabel from feed (g:size) — direct from merchant, most accurate
-      //   2. extractAttributes regex (storage/volume/size from title)
-      //   2.5. Hard GB/TB regex directly on title — emergency catch for feeds
-      //        that don't export g:size but do include "128GB" in the title
+      //   0. displayAttributes.storage/size — computed at import with full
+      //      feed context (title + description + feedSize + feedColor), more
+      //      reliable than the raw sizeLabel string when the feed is noisy
+      //   1. sizeLabel — only when it genuinely discriminates across siblings
+      //   2. extractAttributes regex on title (storage/volume/size)
+      //   2.5. Hard GB/TB regex directly on title
       //   3. Diff — unique tokens this sibling has vs. all others
-      //   4. "Standard" as last resort
+      //   4. Truncated title fragment
+      //   5. "Standard"
       let primary: string | null = null;
 
-      // Client-side defense: reject stored sizeLabels that are cellular
-      // generation strings (5G, 4G, 3G, 2G) — these can leak from feeds
-      // that tag g:size with the connectivity standard rather than capacity.
-      const isNetworkGen = (v: string) => /^\d+\s?G$/i.test(v.trim());
-
-      if (s.sizeLabel && !isGtin(s.sizeLabel) && s.sizeLabel !== "Standard" && !isNetworkGen(s.sizeLabel)) {
-        primary = s.sizeLabel;
+      // Priority 0 — displayAttributes.storage (title+desc extraction at import)
+      if (!primary && s.displayAttributes) {
+        try {
+          const da = JSON.parse(s.displayAttributes) as Record<string, string>;
+          const daVal = da.storage || da.volume;
+          if (daVal && !isGtin(daVal) && !isNetworkGen(daVal)) primary = daVal;
+        } catch { /* malformed JSON — skip */ }
       }
+
+      // Priority 1 — sizeLabel, only if it actually distinguishes siblings
+      if (!primary && sizeLabelDiscriminates && validSizeLabels[i]) {
+        primary = validSizeLabels[i];
+      }
+
+      // Priority 2 — extractAttributes from title
       if (!primary) {
         const extracted = s.attrs.primary?.value ?? null;
         if (extracted && !isGtin(extracted)) primary = extracted;
       }
+
       // Priority 2.5 — hard GB/TB regex directly on title
       if (!primary) {
         const gbMatch = s.title.match(/(\d+)\s?(GB|TB|go|to)\b/i);
@@ -113,6 +136,8 @@ export function VariantSelector({
           primary = `${num}${unit}`;
         }
       }
+
+      // Priority 3 — diff: unique tokens this sibling has vs. all others
       if (!primary) {
         const uniqueWords = allTitleWords[i]
           .filter((w) => !commonWords.has(w))
@@ -126,6 +151,12 @@ export function VariantSelector({
       // Secondary (color) — feed extractor first, then diff-based colour words
       let secondary = s.attrs.secondary?.value ?? null;
       if (secondary && isGtin(secondary)) secondary = null;
+      if (!secondary && s.displayAttributes) {
+        try {
+          const da = JSON.parse(s.displayAttributes) as Record<string, string>;
+          if (da.color && !isGtin(da.color)) secondary = da.color;
+        } catch { /* skip */ }
+      }
       if (!secondary) {
         const colourCandidates = allTitleWords[i].filter((w) =>
           !commonWords.has(w) && Object.prototype.hasOwnProperty.call(COLOR_SWATCHES, w),
@@ -135,9 +166,7 @@ export function VariantSelector({
         }
       }
 
-      // Absolute fallback — "Standard" instead of "Variante A/B/C".
-      // If even the diff produced nothing, strip brand from title and
-      // use the first 22 chars so the button is at least informative.
+      // Absolute fallback — strip brand from title, use first 22 chars.
       if (!primary) {
         const cleaned = s.title.replace(new RegExp(`^${s.brand}\\s*`, "i"), "").trim();
         primary = cleaned.length >= 3 ? cleaned.slice(0, 22) : "Standard";
@@ -145,6 +174,18 @@ export function VariantSelector({
       if (primary.length > 22) primary = primary.slice(0, 21) + "…";
 
       return { ...s, primaryValue: primary, secondaryValue: secondary };
+    });
+
+    // Deduplication pass — if two siblings ended up with the same primaryValue
+    // (e.g., feed gave both "iPhone 17 Pro" with no size info), distinguish
+    // them with price so buttons are never visually identical.
+    const labelCount = new Map<string, number>();
+    for (const e of step1) labelCount.set(e.primaryValue, (labelCount.get(e.primaryValue) ?? 0) + 1);
+
+    return step1.map((e) => {
+      if ((labelCount.get(e.primaryValue) ?? 0) <= 1) return e;
+      // Append formatted price so each button shows a unique label.
+      return { ...e, primaryValue: `CHF ${formatChf(e.priceChf)}` };
     });
   }, [siblings, category]);
 
