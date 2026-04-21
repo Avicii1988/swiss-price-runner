@@ -184,8 +184,9 @@ export function VariantSelector({
 
     return step1.map((e) => {
       if ((labelCount.get(e.primaryValue) ?? 0) <= 1) return e;
-      // Append formatted price so each button shows a unique label.
-      return { ...e, primaryValue: `CHF ${formatChf(e.priceChf)}` };
+      // Keep the original label and append the price so the button is
+      // at least unique: "iPhone 17 Pro - CHF 999.-"
+      return { ...e, primaryValue: `${e.primaryValue} - CHF ${formatChf(e.priceChf)}` };
     });
   }, [siblings, category]);
 
