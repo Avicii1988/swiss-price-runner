@@ -581,6 +581,14 @@ export const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: stri
   // fire first, so only truly un-classified SKUs (e.g. generic
   // prepaid SIM cards) drop onto the smartphones root.
   mobilezone:        { path: ["smartphones"], name: "Smartphones & Tablets" },
+  // Ochsner Sport → sport umbrella. Running / fitness / outdoor brand
+  // rules fire first; the default catches generic SKUs without a clear
+  // sport-type or brand signal.
+  "ochsner-sport":   { path: ["sport"], name: "Sport & Outdoor" },
+  // Ochsner Shoes → footwear umbrella. Shoe-brand and type patterns
+  // (sneakers, boots, sandals …) resolve to the specific sub-category;
+  // the default covers generic SKUs with no recognisable signal.
+  "ochsner-shoes":   { path: ["schuhe"], name: "Schuhe" },
 };
 
 // ═══════════════════════════════════════════════════════════════════

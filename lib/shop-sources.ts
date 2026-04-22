@@ -121,6 +121,20 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     domain: "xxl-parfum.ch",
     wordmark: { text: "XXL PARFUM", color: "#E30613", weight: 900 },
   },
+  "ochsner-sport": {
+    id: "ochsner-sport",
+    name: "Ochsner Sport",
+    color: "#f26522",
+    domain: "ochsner-sport.ch",
+    wordmark: { text: "OCHSNER SPORT", color: "#f26522", weight: 800 },
+  },
+  "ochsner-shoes": {
+    id: "ochsner-shoes",
+    name: "Ochsner Shoes",
+    color: "#333333",
+    domain: "ochsnershoes.ch",
+    wordmark: { text: "OCHSNER SHOES", color: "#333333", weight: 800 },
+  },
 };
 
 export function getShopSource(sourceId: string): ShopSource {
@@ -161,4 +175,6 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES["jelmoli-mode"],
   SHOP_SOURCES.bijouteria,
   SHOP_SOURCES.mobilezone,
+  SHOP_SOURCES["ochsner-sport"],
+  SHOP_SOURCES["ochsner-shoes"],
 ];
