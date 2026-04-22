@@ -9,14 +9,13 @@ import { prettifySlug } from "@/lib/category-icons";
 import CategoryClient from "./client";
 
 /**
- * ISR — same motivation as the landing page. Filters are applied
- * client-side inside CategoryClient, so a 5-minute cache does not
- * affect filter/sort interactivity; it only caches the big
- * getProductsByCategory slice + the COUNT(*).
+ * ISR — filters are applied client-side inside CategoryClient, so a
+ * 5-minute cache doesn't affect filter/sort interactivity; it only
+ * caches the getProductsByCategory DB slice + COUNT(*). The static
+ * shell is served from Vercel's edge cache; only the first visitor per
+ * 5-minute window hits the DB.
  */
-// 340 category nodes × deep param trees = build-timeout risk. force-dynamic
-// keeps every category page fully SSR per request, no ISR cache to warm.
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function CategoryPage({
   params,

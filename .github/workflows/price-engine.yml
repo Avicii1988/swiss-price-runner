@@ -97,5 +97,11 @@ jobs:
       - name: "Import: Mobilezone"
         run: npx tsx scripts/import-runner.ts --feed mobilezone --limit $LIMIT || true
 
+      - name: "Import: Ochsner Sport"
+        run: npx tsx scripts/import-runner.ts --feed ochsner-sport --limit $LIMIT || true
+
+      - name: "Import: Ochsner Shoes"
+        run: npx tsx scripts/import-runner.ts --feed ochsner-shoes --limit $LIMIT || true
+
       - name: Summary
         run: echo "✓ Nightly import engine completed. Check individual steps for per-shop status."

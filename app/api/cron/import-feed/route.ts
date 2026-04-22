@@ -63,14 +63,39 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Ackermann Technik",
     sourceType: "adtraction_feed",
   },
+  bergfreunde: {
+    id: "bergfreunde",
+    url: process.env.BERGFREUNDE_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=0&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=1&apid=1686076672&asid=2064719298&gsh=0&pfid=1213&gt=1",
+    shopName: "Bergfreunde",
+    sourceType: "adtraction_feed",
+  },
+  "ochsner-sport": {
+    id: "ochsner-sport",
+    url: process.env.OCHSNER_SPORT_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=0&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=1&apid=1631001329&asid=2064719298&gsh=0&pfid=1600&gt=1",
+    shopName: "Ochsner Sport",
+    sourceType: "adtraction_feed",
+  },
+  "ochsner-shoes": {
+    id: "ochsner-shoes",
+    url: process.env.OCHSNER_SHOES_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=0&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=1&apid=1629102021&asid=2064719298&gsh=0&pfid=1237&gt=1",
+    shopName: "Ochsner Shoes",
+    sourceType: "adtraction_feed",
+  },
 };
 
 const DEFAULT_FEED_KEY = "xxl_parfum";
 
+type ContainerTag = "item" | "ad" | "product" | "offer" | "entry";
+const CONTAINER_CANDIDATES: ContainerTag[] = ["item", "ad", "product", "offer", "entry"];
+
 // ── In-memory feed cache: RAW XML + pre-computed item positions for O(1) slicing ──
 interface CachedFeed {
   xml: string;
-  itemStarts: number[]; // byte positions of each <item> tag — enables direct offset lookup
+  itemStarts: number[]; // byte positions of each container-tag start — enables direct offset lookup
+  container: ContainerTag;
   total: number;
   timestamp: number;
 }
@@ -86,6 +111,9 @@ const KNOWN_TOTALS: Record<string, number> = {
   new_balance: 3000,
   parfum_ch: 12000,
   ackermann_ch: 5000,
+  bergfreunde: 15000,
+  "ochsner-sport": 10000,
+  "ochsner-shoes": 8000,
 };
 
 export async function GET(req: NextRequest) { return handleRequest(req); }
@@ -149,12 +177,14 @@ async function handleRequest(req: NextRequest) {
     // ── 2. Get or download feed XML ────────────────────────
     let feedXml: string;
     let itemStarts: number[];
+    let container: ContainerTag;
     let total: number;
     const cached = feedCache.get(feedKey);
 
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       feedXml = cached.xml;
       itemStarts = cached.itemStarts;
+      container = cached.container;
       total = cached.total;
     } else {
       // First request for this feed — download + decompress
@@ -170,9 +200,11 @@ async function handleRequest(req: NextRequest) {
 
       // Build position index ONCE (O(n) scan, ~50ms for 41k items)
       // Subsequent slices are O(1) direct lookup — offset=40000 as fast as offset=0
-      itemStarts = buildItemIndex(feedXml);
+      const idx = buildItemIndex(feedXml);
+      itemStarts = idx.starts;
+      container = idx.container;
       total = itemStarts.length;
-      feedCache.set(feedKey, { xml: feedXml, itemStarts, total, timestamp: Date.now() });
+      feedCache.set(feedKey, { xml: feedXml, itemStarts, container, total, timestamp: Date.now() });
 
       console.log(`[Import ${feed.id}] Feed ready: ${total} items, ${(feedXml.length / 1024).toFixed(0)} KB, ${elapsed()}ms`);
 
@@ -195,7 +227,7 @@ async function handleRequest(req: NextRequest) {
     }
 
     // ── 3. Parse ONLY the batch we need (O(1) direct slice via index) ──
-    const batch = parseFeedSliceIndexed(feedXml, itemStarts, offset, limit);
+    const batch = parseFeedSliceIndexed(feedXml, itemStarts, container, offset, limit);
 
     if (batch.length === 0) {
       await logImport(feed.id, 0, total, 0, 0, "cycle_complete", "Zyklus fertig.");
@@ -493,37 +525,47 @@ interface FeedItem {
 }
 
 /**
- * Build a position index of all <item> start positions.
+ * Build a position index of all container-tag start positions.
+ * Tries <item>, <ad>, <product>, <offer>, <entry> in order and uses the
+ * first tag that produces results (Bergfreunde / Ochsner feeds use <ad>).
  * Runs once per feed cache lifetime (~50ms for 41k items).
- * Enables O(1) offset lookup — offset=40000 is as fast as offset=0.
  */
-function buildItemIndex(xml: string): number[] {
-  const starts: number[] = [];
-  let pos = 0;
-  while (true) {
-    pos = xml.indexOf("<item>", pos);
-    if (pos === -1) break;
-    starts.push(pos);
-    pos += 6;
+function buildItemIndex(xml: string): { starts: number[]; container: ContainerTag } {
+  for (const c of CONTAINER_CANDIDATES) {
+    const openTag = `<${c}>`;
+    const starts: number[] = [];
+    let pos = 0;
+    while (true) {
+      pos = xml.indexOf(openTag, pos);
+      if (pos === -1) break;
+      starts.push(pos);
+      pos += openTag.length;
+    }
+    if (starts.length > 0) {
+      console.log(`[Import] Container <${c}> detected (${starts.length.toLocaleString()} items)`);
+      return { starts, container: c };
+    }
   }
-  return starts;
+  console.warn(`[Import] No known container found; tried: ${CONTAINER_CANDIDATES.map((c) => `<${c}>`).join(", ")}`);
+  return { starts: [], container: "item" };
 }
 
 /**
  * O(1) indexed slice: directly jumps to item N using the pre-computed index.
  * Only parses the items in [offset, offset+limit].
- * Streaming-like behavior: other items never touched.
  */
-function parseFeedSliceIndexed(xml: string, itemStarts: number[], offset: number, limit: number): FeedItem[] {
+function parseFeedSliceIndexed(xml: string, itemStarts: number[], container: ContainerTag, offset: number, limit: number): FeedItem[] {
   const items: FeedItem[] = [];
+  const openTag = `<${container}>`;
+  const closeTag = `</${container}>`;
+  const openLen = openTag.length;
   const end = Math.min(offset + limit, itemStarts.length);
 
   for (let i = offset; i < end; i++) {
-    const start = itemStarts[i] + 6; // skip "<item>"
-    // Find </item> — bounded search (next item's start or end of XML)
-    const limit = i + 1 < itemStarts.length ? itemStarts[i + 1] : xml.length;
-    const closeIdx = xml.indexOf("</item>", start);
-    if (closeIdx === -1 || closeIdx > limit) continue;
+    const start = itemStarts[i] + openLen;
+    const bound = i + 1 < itemStarts.length ? itemStarts[i + 1] : xml.length;
+    const closeIdx = xml.indexOf(closeTag, start);
+    if (closeIdx === -1 || closeIdx > bound) continue;
     const block = xml.slice(start, closeIdx);
     items.push(extractItem(block));
   }

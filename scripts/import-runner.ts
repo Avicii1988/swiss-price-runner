@@ -130,13 +130,34 @@ const FEEDS: Record<string, FeedConfig> = {
   },
   bergfreunde: {
     id: "bergfreunde",
-    // Bergfreunde — Adtraction feed (pfid=1213, gsh=1 → gross CHF, gt=1 → tagged).
-    // Outdoor gear: climbing, hiking, skiing, trail running. CHF-native so it
-    // flows through the Swiss-shop path (buildSwissShopBreakdown) just like
-    // parfum_ch / ackermann_ch. URL can be overridden via BERGFREUNDE_FEED_URL.
+    // Bergfreunde — Adtraction feed (pfid=1213, zip=0 → plain XML, gsh=0 → net CHF,
+    // flat=1 → flat-rate structure). Container tag: <ad>. Outdoor gear: climbing,
+    // hiking, skiing, trail running. URL can be overridden via BERGFREUNDE_FEED_URL.
     url: process.env.BERGFREUNDE_FEED_URL
-      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=1&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=0&apid=1686076672&asid=2064719298&gsh=1&pfid=1213&gt=1",
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=0&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=1&apid=1686076672&asid=2064719298&gsh=0&pfid=1213&gt=1",
     shopName: "Bergfreunde",
+    sourceType: "adtraction_feed",
+  },
+  "ochsner-sport": {
+    id: "ochsner-sport",
+    // Ochsner Sport — Swiss sport & outdoor retailer. Adtraction feed
+    // (apid=1631001329, pfid=1600, zip=0, gsh=0, flat=1). Container tag: <ad>.
+    // Wide range: running, fitness, team sports, outdoor, ski & snowboard.
+    // URL can be overridden via OCHSNER_SPORT_FEED_URL.
+    url: process.env.OCHSNER_SPORT_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=0&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=1&apid=1631001329&asid=2064719298&gsh=0&pfid=1600&gt=1",
+    shopName: "Ochsner Sport",
+    sourceType: "adtraction_feed",
+  },
+  "ochsner-shoes": {
+    id: "ochsner-shoes",
+    // Ochsner Shoes — Swiss footwear specialist. Adtraction feed
+    // (apid=1629102021, pfid=1237, zip=0, gsh=0, flat=1). Container tag: <ad>.
+    // Broad assortment: sneakers, boots, dress shoes, sandals, kids' shoes.
+    // URL can be overridden via OCHSNER_SHOES_FEED_URL.
+    url: process.env.OCHSNER_SHOES_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=0&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=1&apid=1629102021&asid=2064719298&gsh=0&pfid=1237&gt=1",
+    shopName: "Ochsner Shoes",
     sourceType: "adtraction_feed",
   },
   mobilezone: {
