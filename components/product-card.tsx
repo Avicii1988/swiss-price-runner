@@ -165,7 +165,7 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
   // GRID LAYOUT
   // ───────────────────────────────────────────────────────────────
   return (
-    <div className="group relative flex flex-col bg-white transition-colors duration-200 hover:bg-[#f8f8f9]">
+    <div className="group relative flex flex-col bg-white transition-colors duration-200 hover:bg-[#f8f8f9] md:border-r md:border-gray-100">
       <Link href={`/product/${product.gtin}`} className="flex flex-1 flex-col p-4 sm:p-5">
         {/* Image */}
         <div className="aspect-square overflow-hidden p-3">

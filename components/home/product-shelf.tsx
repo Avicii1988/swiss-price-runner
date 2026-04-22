@@ -62,7 +62,7 @@ export function ProductShelf({
         className={
           layout === "list"
             ? "flex flex-col divide-y divide-[#f0f0f2]"
-            : "grid grid-cols-1 gap-12 md:grid-cols-2 lg:grid-cols-3"
+            : "grid grid-cols-1 gap-y-12 md:grid-cols-2 lg:grid-cols-3 md:overflow-hidden"
         }
       >
         {visible.map((item) => (

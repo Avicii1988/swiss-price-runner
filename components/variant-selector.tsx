@@ -33,6 +33,16 @@ const COLOR_SWATCHES: Record<string, string> = {
   beige: "#d8c9a3", taupe: "#a99078", braun: "#7c4a2a", brown: "#7c4a2a", natur: "#c2a878",
   midnight: "#1b1d2a", obsidian: "#0f0f12", "phantom black": "#0a0a0a",
   "natural titanium": "#A6A9AA", "desert titanium": "#c1a47e", "blue titanium": "#2B3541",
+  // Google Pixel palette
+  hazel: "#8b7355", jade: "#00a86b", bay: "#4a6fa5", lemongrass: "#c6b875",
+  sage: "#87a878", mist: "#c9d1d9", wintergreen: "#a0c1a8", wintermint: "#b8e0c8",
+  // Samsung Galaxy palette
+  "bora purple": "#6b5b95", lime: "#84cc16", onyx: "#1a1a1a", violet: "#7c3aed",
+  storm: "#6b7280", "marble gray": "#9aa0a6", "icy blue": "#c9e3f5", icyblue: "#c9e3f5",
+  "cobalt violet": "#5b4b8a", "amber yellow": "#f5c542", "mint green": "#a7e3c2",
+  "phantom titanium": "#A6A9AA", "titanium black": "#1D1D1F", "titanium gray": "#A6A9AA",
+  "titanium violet": "#8a7cb8", "titanium yellow": "#d4bf6a",
+  "space black": "#1D1D1F", burgundy: "#5e1b1b",
 };
 
 function colorSwatch(name: string): string {

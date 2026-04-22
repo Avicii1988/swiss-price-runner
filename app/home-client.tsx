@@ -46,18 +46,14 @@ export default function HomeClient({ dynamicCategories, stats, shelves }: HomeCl
           comparison site in beta). Marken + Angebote counters moved
           to a dedicated band above the News sidebar. ═══ */}
       <div className="bg-gradient-to-r from-[#1a1f36] to-[#2d3561]">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-center gap-2.5 px-4 py-2.5 text-center sm:gap-3 sm:px-6">
-          {/* Brand mark — the PreisAlarm bell (red bell + white Swiss cross)
-              replaces the older split treatment of a generic Swiss-cross
-              circle on the left and a lucide bell on the right. One mark,
-              one identity, lockstep with the header logo. */}
-          <PreisAlarmBell size={32} />
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
           <p className="text-[12px] font-medium text-white/90 sm:text-[13px]">
             Dein Schweizer Preisvergleich für alles —
             <span className="hidden text-white/60 sm:inline"> neutral, unabhängig,</span>
             {" "}mit Echtzeit-
             <span className="font-semibold text-white">Preisalarm</span>.
           </p>
+          <PreisAlarmBell size={32} />
         </div>
       </div>
 
