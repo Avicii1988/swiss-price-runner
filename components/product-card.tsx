@@ -53,9 +53,11 @@ interface ProductCardProps {
   item: MockProductWithHistory;
   onAlert?: (item: MockProductWithHistory) => void;
   layout?: "grid" | "list";
+  /** Set true for the first few visible cards to eager-load images and improve LCP. */
+  eager?: boolean;
 }
 
-export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps) {
+export function ProductCard({ item, onAlert, layout = "grid", eager = false }: ProductCardProps) {
   const { product, bestPrice } = item;
   const { isLoggedIn, isFavorite, toggleFavorite, isPinned, togglePin, setShowAuthModal } = useAuth();
   // Treat absurd prices as "ask for a quote" rather than rendering CHF 1.2M
@@ -104,7 +106,8 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
         <Link href={`/product/${product.gtin}`} className="flex gap-4">
           <div className="flex h-28 w-28 shrink-0 items-center justify-center p-1 sm:h-32 sm:w-32">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={112} height={112} loading="lazy"
+            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={112} height={112}
+              loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : "auto"}
               className="max-h-full max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
           </div>
 
@@ -171,7 +174,8 @@ export function ProductCard({ item, onAlert, layout = "grid" }: ProductCardProps
         <div className="aspect-square overflow-hidden p-3">
           <div className="flex h-full w-full items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={240} height={240} loading="lazy"
+            <img src={proxyUrl(product.imageUrl)} alt={product.title} width={240} height={240}
+              loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : "auto"}
               className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMG; }} />
           </div>

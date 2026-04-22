@@ -62,15 +62,19 @@ export function ProductShelf({
         className={
           layout === "list"
             ? "flex flex-col divide-y divide-[#f0f0f2]"
-            : "grid grid-cols-1 gap-y-12 md:grid-cols-2 lg:grid-cols-3 md:overflow-hidden"
+            // Grid: on mobile (1 col) show divider lines between rows instead of
+            // large gaps so the list feels compact; on md+ restore the gap and
+            // switch to column dividers (md:border-r handled inside ProductCard).
+            : "grid grid-cols-1 divide-y divide-gray-100 md:divide-y-0 md:gap-y-12 md:grid-cols-2 lg:grid-cols-3 md:overflow-hidden"
         }
       >
-        {visible.map((item) => (
+        {visible.map((item, idx) => (
           <ProductCard
             key={item.product.gtin}
             item={item}
             layout={layout}
             onAlert={onAlert}
+            eager={idx < 4}
           />
         ))}
       </div>
