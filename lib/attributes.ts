@@ -86,6 +86,14 @@ function extractStorage(text: string | null | undefined): string | null {
     const unit = l === "go" ? "GB" : l === "to" ? "TB" : compact[2].toUpperCase();
     return `${compact[1]} ${unit}`;
   }
+  // Last-ditch: bare G or T suffix without B — "128G", "256G", "1T".
+  // Run on original text (stripping already consumed \d+G so we re-check).
+  // Require 2+ digits for G to block cellular gen tokens (4G, 5G).
+  // \b after G ensures "128GB" never matches (G is not a word boundary there).
+  const bareG = text.match(/\b(\d{2,})G\b/i);
+  if (bareG) return `${bareG[1]} GB`;
+  const bareT = text.match(/\b(\d+)T\b/i);
+  if (bareT) return `${bareT[1]} TB`;
   return null;
 }
 
