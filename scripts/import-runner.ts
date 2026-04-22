@@ -269,23 +269,39 @@ interface FeedItem {
   color: string;
 }
 
-/** Container tag — most Adtraction feeds use <item>, some use <product>. */
-type ContainerTag = "item" | "product";
+/** Container tag — Adtraction feeds vary: <item>, <product>, <ad>, <offer>, <entry>. */
+type ContainerTag = "item" | "product" | "ad" | "offer" | "entry";
 
 interface FeedIndex {
   starts: number[];
   container: ContainerTag;
 }
 
+// Priority order for container auto-detection. <item> is the Google Merchant
+// standard used by most Adtraction feeds; <ad> is used by some programme
+// types (e.g. Bergfreunde). <product>, <offer>, <entry> cover the long tail.
+const CONTAINER_CANDIDATES: ContainerTag[] = ["item", "product", "ad", "offer", "entry"];
+
 /**
- * Build an index of item/product container start positions.
- * Tries <item> first (Google Merchant standard), falls back to <product>.
+ * Build an index of item-container start positions.
+ * Probes CONTAINER_CANDIDATES in order and returns the first one that has
+ * at least one occurrence. Emits a diagnostic log so the operator can see
+ * which container was matched — or a warning with the first 500 chars of
+ * the feed XML when no known tag is found (helps identify unusual feeds).
  */
 function buildItemIndex(xml: string): FeedIndex {
-  const itemStarts = scanContainer(xml, "<item>");
-  if (itemStarts.length > 0) return { starts: itemStarts, container: "item" };
-  const productStarts = scanContainer(xml, "<product>");
-  return { starts: productStarts, container: "product" };
+  for (const container of CONTAINER_CANDIDATES) {
+    const starts = scanContainer(xml, `<${container}>`);
+    if (starts.length > 0) {
+      console.log(`🏷️  Container <${container}> detected (${starts.length.toLocaleString()} occurrences)`);
+      return { starts, container };
+    }
+  }
+  console.warn(
+    `⚠️  No known container tag found. Tried: ${CONTAINER_CANDIDATES.map((c) => `<${c}>`).join(", ")}\n` +
+    `   First 500 chars of feed:\n${xml.slice(0, 500)}`,
+  );
+  return { starts: [], container: "item" };
 }
 
 function scanContainer(xml: string, openTag: string): number[] {
