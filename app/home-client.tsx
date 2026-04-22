@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Tag, Package } from "lucide-react";
 import { PriceAlertModal } from "@/components/price-alert-modal";
@@ -28,11 +28,12 @@ const BLOG_ARTICLES = [
 export default function HomeClient({ dynamicCategories, stats, shelves }: HomeClientProps) {
   const [query, setQuery] = useState("");
   const [alertProduct, setAlertProduct] = useState<MockProductWithHistory | null>(null);
-  // Home-page view mode — list on mobile (<640px), grid on desktop.
-  // Mirrors the same responsive initialiser used by the category page.
-  const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    typeof window !== "undefined" && window.innerWidth < 640 ? "list" : "grid",
-  );
+  // Default to grid (avoids SSR/hydration mismatch). After mount, switch
+  // to list on mobile so narrow screens get a single-column list layout.
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  useEffect(() => {
+    if (window.innerWidth < 640) setViewMode("list");
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
