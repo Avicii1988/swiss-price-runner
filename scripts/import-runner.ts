@@ -10,6 +10,7 @@
  * involved — no function-seconds cost, no 300s timeout, no HTTP overhead.
  */
 
+import AdmZip from "adm-zip";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { extractAttributes } from "../lib/attributes";
 import {
@@ -217,39 +218,60 @@ async function downloadFeed(url: string): Promise<string> {
   }
 
   let xml: string;
-  try { xml = await decompressZip(bytes); } catch { xml = new TextDecoder().decode(bytes); }
-  console.log(`⬇️  Downloaded ${(xml.length / 1024 / 1024).toFixed(1)} MB in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  try {
+    xml = extractFeedContent(bytes);
+  } catch (err) {
+    console.warn(`⚠️  ZIP extraction failed (${err instanceof Error ? err.message : err}), falling back to raw decode`);
+    xml = new TextDecoder().decode(bytes);
+  }
+  console.log(`⬇️  Feed ready: ${(xml.length / 1024 / 1024).toFixed(1)} MB in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   return xml;
 }
 
-async function decompressZip(data: Uint8Array): Promise<string> {
-  if (data[0] !== 0x50 || data[1] !== 0x4b) return new TextDecoder().decode(data);
-  const method = data[8] | (data[9] << 8);
-  const compSize = data[18] | (data[19] << 8) | (data[20] << 16) | (data[21] << 24);
-  const fnLen = data[26] | (data[27] << 8);
-  const exLen = data[28] | (data[29] << 8);
-  const headerOffset = 30 + fnLen + exLen;
-  const size = compSize > 0 ? compSize : data.length - headerOffset - 100;
-  const compressed = data.slice(headerOffset, headerOffset + size);
-  if (method === 0) return new TextDecoder().decode(compressed);
-  if (method === 8) {
-    const ds = new DecompressionStream("deflate-raw");
-    const w = ds.writable.getWriter();
-    w.write(compressed); w.close();
-    const r = ds.readable.getReader();
-    const chunks: Uint8Array[] = [];
-    while (true) {
-      const { done, value } = await r.read();
-      if (done) break;
-      chunks.push(value);
-    }
-    const totalBytes = chunks.reduce((s, c) => s + c.length, 0);
-    const result = new Uint8Array(totalBytes);
-    let p = 0;
-    for (const c of chunks) { result.set(c, p); p += c.length; }
-    return new TextDecoder().decode(result);
+/**
+ * Extract the XML content from a feed download.
+ *
+ * The old hand-rolled parser read the local file header's compressed-size
+ * field (bytes 18-21), but many ZIP producers set that to 0 when using the
+ * data-descriptor extension (bit 3 of the general-purpose flag). The fallback
+ * `data.length - headerOffset - 100` passed central-directory bytes into
+ * DecompressionStream which silently failed, the outer catch fell back to
+ * treating the raw binary as UTF-8 text, and buildItemIndex found 0 items.
+ *
+ * adm-zip reads the central directory at the END of the archive (the
+ * authoritative record) so it is immune to that class of bug. It also
+ * handles Deflate, Stored, and Deflate64 entries correctly.
+ *
+ * Memory note: ZIP feeds are downloaded entirely before this call, so the
+ * bytes are already in memory. adm-zip decompresses into a second Buffer.
+ * For a 15 MB zip → 100 MB XML that peak is ~115 MB — well within the
+ * Node.js default heap. If feeds ever exceed ~500 MB uncompressed, switch
+ * to the streaming `unzipper` library.
+ */
+function extractFeedContent(data: Uint8Array): string {
+  // Not a ZIP — plain XML or gzipped content (gzip handled separately).
+  if (data[0] !== 0x50 || data[1] !== 0x4b) {
+    return new TextDecoder().decode(data);
   }
-  throw new Error(`ZIP method ${method}`);
+
+  console.log(`📦 ZIP signature detected — using adm-zip to extract…`);
+  const zip = new AdmZip(Buffer.from(data));
+  const entries = zip.getEntries();
+
+  if (entries.length === 0) throw new Error("ZIP archive contains no entries");
+
+  // Pick the first non-directory entry; for Adtraction feeds there is
+  // always exactly one file inside the archive.
+  const entry = entries.find((e) => !e.isDirectory);
+  if (!entry) throw new Error("ZIP archive contains only directories");
+
+  const uncompressedMb = (entry.header.size / 1024 / 1024).toFixed(1);
+  console.log(`📦 Extracting "${entry.entryName}" (${uncompressedMb} MB uncompressed, method=${entry.header.method})`);
+
+  const buf = zip.readFile(entry);
+  if (!buf) throw new Error(`adm-zip returned null for entry "${entry.entryName}"`);
+
+  return buf.toString("utf-8");
 }
 
 interface FeedItem {
