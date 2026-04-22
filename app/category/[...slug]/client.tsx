@@ -345,7 +345,7 @@ export default function CategoryClient({
                 <div
                   className={
                     viewMode === "grid"
-                      ? "grid grid-cols-1 gap-x-8 gap-y-12 md:grid-cols-2 lg:grid-cols-3"
+                      ? "grid grid-cols-1 gap-y-12 md:grid-cols-2 lg:grid-cols-3 md:overflow-hidden"
                       : ""
                   }
                 >
@@ -396,7 +396,7 @@ export default function CategoryClient({
               <div
                 className={
                   viewMode === "grid"
-                    ? "grid grid-cols-1 gap-x-8 gap-y-12 md:grid-cols-2 lg:grid-cols-3"
+                    ? "grid grid-cols-1 gap-y-12 md:grid-cols-2 lg:grid-cols-3 md:overflow-hidden"
                     : ""
                 }
               >

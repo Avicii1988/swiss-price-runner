@@ -62,20 +62,30 @@ function normalise(s: string | null | undefined): string {
  *  is a network generation, not a size. */
 function extractStorage(text: string | null | undefined): string | null {
   if (!text) return null;
+  // Strip lone cellular-gen markers (5G, 4G) but not 128GB etc.
   const cleaned = text.replace(/\b\d+G\b/g, " ").replace(/\s+/g, " ");
-  // Prefer the largest GB/TB value found (pick max to avoid matching
-  // RAM when both RAM and storage are in the haystack, e.g. "8GB RAM 256GB").
-  const all = [...cleaned.matchAll(/\b(\d+(?:\.\d+)?)\s*(gb|tb)\b/gi)];
+  // Match GB/TB and French equivalents Go (gigaoctet) / To (téraoctet).
+  // Prefer the LARGEST value to avoid matching RAM alongside storage.
+  const all = [...cleaned.matchAll(/\b(\d+(?:\.\d+)?)\s*(gb|tb|go|to)\b/gi)];
   if (all.length > 0) {
-    // Prefer TB, then largest GB
-    const tb = all.find((m) => m[2].toUpperCase() === "TB");
+    const normaliseUnit = (u: string) => {
+      const l = u.toLowerCase();
+      if (l === "go") return "GB";
+      if (l === "to") return "TB";
+      return u.toUpperCase();
+    };
+    const tb = all.find((m) => m[2].toLowerCase() === "tb" || m[2].toLowerCase() === "to");
     if (tb) return `${tb[1]} TB`;
     const best = all.reduce((a, b) => Number(a[1]) >= Number(b[1]) ? a : b);
-    return `${best[1]} GB`;
+    return `${best[1]} ${normaliseUnit(best[2])}`;
   }
-  // Fallback: compact form "256gb" without word boundary
-  const compact = cleaned.match(/(\d{2,})(gb|tb)/i);
-  if (compact) return `${compact[1]} ${compact[2].toUpperCase()}`;
+  // Fallback: compact form "256GB" / "128go" without explicit word boundary
+  const compact = cleaned.match(/(\d{2,})(gb|tb|go|to)/i);
+  if (compact) {
+    const l = compact[2].toLowerCase();
+    const unit = l === "go" ? "GB" : l === "to" ? "TB" : compact[2].toUpperCase();
+    return `${compact[1]} ${unit}`;
+  }
   return null;
 }
 
@@ -146,6 +156,14 @@ const COLOR_PATTERNS = [
   "natural titanium", "blue titanium", "deep purple",
   "alpine green", "sierra blue", "graphite", "pacific blue",
   "phantom black", "cream", "lavender", "coral", "mint",
+  // Google Pixel palette
+  "obsidian", "hazel", "porcelain", "lemongrass", "jade", "bay",
+  "peony", "wintergreen", "wintermint", "sage", "mist",
+  // Samsung Galaxy palette
+  "bora purple", "lime", "onyx", "violet", "storm", "marble gray",
+  "icyblue", "icy blue", "cobalt violet", "amber yellow", "mint green",
+  "phantom titanium", "titanium black", "titanium gray", "titanium violet",
+  "titanium yellow", "space black", "burgundy",
 ];
 
 function extractColor(text: string): string | null {
