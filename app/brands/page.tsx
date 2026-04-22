@@ -5,15 +5,17 @@ export const dynamic = "force-dynamic";
 
 async function getBrands() {
   try {
-    const groups = await db.product.groupBy({
-      by: ["brand"],
-      where: { isActive: true, price: { gt: 0 } },
-      _count: true,
-      orderBy: { brand: "asc" },
-    });
-    return groups
-      .filter((g) => g.brand && g.brand.length > 1 && g.brand !== "XXL Parfum")
-      .map((g) => ({ name: g.brand, productCount: g._count }));
+    const rows = await db.$queryRaw<{ brand: string; count: bigint }[]>`
+      SELECT brand, COUNT(*) AS count
+      FROM "Product"
+      WHERE brand IS NOT NULL
+        AND brand != ''
+        AND LENGTH(brand) > 1
+        AND brand != 'XXL Parfum'
+      GROUP BY brand
+      ORDER BY brand ASC
+    `;
+    return rows.map((r) => ({ name: r.brand, productCount: Number(r.count) }));
   } catch {
     return [];
   }
