@@ -246,6 +246,18 @@ async function _getProductsByCategory(slug: string): Promise<MockProductWithHist
       : Prisma.sql`ORDER BY COALESCE(sc.shop_count, 1) DESC,
                             p."updatedAt" DESC`;
 
+    // Smartphone categories carry accessory noise (cases, chargers, shavers).
+    // Exclude those titles so only actual phones appear in phone categories.
+    const SMARTPHONE_SLUG_RE = /\b(smartphone|iphone|mobile)\b/i;
+    const isSmartphoneCat = filterSlugs.some((s) => SMARTPHONE_SLUG_RE.test(s));
+    const SMARTPHONE_EXCLUSIONS = ["Hülle", "Case", "Panzerglas", "Ladekabel", "Rasierer", "Shaver", "Parfüm"];
+    const exclusionClauses = isSmartphoneCat
+      ? SMARTPHONE_EXCLUSIONS.map((kw) => Prisma.sql`p.title NOT ILIKE ${`%${kw}%`}`)
+      : [];
+    const exclusionSql = exclusionClauses.length > 0
+      ? Prisma.sql`AND ${Prisma.join(exclusionClauses, " AND ")}`
+      : Prisma.sql``;
+
     const rows = await db.$queryRaw<Array<{
       id: string; gtin: string; title: string; brand: string; category: string;
       categoryName: string | null; imageUrl: string | null; shopName: string | null;
@@ -270,6 +282,7 @@ async function _getProductsByCategory(slug: string): Promise<MockProductWithHist
       WHERE p."isActive" = true
         AND p.price IS NOT NULL AND p.price > 0
         AND p.category IN (${Prisma.join(filterSlugs)})
+        ${exclusionSql}
       ${orderBy}
       LIMIT 1000
     `;
@@ -761,6 +774,12 @@ export interface ThematicSlot {
    *   "newest"  — most recently imported (createdAt DESC)
    */
   sortBy?: "popular" | "deals" | "newest";
+  /** Exclude products whose title contains any of these strings (case-insensitive). */
+  titleExclude?: string[];
+  /** Restrict to a specific brand (case-insensitive exact match). */
+  brandFilter?: string;
+  /** Only include products with price >= this CHF value. */
+  priceMin?: number;
 }
 
 /**
@@ -823,6 +842,17 @@ export async function getThematicShelves(
           Prisma.sql`price IS NOT NULL AND price > 0`,
           Prisma.sql`"imageUrl" IS NOT NULL`,
         ];
+        if (slot.priceMin && slot.priceMin > 0) {
+          whereClauses.push(Prisma.sql`price >= ${slot.priceMin}`);
+        }
+        if (slot.brandFilter) {
+          whereClauses.push(Prisma.sql`brand ILIKE ${slot.brandFilter}`);
+        }
+        if (slot.titleExclude && slot.titleExclude.length > 0) {
+          for (const kw of slot.titleExclude) {
+            whereClauses.push(Prisma.sql`title NOT ILIKE ${`%${kw}%`}`);
+          }
+        }
         if (categoryFilter) {
           if (categoryFilter.slugs.length === 0) {
             // notIn with empty list = match all → skip the filter
