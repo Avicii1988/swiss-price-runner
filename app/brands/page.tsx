@@ -9,7 +9,7 @@ async function getBrands() {
       by: ["brand"],
       where: { isActive: true, price: { gt: 0 } },
       _count: true,
-      orderBy: { _count: { brand: "desc" } },
+      orderBy: { brand: "asc" },
     });
     return groups
       .filter((g) => g.brand && g.brand.length > 1 && g.brand !== "XXL Parfum")
