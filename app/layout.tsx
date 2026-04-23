@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
 import { Bell, Instagram, Facebook, Youtube } from "lucide-react";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { LangProvider } from "@/lib/i18n-context";
@@ -65,6 +66,7 @@ export default function RootLayout({
   return (
     <html lang="de-CH">
       <body className="min-h-screen bg-white text-gray-900 antialiased">
+        <Analytics />
         <NextAuthProvider>
         <LangProvider>
         <AuthProvider>

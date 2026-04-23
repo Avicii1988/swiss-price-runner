@@ -130,6 +130,25 @@ model UserAlert {
   @@unique([email, productId])
 }
 
+model PageView {
+  id        Int      @id @default(autoincrement())
+  path      String
+  ua        String?
+  host      String?
+  referrer  String?
+  ip        String?
+  country   String?
+  city      String?
+  region    String?
+  latitude  Float?
+  longitude Float?
+  timestamp DateTime @default(now())
+
+  @@map("page_views")
+  @@index([path])
+  @@index([timestamp])
+}
+
 model ImportLog {
   id         String   @id @default(cuid())
   feedId     String   @default("xxl_parfum")
