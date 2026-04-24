@@ -756,22 +756,42 @@ async function bulkUpsertBatch(
 // Main loop
 // ═══════════════════════════════════════════════════════════════════
 
+// Maximum rows per single DB transaction. Supabase (PgBouncer, transaction mode)
+// times out statements that INSERT 100+ rows against a 500k-row table under index
+// pressure. 50 keeps each round-trip well under the 30s statement timeout and
+// frees the connection back to the pool between writes.
+const DB_BATCH_SIZE = 50;
+
+// Brief pause between consecutive DB transactions. Gives PgBouncer time to
+// release connections and prevents write bursts that exhaust the pool.
+const DB_BATCH_DELAY_MS = 100;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function main() {
   const { feed: feedKey, limit, scrub, offset: startOffset } = parseArgs();
   const feed = FEEDS[feedKey];
 
-  console.log(`🚀 Import ${feed.shopName} (${feed.id}) — limit=${limit} scrub=${scrub}`);
+  // --limit controls how many XML items are parsed into memory per outer loop
+  // iteration (the "parse window"). DB writes are always capped at DB_BATCH_SIZE
+  // regardless of --limit, so a large parse window just means more in-memory
+  // preparation before the same small sequential DB writes.
+  const parseWindow = Math.max(limit, DB_BATCH_SIZE);
+
+  console.log(`🚀 Import ${feed.shopName} (${feed.id}) — parseWindow=${parseWindow} dbBatch=${DB_BATCH_SIZE} scrub=${scrub}`);
   const db = new PrismaClient();
   console.time("total");
 
   try {
-    // 1. Download + index
+    // ── 1. Download + index ──────────────────────────────────────────
     const xml = await downloadFeed(feed.url);
     const feedIdx = buildItemIndex(xml);
     const total = feedIdx.starts.length;
     console.log(`📦 ${total.toLocaleString()} items in feed (container=<${feedIdx.container}>)`);
 
-    // 2. Resume from last offset (unless explicit --offset)
+    // ── 2. Resume from last offset (unless explicit --offset) ────────
     let offset = startOffset >= 0 ? startOffset : 0;
     if (startOffset < 0) {
       const lastLog = await db.importLog.findFirst({
@@ -783,163 +803,173 @@ async function main() {
       if (offset > 0) console.log(`⏩ Resuming at offset ${offset}`);
     }
 
-    // 3. Process batches until done
+    // ── 3. Outer loop: parse a window of XML items ───────────────────
     let totalImported = 0;
     let totalErrors = 0;
     let totalSkipped = 0;
-    let batch = 0;
+    let outerBatch = 0;
 
     while (offset < total) {
-      batch++;
-      const slice = parseFeedSlice(xml, feedIdx, offset, limit);
+      outerBatch++;
+      const slice = parseFeedSlice(xml, feedIdx, offset, parseWindow);
       if (slice.length === 0) break;
 
+      // ── 3a. Prepare all items in this parse window ─────────────────
       const prepared: PreparedItem[] = [];
-      let batchSkipped = 0;
+      let windowSkipped = 0;
 
       for (let i = 0; i < slice.length; i++) {
-        let item: (typeof slice)[0];
+        const item = slice[i];
         try {
-          item = slice[i];
-        } catch {
-          batchSkipped++;
-          continue;
-        }
-        let prepareError: unknown;
-        try {
-        const rawGtin = (item.gtin || "").trim();
-        const rawMpn = (item.mpn || "").trim();
-        const gtin = rawGtin || rawMpn || `feed_${hashStr(item.link || `${offset + i}`)}`;
-        const priceChf = parseSwissPrice(item.price);
-        const rawOriginal = parseSwissPrice(item.originalPrice);
-        // Only record originalPrice as UVP if it is strictly higher than current price.
-        const originalPriceChf = rawOriginal && priceChf && rawOriginal > priceChf ? rawOriginal : null;
-        const affiliateLink = cleanUrl(item.link);
+          const rawGtin = (item.gtin || "").trim();
+          const rawMpn  = (item.mpn  || "").trim();
+          const gtin = rawGtin || rawMpn || `feed_${hashStr(item.link || `${offset + i}`)}`;
+          const priceChf = parseSwissPrice(item.price);
+          const rawOriginal = parseSwissPrice(item.originalPrice);
+          const originalPriceChf = rawOriginal && priceChf && rawOriginal > priceChf ? rawOriginal : null;
+          const affiliateLink = cleanUrl(item.link);
 
-        if (!priceChf || !affiliateLink || affiliateLink === "#") { batchSkipped++; continue; }
+          if (!priceChf || !affiliateLink || affiliateLink === "#") { windowSkipped++; continue; }
+          if (priceChf > 50000) { windowSkipped++; continue; }
 
-        // Price guard — reject implausibly high prices (e.g. 1.2M CHF perfume
-        // glitch). 50k CHF is a generous upper bound for retail goods on a
-        // consumer price-comparison site.
-        if (priceChf > 50000) { batchSkipped++; continue; }
+          const lower = (item.title + " " + item.description).toLowerCase();
+          if (/\b(rx|rezeptpflichtig|verschreibungspflichtig|prescription[- ]only)\b/i.test(lower)) {
+            windowSkipped++;
+            continue;
+          }
 
-        // Rx filter (Swiss pharmacy regulation)
-        const lower = (item.title + " " + item.description).toLowerCase();
-        if (/\b(rx|rezeptpflichtig|verschreibungspflichtig|prescription[- ]only)\b/i.test(lower)) {
-          batchSkipped++;
-          continue;
-        }
+          const shippingCostChf = parseSwissPrice(item.shippingCost);
+          const priceIsNet = item.priceType === "net";
 
-        // ── Parse shipping + NET/GROSS flag from feed ──
-        const shippingCostChf = parseSwissPrice(item.shippingCost);
-        const priceIsNet = item.priceType === "net";
+          const decodedTitle       = decodeHtml(item.title || gtin);
+          const decodedDescription = decodeHtml(item.description || "");
+          const decodedBrand       = decodeHtml(item.brand || feed.shopName).slice(0, 200);
+          const feedSize           = decodeHtml(item.size  || "").trim();
+          const feedColor          = decodeHtml(item.color || "").trim();
 
-        // ── Variant detection: prefer feed-supplied size/colour over
-        //    title heuristics (fashion feeds such as Ackermann Mode set
-        //    g:size and g:color per variant explicitly). Falls back to
-        //    splitTitleBySize() when the feed is silent. Colour is also
-        //    folded into the groupId hash when g:item_group_id is missing
-        //    so colour variants don't collapse into one size chip set. ──
-        const decodedTitle = decodeHtml(item.title || gtin);
-        const decodedDescription = decodeHtml(item.description || "");
-        const decodedBrand = decodeHtml(item.brand || feed.shopName).slice(0, 200);
-        const feedSize = decodeHtml(item.size || "").trim();
-        const feedColor = decodeHtml(item.color || "").trim();
-        let titleSplit: TitleSplit = { baseTitle: decodedTitle || gtin, sizeLabel: null };
-        if (decodedTitle) {
-          try { titleSplit = splitTitleBySize(decodedTitle); } catch { /* keep defaults */ }
-        }
-        const baseTitle = titleSplit.baseTitle;
-        // GTIN guard: never save a barcode number as a size label
-        const rawSize = feedSize || titleSplit.sizeLabel;
-        // Reject GTINs (8-14 digits) and cellular-generation strings (5G, 4G, …)
-        const sizeLabel = rawSize && (
-          /^\d{8,14}$/.test(rawSize) || NETWORK_GEN_RE.test(rawSize.trim())
-        ) ? null : rawSize;
-        const groupId = computeGroupId(item.itemGroupId, decodedBrand, baseTitle, feedColor);
+          let titleSplit: TitleSplit = { baseTitle: decodedTitle || gtin, sizeLabel: null };
+          if (decodedTitle) {
+            try { titleSplit = splitTitleBySize(decodedTitle); } catch { /* keep defaults */ }
+          }
+          const baseTitle  = titleSplit.baseTitle;
+          const rawSize    = feedSize || titleSplit.sizeLabel;
+          const sizeLabel  = rawSize && (
+            /^\d{8,14}$/.test(rawSize) || NETWORK_GEN_RE.test(rawSize.trim())
+          ) ? null : rawSize;
+          const groupId = computeGroupId(item.itemGroupId, decodedBrand, baseTitle, feedColor);
 
-        // ── Category resolution — Phase 2 Path-Finder ──
-        // Uses the deep tree-tunnel resolver which walks the 6-level
-        // Galaxus tree top-down instead of flat first-hit matching.
-        // The feed's `productType` (often a shop breadcrumb like
-        // "Sport > Outdoor > Schuhe") is passed as a breadcrumb signal
-        // to boost tunnel accuracy.
-        const { path: catPath, name: catName } = resolveCategoryDeep(
-          item.productType,
-          decodedTitle,
-          decodedDescription,
-          decodedBrand,
-          feed.id,
-          item.productType, // doubles as shopBreadcrumb signal
-        );
-        const leafSlug = catPath[catPath.length - 1];
+          const { path: catPath, name: catName } = resolveCategoryDeep(
+            item.productType, decodedTitle, decodedDescription,
+            decodedBrand, feed.id, item.productType,
+          );
+          const leafSlug = catPath[catPath.length - 1];
 
-        prepared.push({
-          newId: generateId(),
-          gtin,
-          priceChf,
-          originalPriceChf,
-          shippingCostChf,
-          priceIsNet,
-          affiliateLink,
-          catSlug: leafSlug,   // Product.category = leaf of the path
-          catName,
-          catPath,             // full path → ensureCategories walks this
-          imageUrl: item.imageLink ? cleanUrl(item.imageLink) : null,
-          title: decodedTitle.slice(0, 500),
-          brand: decodedBrand,
-          groupId,
-          baseTitle: baseTitle.slice(0, 500),
-          sizeLabel,
-          description: decodedDescription ? decodedDescription.slice(0, 2000) : null,
-          displayAttributes: (() => {
-            try {
-              if (!decodedTitle) return "{}";
-              return JSON.stringify(
-                extractAttributes(decodedTitle, decodedDescription, leafSlug, feedSize || undefined, feedColor || undefined).all,
-              );
-            } catch { return "{}"; }
-          })(),
-        });
+          prepared.push({
+            newId: generateId(),
+            gtin,
+            priceChf,
+            originalPriceChf,
+            shippingCostChf,
+            priceIsNet,
+            affiliateLink,
+            catSlug: leafSlug,
+            catName,
+            catPath,
+            imageUrl: item.imageLink ? cleanUrl(item.imageLink) : null,
+            title:   decodedTitle.slice(0, 500),
+            brand:   decodedBrand,
+            groupId,
+            baseTitle: baseTitle.slice(0, 500),
+            sizeLabel,
+            description: decodedDescription ? decodedDescription.slice(0, 2000) : null,
+            displayAttributes: (() => {
+              try {
+                if (!decodedTitle) return "{}";
+                return JSON.stringify(
+                  extractAttributes(decodedTitle, decodedDescription, leafSlug, feedSize || undefined, feedColor || undefined).all,
+                );
+              } catch { return "{}"; }
+            })(),
+          });
         } catch (err) {
-          prepareError = err;
-          console.warn(`[import] skipping item ${(item as any)?.gtin ?? offset + i}: ${err instanceof Error ? err.message : err}`);
-          batchSkipped++;
+          console.warn(`[import] prepare error item ${(item as {gtin?: string}).gtin ?? offset + i}: ${err instanceof Error ? err.message : err}`);
+          windowSkipped++;
         }
-        void prepareError; // suppress unused-var lint
       }
 
-      // Guarantee every referenced Category row (and its ancestors) exists
-      // before the Product upsert — products are always born under a valid
-      // root → L2 → L3 chain with correct parentId linking.
-      await ensureCategories(db, prepared.map((p) => ({ path: p.catPath, name: p.catName })));
+      // ── 3b. Ensure category rows exist once for the whole window ───
+      // This is idempotent (ON CONFLICT DO NOTHING) and cheap vs. per-chunk.
+      try {
+        await ensureCategories(db, prepared.map((p) => ({ path: p.catPath, name: p.catName })));
+      } catch (err) {
+        console.warn(`[import] ensureCategories failed (offset=${offset}): ${err instanceof Error ? err.message : err}`);
+      }
 
-      const t0 = Date.now();
-      const { imported, errors } = await bulkUpsertBatch(db, prepared, feed, scrub);
-      const ms = Date.now() - t0;
+      // ── 3c. Write in strict DB_BATCH_SIZE chunks — sequential, never parallel ──
+      // Each chunk is its own SQL transaction. A failure here skips those
+      // 50 rows and logs the error; the outer loop continues unaffected.
+      let windowImported = 0;
+      let windowErrors   = 0;
+      const totalChunks  = Math.ceil(prepared.length / DB_BATCH_SIZE);
 
-      totalImported += imported;
-      totalSkipped += batchSkipped;
-      totalErrors += errors;
-      offset += slice.length;
+      for (let chunkStart = 0; chunkStart < prepared.length; chunkStart += DB_BATCH_SIZE) {
+        const chunk     = prepared.slice(chunkStart, chunkStart + DB_BATCH_SIZE);
+        const chunkIdx  = Math.floor(chunkStart / DB_BATCH_SIZE) + 1;
+        const globalPct = Math.round(((offset + (chunkStart + chunk.length)) / total) * 100);
+
+        try {
+          const t0 = Date.now();
+          const { imported, errors } = await bulkUpsertBatch(db, chunk, feed, scrub);
+          const ms = Date.now() - t0;
+          windowImported += imported;
+          windowErrors   += errors;
+          console.log(
+            `  [${outerBatch}.${chunkIdx}/${totalChunks}] ${globalPct}%` +
+            ` | +${imported} ok, ${errors} err | ${ms}ms`,
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          windowErrors += chunk.length;
+          // Log the first GTIN in the failed chunk for easier debugging
+          console.error(
+            `  [${outerBatch}.${chunkIdx}/${totalChunks}] ⚠ DB chunk failed` +
+            ` (${chunk.length} items, first gtin=${chunk[0]?.gtin ?? "?"}): ${msg.slice(0, 200)}`,
+          );
+        }
+
+        // Yield between DB writes — lets PgBouncer recycle connections
+        // and prevents write bursts that exhaust Supabase's pool.
+        if (chunkStart + DB_BATCH_SIZE < prepared.length) {
+          await sleep(DB_BATCH_DELAY_MS);
+        }
+      }
+
+      totalImported += windowImported;
+      totalSkipped  += windowSkipped;
+      totalErrors   += windowErrors;
+      offset        += slice.length;
 
       const pct = Math.round((offset / total) * 100);
-      console.log(`[${batch}] ${pct}% | +${imported} ok, ${batchSkipped} skip, ${errors} err | offset=${offset}/${total} | ${ms}ms`);
+      console.log(
+        `[${outerBatch}] ${pct}% complete` +
+        ` | window: +${windowImported} ok, ${windowSkipped} skip, ${windowErrors} err` +
+        ` | offset=${offset}/${total}`,
+      );
 
-      // Save progress to ImportLog every 10 batches
-      if (batch % 10 === 0) {
+      // Save progress to ImportLog every 5 outer batches
+      if (outerBatch % 5 === 0) {
         await db.importLog.create({
           data: {
             feedId: feed.id, currentSkip: offset, totalItems: total,
             imported: totalImported, errors: totalErrors,
             status: "completed",
-            message: `Runner batch ${batch}: ${totalImported} total imported`,
+            message: `Runner batch ${outerBatch}: ${totalImported} total imported`,
           },
         }).catch(() => {});
       }
     }
 
-    // Final log
+    // ── 4. Final log ─────────────────────────────────────────────────
     await db.importLog.create({
       data: {
         feedId: feed.id, currentSkip: 0, totalItems: total,
@@ -953,7 +983,7 @@ async function main() {
     console.log(`   ${totalImported.toLocaleString()} imported`);
     console.log(`   ${totalSkipped.toLocaleString()} skipped`);
     console.log(`   ${totalErrors.toLocaleString()} errors`);
-    console.log(`   ${batch} batches`);
+    console.log(`   ${outerBatch} outer batches`);
   } finally {
     await db.$disconnect();
     console.timeEnd("total");
