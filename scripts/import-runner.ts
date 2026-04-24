@@ -756,15 +756,14 @@ async function bulkUpsertBatch(
 // Main loop
 // ═══════════════════════════════════════════════════════════════════
 
-// Maximum rows per single DB transaction. Supabase (PgBouncer, transaction mode)
-// times out statements that INSERT 100+ rows against a 500k-row table under index
-// pressure. 50 keeps each round-trip well under the 30s statement timeout and
-// frees the connection back to the pool between writes.
-const DB_BATCH_SIZE = 50;
+// Maximum rows per single DB transaction. Reduced to 20 to keep each
+// statement well under Supabase Nano's CPU budget on a 500k-row table.
+const DB_BATCH_SIZE = 20;
 
-// Brief pause between consecutive DB transactions. Gives PgBouncer time to
-// release connections and prevents write bursts that exhaust the pool.
-const DB_BATCH_DELAY_MS = 100;
+// Pause between consecutive DB transactions. 500ms gives the Nano instance
+// time to flush WAL, release the connection back to PgBouncer, and cool the
+// CPU between writes — prevents the "Unhealthy" spike pattern.
+const DB_BATCH_DELAY_MS = 500;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
