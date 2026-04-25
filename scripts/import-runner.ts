@@ -978,6 +978,21 @@ async function main() {
       },
     }).catch(() => {});
 
+    // ── 5. ANALYZE — refresh query-planner statistics ─────────────
+    // Runs after every successful cycle so Postgres immediately sees
+    // the updated row counts and doesn't pick a bad index scan plan.
+    // VACUUM is intentionally omitted: Supabase's autovacuum handles
+    // dead-tuple reclamation; VACUUM also cannot run through PgBouncer
+    // in transaction mode. ANALYZE is safe with any role + any pooler.
+    console.log("📊 Running ANALYZE to refresh planner statistics…");
+    try {
+      await db.$executeRawUnsafe(`ANALYZE "Product"`);
+      await db.$executeRawUnsafe(`ANALYZE "Price"`);
+      console.log("   ANALYZE complete.");
+    } catch (err) {
+      console.warn("   ANALYZE failed (non-fatal):", err instanceof Error ? err.message : err);
+    }
+
     console.log(`\n🎉 Import complete`);
     console.log(`   ${totalImported.toLocaleString()} imported`);
     console.log(`   ${totalSkipped.toLocaleString()} skipped`);

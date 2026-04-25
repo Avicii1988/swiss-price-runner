@@ -3,11 +3,15 @@ import {
   getSiteStats,
   getThematicShelves,
   type ThematicSlot,
+  type ThematicShelf,
 } from "@/lib/data";
 import HomeClient from "./home-client";
 
 // ISR — 1 hour cache so homepage navigation feels instant after the
 // first load without hammering the DB on every request.
+// getThematicShelves now re-throws on DB failure, so the ISR engine
+// discards the failed render and preserves the last good cached page
+// rather than replacing it with a "zero products" result.
 export const revalidate = 3600;
 
 // Titles containing any of these strings are accessory noise that leaks
@@ -55,11 +59,23 @@ const HOME_SHELVES: ThematicSlot[] = [
 ];
 
 export default async function HomePage() {
-  const [dynamicCategories, stats, shelves] = await Promise.all([
+  // getDynamicCategories + getSiteStats are wrapped in unstable_cache and
+  // tolerate DB failures gracefully (return empty arrays / zero counts).
+  // getThematicShelves throws on DB failure so ISR preserves the stale
+  // cached page; we catch here ONLY for the very first render when no
+  // prior cache exists (e.g. fresh deployment with DB temporarily down).
+  const [dynamicCategories, stats] = await Promise.all([
     getDynamicCategories(),
     getSiteStats(),
-    getThematicShelves(HOME_SHELVES, 12),
   ]);
+
+  let shelves: ThematicShelf[] = [];
+  try {
+    shelves = await getThematicShelves(HOME_SHELVES, 12);
+  } catch {
+    // DB unavailable on first render — show empty page; ISR will retry
+    // on the next request cycle and populate shelves once DB recovers.
+  }
 
   return (
     <HomeClient

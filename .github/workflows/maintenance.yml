@@ -1,0 +1,80 @@
+name: "[MAINT] Purge Stale Products"
+
+# Runs automatically after the nightly price engine, or manually with
+# a configurable --days threshold and an optional dry-run flag.
+#
+# What it does:
+#   1. Deletes products not updated in the last N days (default: 3)
+#      — cascades to Price and UserAlert rows via FK constraints
+#   2. Runs ANALYZE on Product + Price + UserAlert so the query planner
+#      sees accurate row counts immediately after the purge
+#
+# Why: The Supabase Nano instance has a fixed Disk IO budget. 500k rows
+# across 15+ shop feeds exhausts it within hours of a full nightly run.
+# Keeping only products seen in the last 3 nightly cycles (≈ 3 days)
+# keeps the active catalogue lean and IO usage predictable.
+
+on:
+  workflow_run:
+    workflows: ["[PRICE] Daily Import Engine"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Delete products not updated in the last N days"
+        required: false
+        default: "3"
+      dry_run:
+        description: "Dry run (print counts, do not delete)"
+        required: false
+        default: "false"
+        type: boolean
+      force_pooled:
+        description: "Force use of the pooled DATABASE_URL"
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  purge:
+    # Only run automatically when the nightly engine completed successfully
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Normalize DB URL
+        env:
+          RAW_NON_POOLED: ${{ secrets.POSTGRES_URL_NON_POOLING }}
+          RAW_DATABASE:   ${{ secrets.DATABASE_URL }}
+          FORCE_POOLED:   ${{ inputs.force_pooled || 'false' }}
+        run: node .github/scripts/normalize-db-url.js
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: "Purge stale products (--days ${{ inputs.days || '3' }})"
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          npx tsx scripts/purge-stale-products.ts \
+            --days "${{ inputs.days || '3' }}" \
+            $DRY_RUN_FLAG
+
+      - name: Summary
+        run: echo "✓ Maintenance purge complete. Check step above for deleted counts."
