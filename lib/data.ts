@@ -955,10 +955,25 @@ export async function getThematicShelves(
         return { slot, items };
       }),
     );
+
+    // If every slot came back empty the DB is likely unhealthy or the
+    // catalogue hasn't been imported yet. We distinguish the two cases:
+    //   · Total items > 0 → real data, cache normally.
+    //   · Total items = 0 → poisoned result; throw so Next.js ISR
+    //     discards this render and preserves the last good cached page
+    //     rather than caching a "zero products" view for the next hour.
+    const totalItems = results.reduce((sum, r) => sum + r.items.length, 0);
+    if (totalItems === 0) {
+      throw new Error("getThematicShelves: all slots empty — DB may be unhealthy");
+    }
+
     return results;
   } catch (err) {
     console.warn("[data] getThematicShelves failed:", err instanceof Error ? err.message : err);
-    return slots.map((slot) => ({ slot, items: [] }));
+    // Re-throw so the Next.js ISR background revalidation marks this
+    // render as failed. The PREVIOUS successfully cached HTML page is
+    // then preserved instead of being replaced by a zero-product page.
+    throw err;
   }
 }
 

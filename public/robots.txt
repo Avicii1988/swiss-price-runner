@@ -1,0 +1,78 @@
+# robots.txt — PreisAlarm.ch
+# https://preisalarm.ch/robots.txt
+
+# ── AI training crawlers — disallow everything ────────────────────
+# These bots have no value for a price-comparison site and generate
+# significant load (ClaudeBot caused 1,879 requests in minutes on
+# /api/proxy-image alone).
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Gemini-AI
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+# ── Aggressive SEO crawlers — disallow API + dynamic paths ────────
+User-agent: AhrefsBot
+Disallow: /api/
+Disallow: /category/
+Disallow: /search
+Disallow: /product/
+
+User-agent: SemrushBot
+Disallow: /api/
+Disallow: /category/
+Disallow: /search
+Disallow: /product/
+
+User-agent: DotBot
+Disallow: /api/
+Disallow: /category/
+Disallow: /search
+
+User-agent: MJ12bot
+Disallow: /api/
+Disallow: /search
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /api/
+
+# ── All other bots: block the entire /api/ namespace ─────────────
+# Product pages, categories, and editorial content are fair game.
+# API endpoints exist only for the frontend — external access wastes
+# Supabase I/O budget with no SEO benefit.
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Allow: /
+
+Sitemap: https://preisalarm.ch/sitemap.xml
