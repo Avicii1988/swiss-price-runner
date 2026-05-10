@@ -103,5 +103,8 @@ jobs:
       - name: "Import: Ochsner Shoes"
         run: npx tsx scripts/import-runner.ts --feed ochsner-shoes --limit $LIMIT || true
 
+      - name: "Import: Nettoshop"
+        run: npx tsx scripts/import-runner.ts --feed nettoshop --limit $LIMIT || true
+
       - name: Summary
         run: echo "✓ Nightly import engine completed. Check individual steps for per-shop status."
