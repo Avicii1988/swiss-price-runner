@@ -12,10 +12,13 @@ export interface ShopSource {
   id: string;
   name: string;
   color: string;
-  /** Shop homepage domain — powers the Clearbit logo lookup. */
+  /** Shop homepage domain — powers the Google Favicons lookup. */
   domain: string;
   /** Text wordmark used when the remote logo isn't available. */
   wordmark: { text: string; color: string; weight: number };
+  /** Optional high-quality logo URL (SVG/PNG). Overrides the Google Favicons
+   *  API when present — use for shops that publish a crisp official logo. */
+  logoUrl?: string;
 }
 
 export const SHOP_SOURCES: Record<string, ShopSource> = {
@@ -135,6 +138,14 @@ export const SHOP_SOURCES: Record<string, ShopSource> = {
     domain: "ochsnershoes.ch",
     wordmark: { text: "OCHSNER SHOES", color: "#333333", weight: 800 },
   },
+  nettoshop: {
+    id: "nettoshop",
+    name: "Nettoshop",
+    color: "#E2001A",
+    domain: "nettoshop.ch",
+    logoUrl: "https://www.nettoshop.ch/img/logo.svg",
+    wordmark: { text: "nettoshop", color: "#E2001A", weight: 800 },
+  },
 };
 
 export function getShopSource(sourceId: string): ShopSource {
@@ -156,6 +167,7 @@ export function getShopSource(sourceId: string): ShopSource {
  */
 export function getShopLogoUrl(sourceId: string): string {
   const shop = getShopSource(sourceId);
+  if (shop.logoUrl) return shop.logoUrl;
   if (!shop.domain) return "";
   return `https://www.google.com/s2/favicons?domain=${shop.domain}&sz=128`;
 }
@@ -177,4 +189,5 @@ export const SHOP_SOURCE_LIST: ShopSource[] = [
   SHOP_SOURCES.mobilezone,
   SHOP_SOURCES["ochsner-sport"],
   SHOP_SOURCES["ochsner-shoes"],
+  SHOP_SOURCES.nettoshop,
 ];
