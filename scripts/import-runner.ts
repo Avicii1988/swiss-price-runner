@@ -171,6 +171,18 @@ const FEEDS: Record<string, FeedConfig> = {
     shopName: "Mobilezone",
     sourceType: "adtraction_feed",
   },
+  nettoshop: {
+    id: "nettoshop",
+    // Nettoshop.ch — Swiss general-merchandise discounter. Adtraction feed
+    // (apid=1631005848, pfid=1040, zip=0 → plain XML, gsh=0 → net CHF,
+    // flat=1 → flat-rate structure, gt=0). Container tag: <ad>.
+    // Wide assortment: electronics, household, toys, sport, fashion.
+    // URL override via NETTOSHOP_FEED_URL.
+    url: process.env.NETTOSHOP_FEED_URL
+      || "https://adtraction.com/productfeed.htm?type=feed&format=XML&encoding=UTF8&epi=1&zip=0&cdelim=tab&tdelim=singlequote&sd=1&sn=1&flat=1&apid=1631005848&asid=2064719298&gsh=0&pfid=1040&gt=0",
+    shopName: "Nettoshop",
+    sourceType: "adtraction_feed",
+  },
 };
 
 // CATEGORY_MAP, FEED_CATEGORY_DEFAULTS, BEAUTY_KEYWORD_RULES, resolveCategory
