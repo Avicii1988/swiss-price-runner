@@ -589,6 +589,10 @@ export const FEED_CATEGORY_DEFAULTS: Record<string, { path: string[]; name: stri
   // (sneakers, boots, sandals …) resolve to the specific sub-category;
   // the default covers generic SKUs with no recognisable signal.
   "ochsner-shoes":   { path: ["schuhe"], name: "Schuhe" },
+  // Nettoshop → general merchandise discounter. Electronics, household,
+  // toys, sport and fashion all resolve via keyword/brand rules above;
+  // the default catches truly unclassified SKUs on the haushalt root.
+  nettoshop:         { path: ["haushalt"], name: "Haushalt & Küche" },
 };
 
 // ═══════════════════════════════════════════════════════════════════
