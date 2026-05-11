@@ -131,12 +131,21 @@ export async function getProductsPaginated(limit = 24, offset = 0): Promise<{ pr
 export const getSiteStats = _unstable_cache(
   async (): Promise<{ shops: number; brands: number; offers: number }> => {
     try {
-      const [brandResult, offerCount, shopResult] = await Promise.all([
-        db.product.groupBy({ by: ["brand"], where: { isActive: true }, _count: true }),
+      const [brandRows, offerCount, shopRows] = await Promise.all([
+        db.$queryRaw<[{ count: bigint }]>`
+          SELECT COUNT(DISTINCT brand)::int AS count
+          FROM "Product" WHERE "isActive" = true AND brand IS NOT NULL AND brand <> ''
+        `,
         db.product.count({ where: { isActive: true } }),
-        db.price.groupBy({ by: ["sourceId"], _count: true }),
+        db.$queryRaw<[{ count: bigint }]>`
+          SELECT COUNT(DISTINCT "sourceId")::int AS count FROM "Price"
+        `,
       ]);
-      return { shops: shopResult.length, brands: brandResult.length, offers: offerCount };
+      return {
+        shops: Number(shopRows[0].count),
+        brands: Number(brandRows[0].count),
+        offers: offerCount,
+      };
     } catch {
       return { shops: 2, brands: 500, offers: 16000 };
     }

@@ -33,6 +33,7 @@ on:
           - mobilezone
           - ochsner-sport
           - ochsner-shoes
+          - nettoshop
       limit:
         description: "Items per batch (default 100)"
         required: false
@@ -85,7 +86,7 @@ jobs:
           fi
 
           if [ "$SHOPS" = "all" ]; then
-            SHOPS="xxl_parfum parfumsale import_parfumerie coop_vitality new_balance parfum_ch ackermann_ch ackermann-mode jelmoli jelmoli-mode bijouteria bergfreunde mobilezone ochsner-sport ochsner-shoes"
+            SHOPS="xxl_parfum parfumsale import_parfumerie coop_vitality new_balance parfum_ch ackermann_ch ackermann-mode jelmoli jelmoli-mode bijouteria bergfreunde mobilezone ochsner-sport ochsner-shoes nettoshop"
           fi
 
           FAILED=""

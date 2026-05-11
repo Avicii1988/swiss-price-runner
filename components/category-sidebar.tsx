@@ -57,6 +57,21 @@ export function CategorySidebar({
     return m;
   }, [dynamicCategories]);
 
+  // Set of slugs that should be visible: all slugs with products PLUS
+  // their full ancestor chains, so parent nodes stay visible when only
+  // a child has products. null = no data yet → show everything.
+  const visibleSlugs = useMemo<Set<string> | null>(() => {
+    if (feedCounts.size === 0) return null;
+    const active = new Set<string>();
+    for (const [slug] of feedCounts) {
+      active.add(slug);
+      for (const ancestor of getAncestors(slug)) {
+        active.add(ancestor.slug);
+      }
+    }
+    return active;
+  }, [feedCounts]);
+
   const toggle = useCallback((slug: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -68,17 +83,20 @@ export function CategorySidebar({
 
   return (
     <nav aria-label="Kategorien">
-      {CATEGORY_TREE.map((root) => (
-        <SidebarNode
-          key={root.slug}
-          node={root}
-          depth={0}
-          activeSlug={activeCategorySlug}
-          expanded={expanded}
-          onToggle={toggle}
-          feedCounts={feedCounts}
-        />
-      ))}
+      {CATEGORY_TREE
+        .filter((root) => !visibleSlugs || visibleSlugs.has(root.slug))
+        .map((root) => (
+          <SidebarNode
+            key={root.slug}
+            node={root}
+            depth={0}
+            activeSlug={activeCategorySlug}
+            expanded={expanded}
+            onToggle={toggle}
+            feedCounts={feedCounts}
+            visibleSlugs={visibleSlugs}
+          />
+        ))}
 
       {/* Service Links — bottom of sidebar */}
       <div className="mt-5 border-t border-gray-100 pt-3">
@@ -114,6 +132,7 @@ interface SidebarNodeProps {
   expanded: Set<string>;
   onToggle: (slug: string) => void;
   feedCounts: Map<string, number>;
+  visibleSlugs: Set<string> | null;
 }
 
 const SidebarNode = memo(function SidebarNode({
@@ -123,8 +142,12 @@ const SidebarNode = memo(function SidebarNode({
   expanded,
   onToggle,
   feedCounts,
+  visibleSlugs,
 }: SidebarNodeProps) {
-  const hasChildren = node.children.length > 0;
+  const visibleChildren = visibleSlugs
+    ? node.children.filter((c) => visibleSlugs.has(c.slug))
+    : node.children;
+  const hasChildren = visibleChildren.length > 0;
   const isExpanded = expanded.has(node.slug);
   const isActive = activeSlug === node.slug;
   const count = feedCounts.get(node.slug) ?? 0;
@@ -209,7 +232,7 @@ const SidebarNode = memo(function SidebarNode({
           >
             Alle anzeigen
           </Link>
-          {node.children.map((child) => (
+          {visibleChildren.map((child) => (
             <SidebarNode
               key={child.slug}
               node={child}
@@ -218,6 +241,7 @@ const SidebarNode = memo(function SidebarNode({
               expanded={expanded}
               onToggle={onToggle}
               feedCounts={feedCounts}
+              visibleSlugs={visibleSlugs}
             />
           ))}
         </div>
