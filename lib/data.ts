@@ -707,7 +707,7 @@ export async function getPriceDrops(n = 24): Promise<PriceDropProduct[]> {
     }>>`
       SELECT id, gtin, title, brand, category, "categoryName", "imageUrl",
              "shopName", "sourceType", "affiliateUrl", price, "originalPriceChf",
-             ROUND((("originalPriceChf" - price) / "originalPriceChf") * 100)::numeric, 0)::int AS discount_pct
+             ROUND(((("originalPriceChf" - price) / "originalPriceChf") * 100)::numeric, 0)::int AS discount_pct
       FROM "Product"
       WHERE "isActive" = true
         AND price > 0
