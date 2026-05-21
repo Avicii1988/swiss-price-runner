@@ -7,11 +7,12 @@ import {
 } from "@/lib/data";
 import HomeClient from "./home-client";
 
-// ISR — 60s cache. Short enough that the page reflects a fresh import
-// within ~1 minute; long enough to absorb traffic spikes without hitting
-// the DB on every request. Previously 3600s which caused empty-shelves
-// renders to stay cached for a full hour after the first import ran.
-export const revalidate = 60;
+// Never statically generate at build time — the DB is not available
+// in the Vercel build environment and getThematicShelves would hang
+// until the 60s worker timeout, causing the build to fail.
+// getThematicShelves is wrapped in unstable_cache (60s TTL) in data.ts
+// so the data is still served from cache between requests.
+export const dynamic = "force-dynamic";
 
 // Titles containing any of these strings are accessory noise that leaks
 // into phone/tech categories via messy merchant feeds.
