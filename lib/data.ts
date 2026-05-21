@@ -215,10 +215,34 @@ export const getProductsByCategory = cache(
 
 async function _getProductsByCategory(slug: string): Promise<MockProductWithHistory[]> {
   try {
+    // Raw SQL so we can rank deterministically and expand descendants.
+    //
+    // Matching strategy:
+    //   /category/schuhe-sneakers used to run `category = 'schuhe-sneakers'`
+    //   verbatim — but every imported SKU actually lives on a leaf slug
+    //   (sneakers-nike, sneakers-newbalance, …), so the L2 page came up
+    //   empty. We now walk the tree via findCategoryNode() +
+    //   collectDescendantSlugs() and filter `category IN (self + descendants)`,
+    //   matching the behaviour of the home shelves.
+    //
+    // Sort strategy:
+    //   · L1 root (e.g. /category/smartphones): rank by shop_count DESC so
+    //     the overview leads with multi-shop comparison-worthy hits.
+    //   · L2 / L3 subcategories (e.g. /category/smartphones-apple,
+    //     /category/damen-kleider): rank by price DESC so the flagship /
+    //     most expensive SKU leads — the "teuerste zuerst" rule the
+    //     product team asked for. shop_count stays as the secondary
+    //     tiebreaker so multi-shop items still bubble up within the same
+    //     price band.
     const node = findCategoryNode(slug);
     const matchSlugs = node
       ? collectDescendantSlugs(node)
       : [slug];
+    // Legacy: the flat `parfum` root used to fold a hand-maintained list
+    // of sibling slugs. With the tree walker that list is now covered by
+    // descendants, but we keep the PARFUM_SUB_SLUGS merge for resilience
+    // in case old products still sit on a slug that never existed in the
+    // tree (`herrendufte`, `damendufte` without parents, etc.).
     const filterSlugs = slug === "parfum"
       ? Array.from(new Set([...matchSlugs, ...PARFUM_SUB_SLUGS]))
       : matchSlugs;
@@ -231,6 +255,8 @@ async function _getProductsByCategory(slug: string): Promise<MockProductWithHist
       : Prisma.sql`ORDER BY COALESCE(sc.shop_count, 1) DESC,
                             p."updatedAt" DESC`;
 
+    // Smartphone categories carry accessory noise (cases, chargers, shavers).
+    // Exclude those titles so only actual phones appear in phone categories.
     const SMARTPHONE_SLUG_RE = /\b(smartphone|iphone|mobile)\b/i;
     const isSmartphoneCat = filterSlugs.some((s) => SMARTPHONE_SLUG_RE.test(s));
     const SMARTPHONE_EXCLUSIONS = ["Hülle", "Case", "Panzerglas", "Ladekabel", "Rasierer", "Shaver", "Parfüm"];
@@ -279,6 +305,18 @@ async function _getProductsByCategory(slug: string): Promise<MockProductWithHist
   }
 }
 
+/**
+ * Total active products in a category — a single SELECT COUNT(*) with
+ * the same WHERE clause as getProductsByCategory. Used by the category
+ * header so the "X Produkte"-badge reflects the true DB count rather
+ * than the slice cap from getProductsByCategory (which was previously
+ * misread as "500 Produkte" in every category).
+ */
+/**
+ * Same cache wrapper as getProductsByCategory — the count query runs
+ * once per slug per render (header badge + any downstream consumer
+ * share the result), then rides the route-level ISR.
+ */
 export const countProductsByCategory = cache(
   async (slug: string): Promise<number> => _countProductsByCategory(slug),
 );
@@ -305,6 +343,7 @@ async function _countProductsByCategory(slug: string): Promise<number> {
 
 export async function getDistinctCategories(): Promise<string[]> {
   try {
+    // Direct DB: groupBy instead of loading all products
     const groups = await db.product.groupBy({
       by: ["category"],
       where: { isActive: true },
@@ -316,9 +355,15 @@ export async function getDistinctCategories(): Promise<string[]> {
   }
 }
 
+/**
+ * Variant sibling — one size of the product currently displayed on the PDP.
+ * Used by the variant selector to render "30 ml · 50 ml · 100 ml" chips
+ * that deep-link to the merchant's specific variant URL.
+ */
 export interface VariantSibling {
   gtin: string;
   sizeLabel: string | null;
+  /** JSON-serialised Record<string,string> from import-time attribute extraction. */
   displayAttributes: string | null;
   title: string;
   brand: string;
@@ -329,6 +374,11 @@ export interface VariantSibling {
   isCurrent: boolean;
 }
 
+/**
+ * Fetch all variants that share a groupId with the given GTIN.
+ * Ordered by numeric size asc (so 30 ml comes before 50 ml before 100 ml).
+ * Returns an empty array for ungrouped products.
+ */
 export async function getVariantSiblings(gtin: string): Promise<VariantSibling[]> {
   try {
     const current = await db.product.findUnique({
@@ -365,6 +415,7 @@ export async function getVariantSiblings(gtin: string): Promise<VariantSibling[]
         productUrl: `/product/${s.gtin}`,
         isCurrent: s.gtin === gtin,
       }))
+      // Sort by the leading numeric portion of sizeLabel, fall back to price.
       .sort((a, b) => {
         const na = parseFloat((a.sizeLabel || "").replace(/[^\d.]/g, "")) || 0;
         const nb = parseFloat((b.sizeLabel || "").replace(/[^\d.]/g, "")) || 0;
@@ -407,6 +458,12 @@ type DbProduct = {
   priceIsNet?: boolean | null;
   sizeLabel?: string | null;
   prices: { amountChf: unknown; amountEur: unknown; sourceId: string; shopName?: string | null; url?: string | null; timestamp?: Date }[];
+  /**
+   * Optional list of sourceIds that carry this product. Populated by
+   * listing queries (shelves, category) from the Price table so the
+   * card UI can render a "X Angebote" count + a mini-logo row without
+   * a per-card round-trip. PDP reads full Price rows and ignores this.
+   */
   shopIds?: string[];
 };
 
@@ -416,6 +473,10 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
   const productShippingChf = p.shippingCostChf == null ? null : Number(p.shippingCostChf);
   const productPriceIsNet = p.priceIsNet === true;
 
+  // Determine CHF price first so it can act as the canonical fallback for
+  // sources whose Price.amountChf is missing or zero (an occasional symptom
+  // of a partial import). The importer writes Price.amountEur = 0 for every
+  // feed row, so we can't trust the EUR column on its own.
   const directPriceChf = p.price ? Number(p.price) : 0;
 
   const sourceMap = new Map<string, { chf: number; eur: number; url: string; shopName: string }>();
@@ -435,6 +496,11 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
 
   const seed = SEED_PRODUCTS.find((s) => s.gtin === p.gtin);
 
+  // All feed imports flow native CHF end-to-end: regardless of whether the
+  // Price row carries a valid amountChf or not, we prefer Product.price
+  // (directPriceChf) as the canonical display price. This defends against
+  // the "0.–" regression we'd see when a half-written Price row zeroed out
+  // the amount even though Product.price was intact.
   const sources = Array.from(sourceMap.entries()).map(([sid, { chf, eur, url, shopName: sName }]) => {
     const effectiveChf = chf > 0 ? chf : directPriceChf;
     if (effectiveChf > 0) {
@@ -448,6 +514,10 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
         priceIsNet: productPriceIsNet,
       };
     }
+    // Last resort: only reached when neither Price.amountChf nor
+    // Product.price are usable. Falls through the DE-import path, which
+    // will produce totalChf=0 for the empty EUR input; the UI prints
+    // "Preis auf Anfrage" for that state.
     return {
       sourceId: sid,
       sourceName: sName || SOURCE_NAMES[sid] || sid,
@@ -456,6 +526,12 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     };
   });
 
+  // Listing queries (shelves, category) don't load Price rows individually
+  // — they carry a pre-aggregated `shopIds` list from the raw SQL join.
+  // Expand that list into one virtual source per shop so the card UI
+  // can read `product.sources.length` as the true offer count and iterate
+  // sources[].sourceId for the mini-logo row. All virtual sources share
+  // the same price (Product.price = lowest offer from the SQL ranking).
   if (sources.length === 0 && p.shopIds && p.shopIds.length > 0 && bestChf > 0) {
     for (const sid of p.shopIds) {
       sources.push({
@@ -470,6 +546,9 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     }
   }
 
+  // Fallback: no Price rows and no pre-aggregated shopIds, but we know
+  // the product is a feed item with a valid Product.price → synthesise
+  // one virtual source so the card still has a "Zum Shop" target.
   if (sources.length === 0 && (isFeedProduct || directPriceChf > 0) && bestChf > 0) {
     sources.push({
       sourceId: "feed_default",
@@ -494,6 +573,10 @@ function buildFromDb(p: DbProduct): MockProductWithHistory {
     sourceType: p.sourceType ?? undefined,
     affiliateUrl: p.affiliateUrl ?? undefined,
     sizeLabel: p.sizeLabel ?? undefined,
+    // Sources come exclusively from the real feed data — no more
+    // amazon_de / galaxus_ch / zalando_de fallback from the seed.
+    // If a DB product genuinely has no pricing, the UI renders the
+    // "Preis auf Anfrage" state rather than inventing phantom offers.
     sources,
   };
 
@@ -512,6 +595,7 @@ function enrichProduct(product: MockProduct): MockProductWithHistory {
   const priceHistory = generatePriceHistory(product, 30);
 
   const latestPrices = product.sources.map((s) => {
+    // Swiss-shop feed: use the native CHF breakdown (no DE-VAT / no customs).
     if (s.nativeChf != null && s.nativeChf > 0) {
       const breakdown = buildSwissShopBreakdown({
         grossChf: s.nativeChf,
@@ -520,6 +604,7 @@ function enrichProduct(product: MockProduct): MockProductWithHistory {
       });
       return { sourceId: s.sourceId, sourceName: s.sourceName, breakdown };
     }
+    // DE-import path (Amazon.de etc.): existing pipeline with VAT removal + customs.
     const breakdown = calculateSwissPrice({
       amountEur: s.currentPriceEur,
       exchangeRate: EXCHANGE_RATE,
@@ -569,6 +654,10 @@ const COMMON_SELECT = {
   shippingCostChf: true, priceIsNet: true,
 } as const;
 
+/**
+ * Top picks — the n most recently refreshed active products with a valid
+ * image + price. Proxy for "popular/trending" until we have click telemetry.
+ */
 export async function getTopPicks(n = 10): Promise<MockProductWithHistory[]> {
   try {
     const dbProducts = await db.product.findMany({
@@ -588,10 +677,15 @@ export async function getTopPicks(n = 10): Promise<MockProductWithHistory[]> {
   }
 }
 
+/**
+ * Price drops — products where originalPriceChf > price, ordered by
+ * discount percentage DESC. Computes discount inline via raw SQL so
+ * we can sort server-side.
+ */
 export interface PriceDropProduct {
   item: MockProductWithHistory;
   originalPriceChf: number;
-  discountPct: number;
+  discountPct: number;   // integer 0-99
 }
 
 export async function getPriceDrops(n = 24): Promise<PriceDropProduct[]> {
@@ -607,13 +701,13 @@ export async function getPriceDrops(n = 24): Promise<PriceDropProduct[]> {
       shopName: string | null;
       sourceType: string | null;
       affiliateUrl: string | null;
-      price: string;
+      price: string;                 // Decimal → string via Prisma
       originalPriceChf: string;
       discount_pct: number;
     }>>`
       SELECT id, gtin, title, brand, category, "categoryName", "imageUrl",
              "shopName", "sourceType", "affiliateUrl", price, "originalPriceChf",
-             ROUND(((("originalPriceChf" - price) / "originalPriceChf") * 100)::numeric, 0)::int AS discount_pct
+             ROUND((("originalPriceChf" - price) / "originalPriceChf") * 100)::numeric, 0)::int AS discount_pct
       FROM "Product"
       WHERE "isActive" = true
         AND price > 0
@@ -648,30 +742,65 @@ export async function getPriceDrops(n = 24): Promise<PriceDropProduct[]> {
   }
 }
 
+/**
+ * Walk the static category tree collecting every descendant leaf slug.
+ * Includes the node itself so "parfum/damendufte" also picks up products
+ * whose Product.category is "damendufte" (not just the L3 children).
+ */
 function collectDescendantSlugs(node: CategoryNode): string[] {
   const out: string[] = [node.slug];
   for (const child of node.children) out.push(...collectDescendantSlugs(child));
   return out;
 }
 
+/**
+ * Thematic shelves — one "shelf" per editorial slot. Slots can target:
+ *   - a single slug via `categorySlug`         (root, L2, or L3)
+ *   - a union of slugs via `categorySlugs[]`   (multi-tree match)
+ *   - "everything else" via `excludeSlugs[]`   (for a general/trending feed)
+ *
+ * Products are drawn from the referenced slug(s) AND all their descendants,
+ * ordered by most-recently-updated. Returns an empty shelf if no slug resolves.
+ */
 export interface ThematicSlot {
-  key: string;
-  title: string;
+  key: string;                    // short id for React keys
+  title: string;                  // "Top 10 Apple Ecosystem"
   subtitle?: string;
+  /** Single-slug targeting (legacy shape, still supported). */
   categorySlug?: string;
+  /** Multi-slug targeting — union of all descendants. */
   categorySlugs?: string[];
+  /** Catch-all shelf: exclude products whose leaf slug is in this descendant set. */
   excludeSlugs?: string[];
+  /** Relative path for the "Alle anzeigen" CTA. Required for the home page. */
   href?: string;
+  /** Accent color — applied as a subtle gradient tint on editorial banners. */
   accent?: string;
+  /**
+   * Sort override for this shelf.
+   *   "popular" (default) — most-shops first, then recency
+   *   "deals"   — biggest absolute discount (originalPriceChf − price) first
+   *   "newest"  — most recently imported (createdAt DESC)
+   */
   sortBy?: "popular" | "deals" | "newest";
+  /** Exclude products whose title contains any of these strings (case-insensitive). */
   titleExclude?: string[];
+  /** Restrict to a specific brand (case-insensitive exact match). */
   brandFilter?: string;
+  /** Only include products with price >= this CHF value. */
   priceMin?: number;
 }
 
+/**
+ * Variant metadata attached to each shelf item. Populated from the per-group
+ * aggregate query inside `getThematicShelves`. `variantCount = 1` means the
+ * product is a singleton and should render like a regular card; any higher
+ * value triggers the "Ab CHF X" label + variant-count pill in the UI.
+ */
 export interface VariantMeta {
   groupId: string | null;
   variantCount: number;
+  /** Lowest Product.price across all variants sharing the groupId. */
   minPriceChf: number;
 }
 
@@ -692,7 +821,7 @@ function unionDescendants(slugs: string[]): string[] {
   return Array.from(seen);
 }
 
-export async function getThematicShelves(
+async function _getThematicShelves(
   slots: ThematicSlot[],
   perShelf = 6,
 ): Promise<ThematicShelf[]> {
@@ -713,6 +842,10 @@ export async function getThematicShelves(
           categoryFilter = { mode: "notIn", slugs: unionDescendants(slot.excludeSlugs) };
         }
 
+        // ── Grouped query: DISTINCT ON (groupId) with min-price as representative ──
+        // Products without a groupId are treated as singletons via COALESCE(groupId, gtin).
+        // We pick the cheapest variant per group as the representative row and also
+        // return the group's variantCount + minPriceChf so the UI can show "Ab CHF X".
         const whereClauses: Prisma.Sql[] = [
           Prisma.sql`"isActive" = true`,
           Prisma.sql`price IS NOT NULL AND price > 0`,
@@ -740,6 +873,13 @@ export async function getThematicShelves(
         }
         const whereSql = Prisma.join(whereClauses, " AND ");
 
+        // Shop-count priority: rank products carried by the most
+        // distinct shops first, then by recency. Rows with no Price
+        // records (just a Product.price) count as 1 shop. The
+        // shop_counts CTE groups the Price table once and is reused
+        // across every shelf; array_agg(DISTINCT "sourceId") also
+        // returns the list of shop IDs so the card UI can render the
+        // mini-logo row without extra DB round-trips.
         const rows = await db.$queryRaw<Array<{
           id: string; gtin: string; title: string; brand: string; category: string;
           categoryName: string | null; imageUrl: string | null; shopName: string | null;
@@ -825,6 +965,12 @@ export async function getThematicShelves(
       }),
     );
 
+    // If every slot came back empty the DB is likely unhealthy or the
+    // catalogue hasn't been imported yet. We distinguish the two cases:
+    //   · Total items > 0 → real data, cache normally.
+    //   · Total items = 0 → poisoned result; throw so Next.js ISR
+    //     discards this render and preserves the last good cached page
+    //     rather than caching a "zero products" view for the next hour.
     const totalItems = results.reduce((sum, r) => sum + r.items.length, 0);
     if (totalItems === 0) {
       throw new Error("getThematicShelves: all slots empty — DB may be unhealthy");
@@ -833,10 +979,26 @@ export async function getThematicShelves(
     return results;
   } catch (err) {
     console.warn("[data] getThematicShelves failed:", err instanceof Error ? err.message : err);
+    // Re-throw so the Next.js ISR background revalidation marks this
+    // render as failed. The PREVIOUS successfully cached HTML page is
+    // then preserved instead of being replaced by a zero-product page.
     throw err;
   }
 }
 
+// Cached wrapper — 60s TTL matches the old ISR revalidate interval.
+// unstable_cache serialises the slots array as part of the cache key,
+// so different shelf configurations get independent entries.
+export const getThematicShelves = _unstable_cache(
+  _getThematicShelves,
+  ["thematic-shelves"],
+  { revalidate: 60 },
+);
+
+/**
+ * Trending tags — top n brands by active-product count. Used for the
+ * Hero-Search chips row. Returns just the brand names.
+ */
 export async function getTrendingTags(n = 12): Promise<string[]> {
   try {
     const rows = await db.product.groupBy({
@@ -844,7 +1006,7 @@ export async function getTrendingTags(n = 12): Promise<string[]> {
       where: { isActive: true, price: { gt: 0 } },
       _count: { brand: true },
       orderBy: { _count: { brand: "desc" } },
-      take: n + 5,
+      take: n + 5, // pull a few extras so we can filter out junky brand names
     });
     return rows
       .map((r) => decodeHtmlEntities(r.brand))
