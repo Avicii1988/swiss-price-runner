@@ -7,12 +7,11 @@ import {
 } from "@/lib/data";
 import HomeClient from "./home-client";
 
-// ISR — 1 hour cache so homepage navigation feels instant after the
-// first load without hammering the DB on every request.
-// getThematicShelves now re-throws on DB failure, so the ISR engine
-// discards the failed render and preserves the last good cached page
-// rather than replacing it with a "zero products" result.
-export const revalidate = 3600;
+// ISR — 60s cache. Short enough that the page reflects a fresh import
+// within ~1 minute; long enough to absorb traffic spikes without hitting
+// the DB on every request. Previously 3600s which caused empty-shelves
+// renders to stay cached for a full hour after the first import ran.
+export const revalidate = 60;
 
 // Titles containing any of these strings are accessory noise that leaks
 // into phone/tech categories via messy merchant feeds.
@@ -72,9 +71,14 @@ export default async function HomePage() {
   let shelves: ThematicShelf[] = [];
   try {
     shelves = await getThematicShelves(HOME_SHELVES, 12);
-  } catch {
-    // DB unavailable on first render — show empty page; ISR will retry
-    // on the next request cycle and populate shelves once DB recovers.
+  } catch (err) {
+    // getThematicShelves throws when the DB is down OR the catalogue is
+    // empty. We only swallow the error if stats.offers === 0, meaning no
+    // products exist yet — in that case showing the empty state is correct.
+    // When the DB is working (stats.offers > 0) we re-throw so Next.js ISR
+    // marks this render as failed and preserves the last good cached page
+    // instead of replacing it with a "zero products" page.
+    if (stats.offers > 0) throw err;
   }
 
   return (
