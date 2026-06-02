@@ -59,11 +59,6 @@ const HOME_SHELVES: ThematicSlot[] = [
 ];
 
 export default async function HomePage() {
-  // getDynamicCategories + getSiteStats are wrapped in unstable_cache and
-  // tolerate DB failures gracefully (return empty arrays / zero counts).
-  // getThematicShelves throws on DB failure so ISR preserves the stale
-  // cached page; we catch here ONLY for the very first render when no
-  // prior cache exists (e.g. fresh deployment with DB temporarily down).
   const [dynamicCategories, stats] = await Promise.all([
     getDynamicCategories(),
     getSiteStats(),
@@ -72,14 +67,10 @@ export default async function HomePage() {
   let shelves: ThematicShelf[] = [];
   try {
     shelves = await getThematicShelves(HOME_SHELVES, 12);
-  } catch (err) {
-    // getThematicShelves throws when the DB is down OR the catalogue is
-    // empty. We only swallow the error if stats.offers === 0, meaning no
-    // products exist yet — in that case showing the empty state is correct.
-    // When the DB is working (stats.offers > 0) we re-throw so Next.js ISR
-    // marks this render as failed and preserves the last good cached page
-    // instead of replacing it with a "zero products" page.
-    if (stats.offers > 0) throw err;
+  } catch {
+    // With force-dynamic there is no ISR stale-page to fall back to, so
+    // re-throwing would produce a 500 on every request. Always degrade
+    // gracefully to an empty-shelves home page instead.
   }
 
   return (
