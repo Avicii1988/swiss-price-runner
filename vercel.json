@@ -1,10 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/sync-prices",
-      "schedule": "0 6 * * *"
-    }
-  ],
   "functions": {
     "app/api/cron/import-feed/route.ts": {
       "maxDuration": 300
