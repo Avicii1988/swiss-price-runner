@@ -1,5 +1,4 @@
 {
-  "ignoreCommand": "exit 0",
   "functions": {
     "app/api/cron/import-feed/route.ts": {
       "maxDuration": 300
